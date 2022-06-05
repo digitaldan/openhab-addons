@@ -160,6 +160,7 @@
     <module>org.openhab.binding.gpio</module>
     <module>org.openhab.binding.globalcache</module>
     <module>org.openhab.binding.gpstracker</module>
+    <module>org.openhab.binding.grandstreamgds</module>
     <module>org.openhab.binding.gree</module>
     <module>org.openhab.binding.groheondus</module>
     <module>org.openhab.binding.groupepsa</module>

@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="grandstreamgds"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<thing-type id="gds">
+		<label>Grandstream GDS</label>
+		<description>Grandstream GDS door phone.</description>
+		<channels>
+			<channel id="dooropen" typeId="dooropen"/>
+			<channel id="keepdooropen" typeId="keepdooropen"/>
+			<channel id="digital_input1" typeId="digital_input"/>
+			<channel id="digital_input2" typeId="digital_input"/>
+			<channel id="call_auto" typeId="call">
+				<label>Call Account Auto</label>
+				<description>Calls the provided dial string by auto selecting an account</description>
+			</channel>
+			<channel id="call_account1" typeId="call">
+				<label>Call Account 1</label>
+				<description>Calls the provided dial string using account 1</description>
+			</channel>
+			<channel id="call_account2" typeId="call">
+				<label>Call Account 2</label>
+				<description>Calls the provided dial string using account 2</description>
+			</channel>
+			<channel id="call_account3" typeId="call">
+				<label>Call Account 3</label>
+				<description>Calls the provided dial string using account 3</description>
+			</channel>
+			<channel id="call_account4" typeId="call">
+				<label>Call Account 4</label>
+				<description>Calls the provided dial string using account 4</description>
+			</channel>
+			<channel id="call_hangup" typeId="call_hangup"/>
+			<channel id="event_all" typeId="gdsevent">
+				<label>All Events Trigger</label>
+				<description>Triggers on all GDS events</description>
+			</channel>
+			<channel id="event_open_door_via_card" typeId="gdsevent">
+				<label>Open Door via Card Event Trigger</label>
+				<description>Indicates that someone opens the door via card or key fob.</description>
+			</channel>
+			<channel id="event_open_door_via_card_over_wiegand" typeId="gdsevent">
+				<label>Open Door via Card (over Wiegand) Event Trigger</label>
+				<description>Indicates that someone opens the door via card or key fob using Wiegand interface connected to GDS.</description>
+			</channel>
+			<channel id="event_visiting_log" typeId="gdsevent">
+				<label>Visiting Log Event Trigger</label>
+				<description>Indicates that door has been opened for visitor which pressed door bell button.</description>
+			</channel>
+			<channel id="event_open_door_via_universal_pin" typeId="gdsevent">
+				<label>Open Door via Universal PIN Event Trigger</label>
+				<description>Indicates that door has been opened successfully using local PIN code via GDS keypad.</description>
+			</channel>
+			<channel id="event_open_door_via_private_pin" typeId="gdsevent">
+				<label>Open Door via Private PIN Event Trigger</label>
+				<description>Indicates that someone opened the door successfully using their private PIN code via GDS keypad.</description>
+			</channel>
+			<channel id="event_open_door_via_guest_pin" typeId="gdsevent">
+				<label>Open Door via Guest PIN Event Trigger</label>
+				<description>Indicates that a guest used “Guest PIN” code to open the door using GDS keypad.</description>
+			</channel>
+			<channel id="event_open_door_via_di" typeId="gdsevent">
+				<label>Open Door via DI Event Trigger</label>
+				<description>Indicates that door has been opened using DI (Digital Input) Signal, such as using a push button.</description>
+			</channel>
+			<channel id="event_call_out_log" typeId="gdsevent">
+				<label>Call Out Log Event Trigger</label>
+				<description>Indicates the GDS unit initiated a call out, for example when someone uses the keypad to dial a number
+					or press door bell button which preconfigured destination number.</description>
+			</channel>
+			<channel id="event_call_in_log" typeId="gdsevent">
+				<label>Call In Log Event Trigger</label>
+				<description>Indicates that call has been received by the GDS unit.</description>
+			</channel>
+			<channel id="event_call_log_door_bell_call" typeId="gdsevent">
+				<label>Call Log (Door Bell Call) Event Trigger</label>
+				<description>Indicates that someone has initiated a call using door bell button.</description>
+			</channel>
+			<channel id="event_open_door_via_card_and_pin" typeId="gdsevent">
+				<label>Open Door via Card and PIN Event Trigger</label>
+				<description>Indicates that someone used his RFID card or key fob, plus his own private password to authenticate and
+					open the door.</description>
+			</channel>
+			<channel id="event_keep_door_open_immediately" typeId="gdsevent">
+				<label>Keep Door Open (Immediately) Event Trigger</label>
+				<description>Key door Open (immediately) action has been performed from the web Interface.</description>
+			</channel>
+			<channel id="event_keep_door_open_scheduled" typeId="gdsevent">
+				<label>Keep Door Open (Scheduled) Event Trigger</label>
+				<description>Key door Open (immediately) action has been set from the web Interface and the event is triggered.</description>
+			</channel>
+			<channel id="event_open_door_via_remote_pin" typeId="gdsevent">
+				<label>Open Door via Remote PIN Event Trigger</label>
+				<description>Indicates that someone did send remote PIN code to open the door using GDS manager tool for example.</description>
+			</channel>
+			<channel id="event_http_api_open_door" typeId="gdsevent">
+				<label>HTTP API Open Door Event Trigger</label>
+				<description>Indicates that someone did send remote PIN code to open the door HTTP API command.</description>
+			</channel>
+			<channel id="event_motion_detection" typeId="gdsevent">
+				<label>Motion Detection Event Trigger</label>
+				<description>Indicates that motion detection is triggered.</description>
+			</channel>
+			<channel id="event_di_alarm" typeId="gdsevent">
+				<label>DI Alarm Event Trigger</label>
+				<description>Indicates that alarm IN is triggered.</description>
+			</channel>
+			<channel id="event_dismantle_by_force" typeId="gdsevent">
+				<label>Dismantle by Force Event Trigger</label>
+				<description>Indicates that the unit has been dismantled by force.</description>
+			</channel>
+			<channel id="event_system_up" typeId="gdsevent">
+				<label>System up Event Trigger</label>
+				<description>Indicates that the system is UP</description>
+			</channel>
+			<channel id="event_reboot" typeId="gdsevent">
+				<label>Reboot Event Trigger</label>
+				<description>Indicates that the GDS unit has been rebooted.</description>
+			</channel>
+			<channel id="event_reset_clear_all_data" typeId="gdsevent">
+				<label>Reset (Clear All Data) Event Trigger</label>
+				<description>Factory reset (clear all data) has been performed.</description>
+			</channel>
+			<channel id="event_reset_retain_network_data_only" typeId="gdsevent">
+				<label>Reset (Retain Network Data Only) Event Trigger</label>
+				<description>Factory reset (Retain Network Data Only) has been performed.</description>
+			</channel>
+			<channel id="event_reset_retain_only_card_information" typeId="gdsevent">
+				<label>Reset (Retain Only Card Information) Event Trigger</label>
+				<description>Factory reset (Retain Only Card Information) has been performed.</description>
+			</channel>
+			<channel id="event_reset_retain_network_data_and_card_information" typeId="gdsevent">
+				<label>Reset (Retain Network Data and Card Information) Event Trigger</label>
+				<description>Factory reset (Retain Network Data and Card Information) has been performed.</description>
+			</channel>
+			<channel id="event_reset_wiegand" typeId="gdsevent">
+				<label>Reset (Wiegand) Event Trigger</label>
+				<description>Factory reset using Wiegand module has been performed on the unit.</description>
+			</channel>
+			<channel id="event_config_update" typeId="gdsevent">
+				<label>Config Update Event Trigger</label>
+				<description>Indicates that the system’s configuration has been updated.</description>
+			</channel>
+			<channel id="event_firmware_update" typeId="gdsevent">
+				<label>Firmware Update (1.0.0.0) Event Trigger</label>
+				<description>Indicates that the system’s firmware has been upgraded.</description>
+			</channel>
+			<channel id="event_hostage_alarm" typeId="gdsevent">
+				<label>Hostage Alarm Event Trigger</label>
+				<description>Indicates that someone has entered the hostage alarm PIN code to open the door.</description>
+			</channel>
+			<channel id="event_invalid_password" typeId="gdsevent">
+				<label>Invalid Password Event Trigger</label>
+				<description>Indicates that someone has entered wrong password PIN code to open the door for 5 attempts and
+					corresponding alarm action has been triggered.</description>
+			</channel>
+			<channel id="event_mainboard_temperature_normal" typeId="gdsevent">
+				<label>Mainboard Temperature(32°C) Normal Event Trigger</label>
+				<description>Indicates that device’s mainboard temperature is normal, (around 32°C).</description>
+			</channel>
+			<channel id="event_mainboard_temperature_too_low" typeId="gdsevent">
+				<label>Mainboard Temperature(32°C) Too Low Event Trigger</label>
+				<description>Indicates that device’s mainboard temperature is to low.</description>
+			</channel>
+			<channel id="event_mainboard_temperature_too_high" typeId="gdsevent">
+				<label>Mainboard Temperature(32°C) Too High Event Trigger</label>
+				<description>Indicates that device’s mainboard temperature is to high.</description>
+			</channel>
+			<channel id="event_sensor_temperature_normal" typeId="gdsevent">
+				<label>Sensor Temperature(32°C) Normal Event Trigger</label>
+				<description>Indicates that device’s sensor temperature is normal, (around 32°C).</description>
+			</channel>
+			<channel id="event_sensor_temperature_too_low" typeId="gdsevent">
+				<label>Sensor Temperature(32°C) Too Low Event Trigger</label>
+				<description>Indicates that device’s sensor temperature is to low.</description>
+			</channel>
+			<channel id="event_sensor_temperature_too_high" typeId="gdsevent">
+				<label>Sensor Temperature(32°C) Too High Event Trigger</label>
+				<description>Indicates that device’s sensor temperature is to high.</description>
+			</channel>
+		</channels>
+
+		<config-description>
+			<parameter name="url" type="text" required="true">
+				<label>GDS URL</label>
+				<description>URL of the GDS web UI in the form of http://yourhost or https://yourhost.</description>
+			</parameter>
+			<parameter name="username" type="text" required="true">
+				<label>GDS User Name</label>
+				<description>The user name used to log into the GDS web UI. Defaults to "admin". </description>
+				<default>admin</default>
+			</parameter>
+			<parameter name="password" type="text" required="true">
+				<context>password</context>
+				<label>GDS Password</label>
+				<description>The password used to log into the GDS web UI.</description>
+			</parameter>
+			<parameter name="refreshSeconds" type="integer" required="true">
+				<label>GDS Refresh Interval</label>
+				<description>How frequently in seconds to poll the GDS for updates</description>
+				<default>10</default>
+			</parameter>
+			<parameter name="modifyGdsConfig" type="boolean" required="true">
+				<label>Modify GDS Configuration</label>
+				<description>By Default the binding will attempt to update the GDS to have it send events to openHAB. Disabling this
+					will require manual configuration of the GDS through it's web UI.</description>
+				<default>true</default>
+			</parameter>
+		</config-description>
+
+	</thing-type>
+
+
+	<channel-type id="dooropen">
+		<item-type>String</item-type>
+		<label>Opens Door</label>
+		<description>Opens the door</description>
+		<command>
+			<options>
+				<option value="OPEN">Open</option>
+			</options>
+		</command>
+	</channel-type>
+
+	<channel-type id="keepdooropen">
+		<item-type>Number</item-type>
+		<label>Keeps Door Open</label>
+		<description>Keeps the door open for amount of time in minutes</description>
+		<state min="0" max="480" readOnly="false"/>
+	</channel-type>
+
+	<channel-type id="digital_input">
+		<item-type>Contact</item-type>
+		<label>Digital Input</label>
+		<description>Contact state of the digital input alarm</description>
+	</channel-type>
+
+	<channel-type id="gdsevent">
+		<kind>trigger</kind>
+		<label>GDS Event Trigger</label>
+		<event>
+		</event>
+	</channel-type>
+
+	<channel-type id="call">
+		<item-type>String</item-type>
+		<label>Call</label>
+		<description>Calls the provided dial string</description>
+	</channel-type>
+
+	<channel-type id="call_hangup">
+		<item-type>Switch</item-type>
+		<label>Call Hangup</label>
+		<description>Hangs up the current call(s)</description>
+	</channel-type>
+
+</thing:thing-descriptions>
