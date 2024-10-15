@@ -26,7 +26,6 @@ import org.openhab.binding.matter.internal.client.AttributeListener;
 import org.openhab.binding.matter.internal.client.MatterWebsocketClient;
 import org.openhab.binding.matter.internal.client.model.cluster.BaseCluster;
 import org.openhab.binding.matter.internal.handler.EndpointHandler;
-import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.PercentType;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.unit.ImperialUnits;
@@ -132,12 +131,11 @@ public abstract class DeviceType implements AttributeListener {
     }
 
     /**
-     * Converts a {@link DecimalType} to an 8 bit level scaled between 0 and 254
+     * Converts a {@link PercentType} to an 8 bit level scaled between 0 and 254
      *
-     * @param percent the {@link DecimalType} to convert
+     * @param percent the {@link PercentType} to convert
      * @return a scaled value between 0 and 254
      */
-
     protected int percentToLevel(PercentType percent) {
         return (int) (percent.floatValue() * 254.0f / 100.0f + 0.5f);
     }

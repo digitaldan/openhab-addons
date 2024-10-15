@@ -64,7 +64,7 @@ public class LightingType extends DeviceType {
     private int lastY = -1;
     private boolean xChanged = false;
     private boolean yChanged = false;
-    private HSBType lastHSB = new HSBType("0,0,100");
+    private HSBType lastHSB = new HSBType("0,0,0");
     private Options optionsMask = new Options(true);
     private ScheduledExecutorService colorUpdateScheduler = Executors.newSingleThreadScheduledExecutor();
     private List<Integer> discoveredClusters = new ArrayList<>();
@@ -93,7 +93,12 @@ public class LightingType extends DeviceType {
         if (command instanceof HSBType color) {
             PercentType brightness = color.getBrightness();
 
-            sendLevel(client, brightness);
+            // If on/off control is available, setting the brightness to 0 must switch off the light
+            if (discoveredClusters.contains(OnOffCluster.CLUSTER_ID) && brightness.intValue() == 0) {
+                sendOnOff(client, false);
+            } else {
+                sendLevel(client, brightness);
+            }
 
             if (supportsHue) {
                 changeColorHueSaturation(client, color);
@@ -101,7 +106,12 @@ public class LightingType extends DeviceType {
                 changeColorXY(client, color);
             }
         } else if (command instanceof PercentType percentType) {
-            sendLevel(client, percentType);
+            // If on/off control is available, setting the brightness to 0 must switch off the light
+            if (discoveredClusters.contains(OnOffCluster.CLUSTER_ID) && percentType.intValue() == 0) {
+                sendOnOff(client, false);
+            } else {
+                sendLevel(client, percentType);
+            }
         } else if (command instanceof OnOffType onOffType) {
             if (discoveredClusters.contains(OnOffCluster.CLUSTER_ID)) {
                 sendOnOff(client, onOffType == OnOffType.ON);
@@ -119,6 +129,8 @@ public class LightingType extends DeviceType {
             lastY = colorControlCluster.currentY;
             lastHue = colorControlCluster.currentHue;
             lastSaturation = colorControlCluster.currentSaturation;
+            logger.debug("updateCluster ColorControl supportsHue={} lastX={} lastY={} lastHue={} lastSaturation={}",
+                    supportsHue, lastX, lastY, lastHue, lastSaturation);
             if (supportsHue) {
                 updateColorHSB();
             } else {
@@ -126,18 +138,32 @@ public class LightingType extends DeviceType {
             }
         }
         if (cluster instanceof LevelControlCluster levelControlCluster) {
-            lastLevel = levelToPercent(levelControlCluster.currentLevel);
-            updateState(CHANNEL_LEVEL_LEVEL, lastLevel);
-            updateState(CHANNEL_COLOR_COLOR, lastLevel);
-            updateState(CHANNEL_ONOFF_ONOFF, OnOffType.from(lastLevel.intValue() > 0));
-
+            lastLevel = brightnessLevelToPercent(levelControlCluster.currentLevel);
+            logger.debug("updateCluster LevelControl {} => {}", levelControlCluster.currentLevel, lastLevel);
+            if (!discoveredClusters.contains(OnOffCluster.CLUSTER_ID) || lastOnOff == OnOffType.ON) {
+                updateState(CHANNEL_LEVEL_LEVEL, lastLevel);
+                updateState(CHANNEL_COLOR_COLOR, lastLevel);
+                updateState(CHANNEL_ONOFF_ONOFF, OnOffType.from(lastLevel.intValue() > 0));
+                updateBrightness(lastLevel);
+            } else {
+                updateState(CHANNEL_LEVEL_LEVEL, lastOnOff);
+                updateState(CHANNEL_COLOR_COLOR, lastOnOff);
+                updateState(CHANNEL_ONOFF_ONOFF, lastOnOff);
+            }
         }
         if (cluster instanceof OnOffCluster onOffCluster) {
             lastOnOff = OnOffType.from(Boolean.valueOf(onOffCluster.onOff));
-            logger.debug("OnOff {}", lastOnOff);
+            logger.debug("updateCluster OnOff {} => {}", onOffCluster.onOff, lastOnOff);
             updateState(CHANNEL_ONOFF_ONOFF, lastOnOff);
-            updateState(CHANNEL_COLOR_COLOR, lastOnOff);
-            updateState(CHANNEL_LEVEL_LEVEL, lastOnOff);
+            if (discoveredClusters.contains(LevelControlCluster.CLUSTER_ID) && !PercentType.ZERO.equals(lastLevel)
+                    && lastOnOff == OnOffType.ON) {
+                updateState(CHANNEL_COLOR_COLOR, lastLevel);
+                updateState(CHANNEL_LEVEL_LEVEL, lastLevel);
+                updateBrightness(lastLevel);
+            } else {
+                updateState(CHANNEL_COLOR_COLOR, lastOnOff);
+                updateState(CHANNEL_LEVEL_LEVEL, lastOnOff);
+            }
         }
     }
 
@@ -177,7 +203,7 @@ public class LightingType extends DeviceType {
 
     @Override
     public void onEvent(AttributeChangedMessage message) {
-        logger.debug("OnEvent: {}", message.path.attributeName);
+        logger.debug("OnEvent: {} {}", message.path.attributeName, message.value);
         Integer numberValue = message.value instanceof Number number ? number.intValue() : 0;
         switch (message.path.attributeName) {
             case "currentX":
@@ -202,17 +228,31 @@ public class LightingType extends DeviceType {
                 break;
             case "onOff":
                 lastOnOff = OnOffType.from((Boolean) message.value);
+                logger.debug("onOff lastOnOff={} lastLevel={}", lastOnOff, lastLevel);
                 updateState(CHANNEL_ONOFF_ONOFF, lastOnOff);
-                updateState(CHANNEL_COLOR_COLOR, lastOnOff);
-                updateState(CHANNEL_LEVEL_LEVEL, lastOnOff == OnOffType.ON ? lastLevel : OnOffType.OFF);
+                if (discoveredClusters.contains(LevelControlCluster.CLUSTER_ID) && !PercentType.ZERO.equals(lastLevel)
+                        && lastOnOff == OnOffType.ON) {
+                    updateState(CHANNEL_COLOR_COLOR, lastLevel);
+                    updateState(CHANNEL_LEVEL_LEVEL, lastLevel);
+                    updateBrightness(lastLevel);
+                } else {
+                    updateState(CHANNEL_COLOR_COLOR, lastOnOff);
+                    updateState(CHANNEL_LEVEL_LEVEL, lastOnOff);
+                }
                 break;
             case "currentLevel":
-                logger.debug("currentLevel {}", message.value);
-                lastLevel = levelToPercent(numberValue);
-                updateState(CHANNEL_LEVEL_LEVEL, lastLevel);
-                updateState(CHANNEL_COLOR_COLOR, lastLevel);
-                updateState(CHANNEL_ONOFF_ONOFF, OnOffType.from(lastLevel.intValue() > 0));
-                updateBrightness(lastLevel);
+                lastLevel = brightnessLevelToPercent(numberValue);
+                logger.debug("currentLevel lastLevel={} lastOnOff={}", lastLevel, lastOnOff);
+                if (!discoveredClusters.contains(OnOffCluster.CLUSTER_ID) || lastOnOff == OnOffType.ON) {
+                    updateState(CHANNEL_LEVEL_LEVEL, lastLevel);
+                    updateState(CHANNEL_COLOR_COLOR, lastLevel);
+                    updateState(CHANNEL_ONOFF_ONOFF, OnOffType.from(lastLevel.intValue() > 0));
+                    updateBrightness(lastLevel);
+                } else {
+                    updateState(CHANNEL_LEVEL_LEVEL, lastOnOff);
+                    updateState(CHANNEL_COLOR_COLOR, lastOnOff);
+                    updateState(CHANNEL_ONOFF_ONOFF, lastOnOff);
+                }
                 break;
             default:
                 logger.debug("Unknown attribute {}", message.path.attributeName);
@@ -221,7 +261,6 @@ public class LightingType extends DeviceType {
             if (colorUpdateTimer != null) {
                 colorUpdateTimer.cancel(true);
             }
-
             colorUpdateTimer = colorUpdateScheduler.schedule(() -> updateColorHSB(), 500, TimeUnit.MILLISECONDS);
         }
         if (!supportsHue && (xChanged || yChanged)) {
@@ -296,9 +335,36 @@ public class LightingType extends DeviceType {
     }
 
     private void sendLevel(MatterWebsocketClient client, PercentType level) {
-        ClusterCommand levelCommand = LevelControlCluster.moveToLevelWithOnOff(percentToLevel(level), 0,
+        ClusterCommand levelCommand = LevelControlCluster.moveToLevelWithOnOff(brightnessPercentToLevel(level), 0,
                 new OptionsBitmap(true, true), new OptionsBitmap(true, true));
         client.clusterCommand(handler.getNodeId(), handler.getEndpointId(), LevelControlCluster.CLUSTER_NAME,
                 levelCommand);
+    }
+
+    /**
+     * Converts a brightness level as used in Level Control cluster to a percentage
+     *
+     * 0 is converted into 0%
+     * Any value in range 1-254 is scaled into range 1%-100%
+     *
+     * @param level an integer between 0 and 254
+     * @return the scaled {@link PercentType}
+     */
+    protected PercentType brightnessLevelToPercent(int level) {
+        return level == 0 ? PercentType.ZERO : new PercentType(Math.max((int) (level * 100.0 / 254.0 + 0.5), 1));
+    }
+
+    /**
+     * Converts a {@link PercentType} to a brightness level scaled between 0 and 254
+     *
+     * 0% is converted into 0
+     * Any percent greater than 0 is scaled into range 1-254
+     *
+     * @param percent the {@link PercentType} to convert
+     * @return a scaled value between 0 and 254
+     */
+    protected int brightnessPercentToLevel(PercentType percent) {
+        float val = percent.floatValue();
+        return val == 0f ? 0 : Math.max((int) (val * 254.0f / 100.0f + 0.5f), 1);
     }
 }
