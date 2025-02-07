@@ -39,17 +39,10 @@ import com.google.gson.reflect.TypeToken;
 @NonNullByDefault
 public class MatterControllerClient extends MatterWebsocketClient {
 
-    public void connect(String host, int port, BigInteger nodeId, String controllerName, String storagePath)
-            throws Exception {
-        Map<String, String> params;
-        params = Map.of("nodeId", nodeId.toString(), "controllerName", controllerName, "storagePath", storagePath);
-        connect(host, port, params);
-    }
-
     public void connect(MatterWebsocketService wss, BigInteger nodeId, String controllerName, String storagePath) {
         Map<String, String> params = Map.of("nodeId", nodeId.toString(), "controllerName", controllerName,
                 "storagePath", storagePath);
-        connect(wss, params);
+        connectWhenReady(wss, params);
     }
 
     /**

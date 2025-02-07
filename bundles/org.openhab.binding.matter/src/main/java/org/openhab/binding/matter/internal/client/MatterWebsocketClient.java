@@ -111,21 +111,6 @@ public class MatterWebsocketClient implements WebSocketListener, MatterWebsocket
     private MatterWebsocketService wss;
 
     /**
-     * Connect to an external Matter controller Websocket Server not running on this host, mainly used for testing
-     *
-     * @param host
-     * @param port
-     * @param nodeId
-     * @param storagePath
-     * @param controllerName
-     * @throws Exception
-     */
-    public void connect(String host, int port, Map<String, String> connectionParameters) throws Exception {
-        this.connectionParameters = connectionParameters;
-        connectWebsocket(host, port);
-    }
-
-    /**
      * Connect to a local Matter controller running on this host in openHAB, primarily use case
      *
      * @param nodeId
@@ -133,7 +118,7 @@ public class MatterWebsocketClient implements WebSocketListener, MatterWebsocket
      * @param controllerName
      * @throws Exception
      */
-    public void connect(MatterWebsocketService wss, Map<String, String> connectionParameters) {
+    public void connectWhenReady(MatterWebsocketService wss, Map<String, String> connectionParameters) {
         this.connectionParameters = connectionParameters;
         this.wss = wss;
         wss.addProcessListener(this);

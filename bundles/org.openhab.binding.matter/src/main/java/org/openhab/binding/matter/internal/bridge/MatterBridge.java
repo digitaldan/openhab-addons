@@ -111,6 +111,7 @@ public class MatterBridge implements MatterClientListener {
     private boolean bridgeInitialized = false;
     private boolean commissioningWindowOpen = false;
     private @Nullable ScheduledFuture<?> modifyFuture;
+    private @Nullable ScheduledFuture<?> reconnectFuture;
 
     @Activate
     public MatterBridge(final @Reference ItemRegistry itemRegistry, final @Reference MetadataRegistry metadataRegistry,
@@ -194,6 +195,10 @@ public class MatterBridge implements MatterClientListener {
         logger.debug("Deactivating Matter Bridge");
         itemRegistry.removeRegistryChangeListener(itemRegistryChangeListener);
         metadataRegistry.removeRegistryChangeListener(metadataRegistryChangeListener);
+        ScheduledFuture<?> reconnectFuture = this.reconnectFuture;
+        if (reconnectFuture != null) {
+            reconnectFuture.cancel(true);
+        }
         stopClient();
     }
 
@@ -238,7 +243,11 @@ public class MatterBridge implements MatterClientListener {
 
     @Override
     public void onDisconnect(String reason) {
-        // TODO handle reconnecting service.
+        stopClient();
+        ScheduledFuture<?> reconnectFuture = this.reconnectFuture;
+        if (reconnectFuture == null || reconnectFuture.isDone() && this.settings.enableBridge) {
+            this.reconnectFuture = scheduler.schedule(this::connectClient, 5, TimeUnit.SECONDS);
+        }
     }
 
     @Override
@@ -331,7 +340,7 @@ public class MatterBridge implements MatterClientListener {
             }
 
             client.addListener(this);
-            client.connect(this.websocketService, paramsMap);
+            client.connectWhenReady(this.websocketService, paramsMap);
         } catch (Exception e) {
             logger.error("Error connecting to websocket", e);
         }
