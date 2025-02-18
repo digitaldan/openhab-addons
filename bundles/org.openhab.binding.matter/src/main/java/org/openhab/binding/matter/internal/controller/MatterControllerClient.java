@@ -61,8 +61,16 @@ public class MatterControllerClient extends MatterWebsocketClient {
         });
     }
 
-    public CompletableFuture<Void> initializeNode(BigInteger id) {
-        CompletableFuture<JsonElement> future = sendMessage("nodes", "initializeNode", new Object[] { id });
+    public CompletableFuture<Void> initializeNode(BigInteger id, Integer connectionTimeoutMilliseconds) {
+        CompletableFuture<JsonElement> future = sendMessage("nodes", "initializeNode",
+                new Object[] { id, connectionTimeoutMilliseconds });
+        return future.thenAccept(obj -> {
+            // Do nothing, just to complete the future
+        });
+    }
+
+    public CompletableFuture<Void> requestAllNodeData(BigInteger id) {
+        CompletableFuture<JsonElement> future = sendMessage("nodes", "requestAllData", new Object[] { id });
         return future.thenAccept(obj -> {
             // Do nothing, just to complete the future
         });

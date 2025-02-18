@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -37,7 +38,7 @@ import org.openhab.binding.matter.internal.client.dto.Node;
 import org.openhab.binding.matter.internal.client.dto.ws.AttributeChangedMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.BridgeEventMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.EventTriggeredMessage;
-import org.openhab.binding.matter.internal.client.dto.ws.NodeInitializedMessage;
+import org.openhab.binding.matter.internal.client.dto.ws.NodeDataMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.NodeStateMessage;
 import org.openhab.binding.matter.internal.config.ControllerConfiguration;
 import org.openhab.binding.matter.internal.controller.MatterControllerClient;
@@ -67,6 +68,7 @@ import org.slf4j.LoggerFactory;
 public class ControllerHandler extends BaseBridgeHandler implements MatterClientListener, MatterDiscoveryHandler {
 
     private final Logger logger = LoggerFactory.getLogger(ControllerHandler.class);
+    private static final int CONNECTION_TIMEOUT_MS = 60000;
     private final MatterWebsocketService websocketService;
     // Set of nodes we are waiting to connect to
     private Set<BigInteger> outstandingNodeRequests = Collections.synchronizedSet(new HashSet<>());
@@ -149,14 +151,17 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
 
     @Override
     public CompletableFuture<Void> startScan(@Nullable String code) {
+        if (!client.isConnected()) {
+            logger.debug("not connected");
+            return CompletableFuture.completedFuture(null);
+        }
+
         if (code != null) {
-            if (!client.isConnected()) {
-                logger.debug("not connected");
-                return CompletableFuture.completedFuture(null);
-            }
-            return client.pairNode(code);
+            // If code provided, do pairing first, then sync all nodes
+            return client.pairNode(code).thenCompose(v -> syncUnknownNodes());
         } else {
-            return syncAllNodes();
+            // If no code, just sync unknown nodes
+            return syncUnknownNodes();
         }
     }
 
@@ -167,6 +172,7 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
             case CONNECTED:
                 updateEndpointStatuses(message.nodeId, ThingStatus.UNKNOWN, ThingStatusDetail.NOT_YET_READY,
                         "Waiting for data");
+                client.requestAllNodeData(message.nodeId);
                 break;
             case STRUCTURECHANGED:
                 updateNode(message.nodeId);
@@ -211,8 +217,8 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
     }
 
     @Override
-    public void onEvent(NodeInitializedMessage message) {
-        logger.debug("NodeInitializedMessage onEvent: node {} is {}", message.node.id, message.node);
+    public void onEvent(NodeDataMessage message) {
+        logger.debug("NodeDataMessage onEvent: node {} is {}", message.node.id, message.node);
         updateNode(message.node);
     }
 
@@ -256,6 +262,13 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
         }
     }
 
+    /**
+     * Update the node with the given id
+     * If the node is not currently linked, it will be added to the discovery service
+     * 
+     * @param id
+     * @return
+     */
     protected CompletableFuture<Void> updateNode(BigInteger id) {
         logger.debug("updateNode BEGIN {}", id);
 
@@ -268,8 +281,9 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
             outstandingNodeRequests.add(id);
         }
 
-        return client.initializeNode(id).thenAccept((Void) -> {
+        return client.initializeNode(id, CONNECTION_TIMEOUT_MS).thenAccept((Void) -> {
             disconnectedNodes.remove(id);
+            client.requestAllNodeData(id);
             logger.debug("updateNode END {}", id);
         }).exceptionally(e -> {
             logger.debug("Could not update node {}", id, e);
@@ -277,7 +291,7 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
             String message = e.getMessage();
             updateEndpointStatuses(id, ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
                     message != null ? message : "");
-            return null;
+            throw new CompletionException(e);
         }).whenComplete((node, e) -> outstandingNodeRequests.remove(id));
     }
 
@@ -316,32 +330,44 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
     }
 
     /**
-     * Synchronize all nodes with the controller
+     * Discover all unknown nodes from the controller
      * 
      * @return
      */
-    private CompletableFuture<Void> syncAllNodes() {
-        logger.debug("refresh");
+    @SuppressWarnings("null")
+    private CompletableFuture<Void> syncUnknownNodes() {
+        logger.debug("syncUnknownNodes starting");
         if (!ready) {
             return CompletableFuture.completedFuture(null);
         }
-
         return client.getCommissionedNodeIds().thenCompose(nodeIds -> {
             List<CompletableFuture<Void>> futures = new ArrayList<>();
-
             for (BigInteger id : nodeIds) {
-                CompletableFuture<Void> updateFuture = updateNode(id);
-                futures.add(updateFuture);
+                // ignore nodes that are already linked
+                if (linkedNodes.containsKey(id)) {
+                    continue;
+                }
+                // updateNode will add the node to the discovery service, if it fails, we will add it to the discovery
+                // service manually (orphaned node)
+                futures.add(updateNode(id).exceptionally(e -> {
+                    logger.debug("Failed to sync node {}: {}", id, e.getMessage());
+                    MatterDiscoveryService discoveryService = this.discoveryService;
+                    if (discoveryService != null) {
+                        ThingUID bridgeUID = getThing().getUID();
+                        ThingUID thingUID = new ThingUID(THING_TYPE_NODE, bridgeUID, id.toString());
+                        discoveryService.discoverUnknownNodeDevice(thingUID, bridgeUID, id);
+                    }
+                    return Void.TYPE.cast(null); // ugly but it works
+                }));
             }
-
             // Return a Future that completes when all updateNode futures are complete
-            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+            return futures.isEmpty() ? CompletableFuture.completedFuture(null)
+                    : CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
         }).exceptionally(e -> {
-            logger.debug("Error communicating with controller", e);
-            return null;
-        }).whenComplete((nodeIds, e) -> {
-            logger.debug("refresh done");
-        });
+            logger.debug("Error getting commissioned nodes from controller", e);
+            // Convert the exception into a failed future instead of swallowing it
+            throw new CompletionException(e);
+        }).whenComplete((v, e) -> logger.debug("refresh done {}", e != null ? " with error: " + e.getMessage() : ""));
     }
 
     private synchronized void reconnect() {

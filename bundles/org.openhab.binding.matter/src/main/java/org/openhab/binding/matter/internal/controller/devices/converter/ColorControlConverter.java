@@ -39,7 +39,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.matter.internal.client.dto.cluster.ClusterCommand;
 import org.openhab.binding.matter.internal.client.dto.cluster.gen.BaseCluster.MatterEnum;
 import org.openhab.binding.matter.internal.client.dto.cluster.gen.ColorControlCluster;
-import org.openhab.binding.matter.internal.client.dto.cluster.gen.ColorControlCluster.ColorMode;
+import org.openhab.binding.matter.internal.client.dto.cluster.gen.ColorControlCluster.EnhancedColorMode;
 import org.openhab.binding.matter.internal.client.dto.cluster.gen.ColorControlCluster.Options;
 import org.openhab.binding.matter.internal.client.dto.cluster.gen.LevelControlCluster;
 import org.openhab.binding.matter.internal.client.dto.cluster.gen.LevelControlCluster.OptionsBitmap;
@@ -67,33 +67,47 @@ import org.openhab.core.util.ColorUtil;
  * The {@link MatterControllerClient}
  *
  * @author Dan Cunningham - Initial contribution
- * @author Chris Jackson - Original Zigbee binding color logic
+ * @author Chris Jackson - Original Zigbee binding color logic functions borrowed here
  *
  */
 @NonNullByDefault
 public class ColorControlConverter extends GenericConverter<ColorControlCluster> {
-
-    private @Nullable ColorMode lastColorMode;
+    // We will wait up for this time to receive multiple color updates before we update the color values
+    private static final int UPDATE_DELAY = 500;
     protected boolean supportsHue = false;
-    private boolean lastOnOff = true;
-    private int lastHue = -1;
-    private int lastSaturation = -1;
-    private @Nullable ScheduledFuture<?> colorUpdateTimer = null;
-    private int lastX = -1;
-    private int lastY = -1;
-    private boolean colorChanged = false;
-    private HSBType lastHSB = new HSBType("0,0,0");
     protected boolean supportsColorTemperature = false;
-    private @Nullable Integer lastColorTemperatureMireds;
-    private Integer colorTempPhysicalMinMireds = 0;
-    private Integer colorTempPhysicalMaxMireds = 0;
+    private boolean lastOnOff = true;
+    private HSBType lastHSB = new HSBType("0,0,0");
     private Options optionsMask = new Options(true);
     private OptionsBitmap optionsBitmap = new OptionsBitmap(true, true);
+    private @Nullable ScheduledFuture<?> colorUpdateTimer = null;
     private ScheduledExecutorService colorUpdateScheduler = Executors.newSingleThreadScheduledExecutor();
+    // Color attributes from the device
+    private int colorTempPhysicalMinMireds = 0;
+    private int colorTempPhysicalMaxMireds = 0;
+    private EnhancedColorMode lastColorMode = EnhancedColorMode.CURRENT_XAND_CURRENT_Y;
+    private int lastHue = 0;
+    private int lastSaturation = 0;
+    private int lastX = 0;
+    private int lastY = 0;
+    private int lastColorTemperatureMireds;
+    // These states are used to track the state of the color updates, once a state is ready we will set the color.
+    private ColorUpdateState hueSaturationState = ColorUpdateState.READY;
+    private ColorUpdateState xyState = ColorUpdateState.READY;
+    private ColorUpdateState colorTemperatureState = ColorUpdateState.READY;
 
+    @SuppressWarnings("null")
     public ColorControlConverter(ColorControlCluster cluster, MatterBaseThingHandler handler, int endpointNumber,
             String labelPrefix) {
         super(cluster, handler, endpointNumber, labelPrefix);
+        supportsHue = initializingCluster.featureMap.hueSaturation;
+        supportsColorTemperature = initializingCluster.featureMap.colorTemperature;
+        // The inovelli device sends a max mireds of 65279 (uint16 max value), but this should never exceed 667 (1500K)
+        colorTempPhysicalMaxMireds = Math
+                .min(Optional.ofNullable(initializingCluster.colorTempPhysicalMaxMireds).orElse(0), 667);
+        // the inovelli device sends a min mireds of 0 , but this should never be less than 154 (6500Kk)
+        colorTempPhysicalMinMireds = Math
+                .max(Optional.ofNullable(initializingCluster.colorTempPhysicalMinMireds).orElse(0), 154);
     }
 
     @Override
@@ -103,15 +117,11 @@ public class ColorControlConverter extends GenericConverter<ColorControlCluster>
         map.put(ChannelBuilder.create(new ChannelUID(thingUID, CHANNEL_ID_COLOR_COLOR), ITEM_TYPE_COLOR)
                 .withType(CHANNEL_COLOR_COLOR).withLabel(formatLabel(CHANNEL_LABEL_COLOR_COLOR)).build(), null);
 
-        // see Matter spec 3.2.6.1. For more information on color temperature
+        // see Matter spec 3.2.6.1 For more information on color temperature
         if (initializingCluster.featureMap.colorTemperature) {
             map.put(ChannelBuilder.create(new ChannelUID(thingUID, CHANNEL_ID_COLOR_TEMPERATURE), ITEM_TYPE_DIMMER)
                     .withType(CHANNEL_COLOR_TEMPERATURE).withLabel(formatLabel(CHANNEL_LABEL_COLOR_TEMPERATURE))
                     .build(), null);
-            Optional.ofNullable(initializingCluster.colorTempPhysicalMinMireds)
-                    .ifPresent(temp -> colorTempPhysicalMinMireds = temp);
-            Optional.ofNullable(initializingCluster.colorTempPhysicalMaxMireds)
-                    .ifPresent(temp -> colorTempPhysicalMaxMireds = temp);
             StateDescription stateDescription = null;
             if (colorTempPhysicalMinMireds < colorTempPhysicalMaxMireds) {
                 stateDescription = StateDescriptionFragmentBuilder.create().withPattern("%.0f mirek")
@@ -171,37 +181,71 @@ public class ColorControlConverter extends GenericConverter<ColorControlCluster>
     @Override
     public void onEvent(AttributeChangedMessage message) {
         Integer numberValue = message.value instanceof Number number ? number.intValue() : 0;
+        boolean colorChanged = false;
         switch (message.path.attributeName) {
             case "currentX":
                 lastX = numberValue;
+                xyState = xyState.next();
                 colorChanged = true;
                 break;
             case "currentY":
                 lastY = numberValue;
+                xyState = xyState.next();
                 colorChanged = true;
                 break;
             case "currentHue":
                 lastHue = numberValue;
+                hueSaturationState = hueSaturationState.next();
                 colorChanged = true;
                 break;
             case "currentSaturation":
                 lastSaturation = numberValue;
+                hueSaturationState = hueSaturationState.next();
                 colorChanged = true;
                 break;
             case "colorTemperatureMireds":
-                lastColorTemperatureMireds = numberValue;
-                colorChanged = true;
+                if (numberValue >= colorTempPhysicalMinMireds && numberValue <= colorTempPhysicalMaxMireds) {
+                    lastColorTemperatureMireds = numberValue;
+                    colorTemperatureState = ColorUpdateState.READY;
+                    colorChanged = true;
+                } else {
+                    throw new IllegalArgumentException("Invalid color temperature mireds: " + numberValue
+                            + " must be between " + colorTempPhysicalMinMireds + " and " + colorTempPhysicalMaxMireds);
+                }
                 break;
             case "colorMode":
-                try {
-                    lastColorMode = MatterEnum.fromValue(ColorMode.class, numberValue);
-                } catch (IllegalArgumentException e) {
-                    lastColorMode = null;
+            case "enhancedColorMode":
+                EnhancedColorMode newColorMode = lastColorMode;
+                if (message.value instanceof ColorControlCluster.ColorMode colorMode) {
+                    try {
+                        newColorMode = MatterEnum.fromValue(EnhancedColorMode.class, colorMode.value);
+                    } catch (IllegalArgumentException e) {
+                        logger.debug("Unknown color mode: {}", numberValue);
+                    }
                 }
-                colorChanged = true;
+                if (message.value instanceof ColorControlCluster.EnhancedColorMode enhancedColorMode) {
+                    newColorMode = enhancedColorMode;
+                }
+                if (newColorMode != lastColorMode) {
+                    lastColorMode = newColorMode;
+                    switch (lastColorMode) {
+                        case CURRENT_HUE_AND_CURRENT_SATURATION:
+                            hueSaturationState = ColorUpdateState.WAITING1;
+                            break;
+                        case CURRENT_XAND_CURRENT_Y:
+                            xyState = ColorUpdateState.WAITING1;
+                            break;
+                        case COLOR_TEMPERATURE_MIREDS:
+                            colorTemperatureState = ColorUpdateState.WAITING1;
+                            break;
+                        default:
+                            break;
+                    }
+                    colorChanged = true;
+                }
                 break;
             case "enhancedCurrentHue":
-            case "enhancedColorMode":
+                logger.debug("enhancedCurrentHue not supported yet");
                 break;
             case "currentLevel":
                 updateBrightness(levelToPercent(numberValue));
@@ -213,10 +257,7 @@ public class ColorControlConverter extends GenericConverter<ColorControlCluster>
                 logger.debug("Unknown attribute {}", message.path.attributeName);
         }
         if (colorChanged) {
-            if (colorUpdateTimer != null) {
-                colorUpdateTimer.cancel(true);
-            }
-            colorUpdateTimer = colorUpdateScheduler.schedule(() -> updateColor(), 500, TimeUnit.MILLISECONDS);
+            updateColor();
         }
         super.onEvent(message);
     }
@@ -226,25 +267,74 @@ public class ColorControlConverter extends GenericConverter<ColorControlCluster>
         initState(true, 100);
     }
 
+    @SuppressWarnings("null")
     public void initState(boolean onOff, int brightness) {
         lastHSB = new HSBType(lastHSB.getHue(), lastHSB.getSaturation(), new PercentType(brightness));
-        lastColorMode = initializingCluster.colorMode;
+        lastColorMode = Optional.ofNullable(initializingCluster.enhancedColorMode)
+                .orElseGet(() -> MatterEnum.fromValue(EnhancedColorMode.class, initializingCluster.colorMode.value));
         lastOnOff = onOff;
-        supportsHue = initializingCluster.featureMap.hueSaturation;
-        lastX = initializingCluster.currentX != null ? initializingCluster.currentX : 0;
-        lastY = initializingCluster.currentY != null ? initializingCluster.currentY : 0;
-        lastHue = initializingCluster.currentHue != null ? initializingCluster.currentHue : 0;
-        lastSaturation = initializingCluster.currentSaturation != null ? initializingCluster.currentSaturation : 0;
-        supportsColorTemperature = initializingCluster.featureMap.colorTemperature;
-        lastColorTemperatureMireds = initializingCluster.colorTemperatureMireds;
-        Optional.ofNullable(initializingCluster.colorTempPhysicalMaxMireds)
-                .ifPresent(temp -> colorTempPhysicalMaxMireds = temp);
-        Optional.ofNullable(initializingCluster.colorTempPhysicalMinMireds)
-                .ifPresent(temp -> colorTempPhysicalMinMireds = temp);
+        lastX = Optional.ofNullable(initializingCluster.currentX).orElse(0);
+        lastY = Optional.ofNullable(initializingCluster.currentY).orElse(0);
+        lastHue = Optional.ofNullable(initializingCluster.currentHue).orElse(0);
+        lastSaturation = Optional.ofNullable(initializingCluster.currentSaturation).orElse(0);
+        lastColorTemperatureMireds = Optional.ofNullable(initializingCluster.colorTemperatureMireds).orElse(154);
+
         updateColor();
     }
 
-    // These functions are borrowed from the Zigbee openHAB binding
+    /**
+     * A color device will send a colorMode attribute when changing from temperature mode or to color mode and vice
+     * versa. We will update the color values after we wait for the device to send multiple update within the timer
+     * duration or if we get all states for a required color mode
+     * 
+     * Calling this will cancel any existing timer and start a new one to wait for the next update
+     */
+    private void updateColor() {
+        logger.debug("updateColor: lastColorMode {}", lastColorMode);
+        cancelUpdateTimer();
+        switch (lastColorMode) {
+            case CURRENT_HUE_AND_CURRENT_SATURATION:
+                if (hueSaturationState.isReady()) {
+                    updateColorHSB();
+                } else {
+                    startUpdateTimer(this::updateColorHSB);
+                }
+                temperatureModeToColor();
+                break;
+            case CURRENT_XAND_CURRENT_Y:
+                if (xyState.isReady()) {
+                    updateColorXY();
+                } else {
+                    startUpdateTimer(this::updateColorXY);
+                }
+                temperatureModeToColor();
+                break;
+            case COLOR_TEMPERATURE_MIREDS:
+                if (colorTemperatureState.isReady()) {
+                    updateColorTemperature();
+                } else {
+                    startUpdateTimer(this::updateColorTemperature);
+                }
+                colorModeToTemperature();
+                break;
+            default:
+                logger.debug("Unknown color mode: {}", lastColorMode);
+        }
+    }
+
+    private synchronized void startUpdateTimer(Runnable updateFunction) {
+        cancelUpdateTimer();
+        logger.debug("starting color timer");
+        colorUpdateTimer = colorUpdateScheduler.schedule(updateFunction, UPDATE_DELAY, TimeUnit.MILLISECONDS);
+    }
+
+    private void cancelUpdateTimer() {
+        @Nullable
+        ScheduledFuture<?> colorUpdateTimer = this.colorUpdateTimer;
+        if (colorUpdateTimer != null) {
+            colorUpdateTimer.cancel(true);
+        }
+    }
 
     private void updateOnOff(boolean onOff) {
         lastOnOff = onOff;
@@ -266,16 +356,15 @@ public class ColorControlConverter extends GenericConverter<ColorControlCluster>
         }
     }
 
+    // These color functions are borrowed from the Zigbee openHAB binding and modified for Matter
+
     private void updateColorHSB() {
         float hueValue = lastHue * 360.0f / 254.0f;
         float saturationValue = lastSaturation * 100.0f / 254.0f;
         DecimalType hue = new DecimalType(Float.valueOf(hueValue).toString());
         PercentType saturation = new PercentType(Float.valueOf(saturationValue).toString());
         updateColorHSB(hue, saturation);
-        if (supportsColorTemperature) {
-            updateState(CHANNEL_ID_COLOR_TEMPERATURE, UnDefType.UNDEF);
-            updateState(CHANNEL_ID_COLOR_TEMPERATURE_ABS, UnDefType.UNDEF);
-        }
+        hueSaturationState = ColorUpdateState.READY;
     }
 
     private void updateColorHSB(DecimalType hue, PercentType saturation) {
@@ -297,10 +386,7 @@ public class ColorControlConverter extends GenericConverter<ColorControlCluster>
         PercentType x = new PercentType(Float.valueOf(xValue * 100.0f).toString());
         PercentType y = new PercentType(Float.valueOf(yValue * 100.0f).toString());
         updateColorXY(x, y);
-        if (supportsColorTemperature) {
-            updateState(CHANNEL_ID_COLOR_TEMPERATURE, UnDefType.UNDEF);
-            updateState(CHANNEL_ID_COLOR_TEMPERATURE_ABS, UnDefType.UNDEF);
-        }
+        xyState = ColorUpdateState.READY;
     }
 
     private void updateColorXY(PercentType x, PercentType y) {
@@ -313,50 +399,10 @@ public class ColorControlConverter extends GenericConverter<ColorControlCluster>
     }
 
     private void updateColorTemperature() {
-        Integer mirek = lastColorTemperatureMireds;
-        if (mirek != null) {
-            if (mirek == 0) {
-                updateState(CHANNEL_ID_COLOR_TEMPERATURE, UnDefType.UNDEF);
-                updateState(CHANNEL_ID_COLOR_TEMPERATURE_ABS, UnDefType.UNDEF);
-            } else {
-                updateState(CHANNEL_ID_COLOR_TEMPERATURE, miredsToPercenType(mirek));
-                updateState(CHANNEL_ID_COLOR_TEMPERATURE_ABS, QuantityType.valueOf(Double.valueOf(mirek), Units.MIRED));
-                try {
-                    HSBType color = ColorUtil.xyToHsb(ColorUtil.kelvinToXY(1000000.0 / mirek));
-                    updateColorHSB(color.getHue(), color.getSaturation());
-                } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
-                    updateState(CHANNEL_ID_COLOR_COLOR, UnDefType.UNDEF);
-                }
-            }
-        }
-    }
-
-    private void updateColor() {
-        ColorMode mode = lastColorMode;
-        if (mode != null) {
-            switch (mode) {
-                case CURRENT_HUE_AND_CURRENT_SATURATION:
-                case CURRENT_XAND_CURRENT_Y:
-                    if (supportsHue) {
-                        updateColorHSB();
-                    } else {
-                        updateColorXY();
-                    }
-                    break;
-                case COLOR_TEMPERATURE_MIREDS:
-                    if (useColorTemperature()) {
-                        updateColorTemperature();
-                    } else {
-                        updateColorXY();
-                    }
-                    break;
-            }
-        }
-        colorChanged = false;
-    }
-
-    private boolean useColorTemperature() {
-        return supportsColorTemperature && lastColorTemperatureMireds != null && lastColorTemperatureMireds > 0;
+        updateState(CHANNEL_ID_COLOR_TEMPERATURE, miredsToPercentType(lastColorTemperatureMireds));
+        updateState(CHANNEL_ID_COLOR_TEMPERATURE_ABS,
+                QuantityType.valueOf(Double.valueOf(lastColorTemperatureMireds), Units.MIRED));
+        colorTemperatureState = ColorUpdateState.READY;
     }
 
     private void changeColorHueSaturation(HSBType color) {
@@ -374,16 +420,51 @@ public class ColorControlConverter extends GenericConverter<ColorControlCluster>
                 ColorControlCluster.moveToColor(x, y, 0, optionsMask, optionsMask));
     }
 
-    private PercentType miredsToPercenType(Integer mireds) {
-        if (mireds == 0 || colorTempPhysicalMaxMireds - colorTempPhysicalMinMireds == 0) {
-            return new PercentType(0);
-        }
-        return new PercentType((int) (((double) (mireds - colorTempPhysicalMinMireds)
-                / (colorTempPhysicalMaxMireds - colorTempPhysicalMinMireds)) * 100));
+    private PercentType miredsToPercentType(Integer mireds) {
+        int mired = Math.max(colorTempPhysicalMinMireds, Math.min(colorTempPhysicalMaxMireds, mireds));
+        return new PercentType((int) (((double) (mired - colorTempPhysicalMinMireds)
+                / (colorTempPhysicalMaxMireds - colorTempPhysicalMinMireds) * 100)));
     }
 
     private Integer percentTypeToMireds(PercentType percent) {
         return (int) ((percent.doubleValue() / 100) * (colorTempPhysicalMaxMireds - colorTempPhysicalMinMireds))
                 + colorTempPhysicalMinMireds;
+    }
+
+    private void colorModeToTemperature() {
+        try {
+            HSBType color = ColorUtil.xyToHsb(ColorUtil.kelvinToXY(1000000.0 / lastColorTemperatureMireds));
+            updateColorHSB(color.getHue(), color.getSaturation());
+        } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
+            updateState(CHANNEL_ID_COLOR_COLOR, UnDefType.UNDEF);
+        }
+    }
+
+    private void temperatureModeToColor() {
+        updateState(CHANNEL_ID_COLOR_TEMPERATURE, UnDefType.UNDEF);
+        updateState(CHANNEL_ID_COLOR_TEMPERATURE_ABS, UnDefType.UNDEF);
+    }
+
+    /**
+     * Tracks the state of the color updates, once a state is ready we will set the color.
+     * X/Y and Hue/Saturation potentially waits for 2 updates before setting the color
+     */
+    enum ColorUpdateState {
+        READY,
+        WAITING1,
+        WAITING2;
+
+        // move to the next waiting state
+        public ColorUpdateState next() {
+            return switch (this) {
+                case READY -> WAITING2;
+                case WAITING1 -> WAITING2;
+                case WAITING2 -> READY;
+            };
+        }
+
+        public boolean isReady() {
+            return this == READY;
+        }
     }
 }

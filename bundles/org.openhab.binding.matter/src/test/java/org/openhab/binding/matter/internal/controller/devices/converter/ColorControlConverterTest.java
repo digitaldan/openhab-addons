@@ -65,13 +65,13 @@ class ColorControlConverterTest {
         mockHandler = Mockito.spy(new TestMatterBaseThingHandler(mockBridgeClient, mockStateDescriptionProvider,
                 mockChannelTypeProvider));
         mockCluster.featureMap = new ColorControlCluster.FeatureMap(true, false, false, false, true);
+        mockCluster.colorTempPhysicalMinMireds = 153;
+        mockCluster.colorTempPhysicalMaxMireds = 500;
         converter = new ColorControlConverter(mockCluster, mockHandler, 1, "TestLabel");
     }
 
     @Test
     void testCreateChannels() {
-        mockCluster.colorTempPhysicalMinMireds = 150;
-        mockCluster.colorTempPhysicalMaxMireds = 500;
 
         ChannelGroupUID thingUID = new ChannelGroupUID("matter:node:test:12345:1");
         Map<Channel, StateDescription> channels = converter.createChannels(thingUID);
@@ -106,7 +106,7 @@ class ColorControlConverterTest {
         AttributeChangedMessage modeMsg = new AttributeChangedMessage();
         modeMsg.path = new Path();
         modeMsg.path.attributeName = "colorMode";
-        modeMsg.value = ColorMode.CURRENT_HUE_AND_CURRENT_SATURATION.getValue();
+        modeMsg.value = ColorMode.CURRENT_HUE_AND_CURRENT_SATURATION;
         converter.onEvent(modeMsg);
 
         AttributeChangedMessage hueMsg = new AttributeChangedMessage();
@@ -135,7 +135,7 @@ class ColorControlConverterTest {
         AttributeChangedMessage modeMsg = new AttributeChangedMessage();
         modeMsg.path = new Path();
         modeMsg.path.attributeName = "colorMode";
-        modeMsg.value = ColorMode.COLOR_TEMPERATURE_MIREDS.getValue();
+        modeMsg.value = ColorMode.COLOR_TEMPERATURE_MIREDS;
         converter.onEvent(modeMsg);
 
         AttributeChangedMessage tempMsg = new AttributeChangedMessage();
@@ -147,7 +147,7 @@ class ColorControlConverterTest {
         // Wait for color update timer
         Thread.sleep(600);
 
-        verify(mockHandler, times(1)).updateState(eq(1), eq("colorcontrol-temperature"), eq(new PercentType(0)));
+        verify(mockHandler, times(1)).updateState(eq(1), eq("colorcontrol-temperature"), eq(new PercentType(27)));
         verify(mockHandler, times(1)).updateState(eq(1), eq("colorcontrol-temperature-abs"),
                 eq(new QuantityType<>(250, Units.MIRED)));
     }

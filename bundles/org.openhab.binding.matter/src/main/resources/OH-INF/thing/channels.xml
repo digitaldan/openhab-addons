@@ -99,7 +99,7 @@
 			<tag>Control</tag>
 			<tag>ColorTemperature</tag>
 		</tags>
-		<state pattern="%.0f mirek" min="100" max="1000"/>
+		<state pattern="%.0f mirek"/>
 	</channel-type>
 
 	<!-- Door Lock Channel -->

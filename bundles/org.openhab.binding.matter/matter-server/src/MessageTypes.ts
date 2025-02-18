@@ -21,7 +21,7 @@ export enum EventType {
     AttributeChanged = "attributeChanged",
     EventTriggered = "eventTriggered",
     NodeStateInformation = "nodeStateInformation",
-    NodeInitialized = "nodeInitialized",
+    NodeData = "nodeData",
     BridgeEvent = "bridgeEvent"
 }
 

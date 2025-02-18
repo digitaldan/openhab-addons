@@ -1,7 +1,7 @@
 import { WebSocketSession } from "./app";
 import { Request, MessageType } from './MessageTypes';
 import { Logger } from"@project-chip/matter.js/log";
-
+import { printError } from "./util/error";
 const logger = Logger.get("Controller");
 
 export abstract class Controller {
@@ -46,7 +46,7 @@ export abstract class Controller {
                 result.then((asyncResult) => {
                     this.ws.sendResponse(MessageType.ResultSuccess, id, asyncResult);
                 }).catch((error) => {
-                    this.printError(error, functionName);
+                    printError(logger, error, functionName);
                     this.ws.sendResponse(MessageType.ResultError, id, undefined, error.message);
                 });
             } else {
@@ -54,30 +54,12 @@ export abstract class Controller {
             }
         } catch (error) {
             if (error instanceof Error) {
-                this.printError(error, functionName);
+                printError(logger,error, functionName);
                 this.ws.sendResponse(MessageType.ResultError, id, undefined, error.message);
             } else {
                 logger.error(`Unexpected error executing function ${functionName}: ${error}`);
                 this.ws.sendResponse(MessageType.ResultError, id, undefined, String(error));
             }
         }
-    }
-
-    printError(error: Error, functionName: String) {
-
-        logger.error(`Error executing function ${functionName}: ${error.message}`);
-        logger.error(`Stack trace: ${error.stack}`);
-
-        // Log additional error properties if available
-        if ('code' in error) {
-            logger.error(`Error code: ${(error as any).code}`);
-        }
-        if ('name' in error) {
-            logger.error(`Error name: ${(error as any).name}`);
-        }
-
-        // Fallback: log the entire error object in case there are other useful details
-        logger.error(`Full error object: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`)
-        logger.error(error)
     }
 }

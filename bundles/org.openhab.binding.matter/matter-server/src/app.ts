@@ -7,6 +7,7 @@ import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 import { Request, Response, Message, MessageType } from './MessageTypes';
 import { BridgeController } from './bridge/BridgeController';
+import { printError } from './util/error';
 const argv: any = yargs(hideBin(process.argv)).argv
 
 const logger = Logger.get("matter");
@@ -142,6 +143,7 @@ wss.on('connection', async (ws: WebSocketSession, req: IncomingMessage) => {
             ws.controller = new ClientController(ws, params);
             await ws.controller.init();
         } catch (error: any) {
+            printError(logger, error, "ClientController.init()");
             logger.error("returning error", error.message)
             ws.close(1002, error.message);
             return;
@@ -161,6 +163,7 @@ wss.on('connection', async (ws: WebSocketSession, req: IncomingMessage) => {
             ws.controller = new BridgeController(ws, params);
             await ws.controller.init();
         } catch (error: any) {
+            printError(logger, error, "BridgeController.init()");
             logger.error("returning error", error.message)
             ws.close(1002, error.message);
             return;

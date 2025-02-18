@@ -15,7 +15,10 @@ package org.openhab.binding.matter.internal.discovery;
 import static org.openhab.binding.matter.internal.MatterBindingConstants.THING_TYPE_BRIDGE_ENDPOINT;
 import static org.openhab.binding.matter.internal.MatterBindingConstants.THING_TYPE_NODE;
 
+import java.math.BigInteger;
 import java.util.Set;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -40,11 +43,13 @@ import org.slf4j.LoggerFactory;
 public class MatterDiscoveryService extends AbstractDiscoveryService implements ThingHandlerService {
     private final Logger logger = LoggerFactory.getLogger(MatterDiscoveryService.class);
     private @Nullable ThingHandler thingHandler;
+    private @Nullable ScheduledFuture<?> discoveryJob;
+    private final int refreshInterval = 60 * 5;
 
     public MatterDiscoveryService() throws IllegalArgumentException {
         // set a 2 min timeout, which should be plenty of time to discover devices, but stopScan will be called when the
         // Matter client is done looking for new Nodes/Endpoints
-        super(Set.of(THING_TYPE_NODE, THING_TYPE_BRIDGE_ENDPOINT), 60 * 2, false);
+        super(Set.of(THING_TYPE_NODE, THING_TYPE_BRIDGE_ENDPOINT), 60 * 2, true);
     }
 
     @Override
@@ -69,6 +74,27 @@ public class MatterDiscoveryService extends AbstractDiscoveryService implements 
     @Override
     public void deactivate() {
         super.deactivate();
+        stopBackgroundDiscovery();
+    }
+
+    @Override
+    protected void startBackgroundDiscovery() {
+        logger.debug("Start background discovery");
+        ScheduledFuture<?> discoveryJob = this.discoveryJob;
+        if (discoveryJob == null || discoveryJob.isCancelled()) {
+            discoveryJob = scheduler.scheduleWithFixedDelay(this::startScan, refreshInterval, refreshInterval,
+                    TimeUnit.SECONDS);
+        }
+    }
+
+    @Override
+    protected void stopBackgroundDiscovery() {
+        logger.debug("Stop background discovery");
+        ScheduledFuture<?> discoveryJob = this.discoveryJob;
+        if (discoveryJob != null) {
+            discoveryJob.cancel(true);
+            discoveryJob = null;
+        }
     }
 
     @Override
@@ -105,6 +131,14 @@ public class MatterDiscoveryService extends AbstractDiscoveryService implements 
     public void discoverNodeDevice(ThingUID thingUID, ThingUID bridgeUID, Node node) {
         String label = ("Matter Device: " + MatterLabelUtils.labelForNode(node.rootEndpoint)).trim();
         discoverThing(thingUID, bridgeUID, node.rootEndpoint, node.id.toString(), "nodeId", label);
+    }
+
+    public void discoverUnknownNodeDevice(ThingUID thingUID, ThingUID bridgeUID, BigInteger nodeId) {
+        String label = ("Matter Device: Unknown Node").trim();
+        DiscoveryResult result = DiscoveryResultBuilder.create(thingUID).withLabel(label)
+                .withProperty("nodeId", nodeId.toString()).withRepresentationProperty("nodeId").withBridge(bridgeUID)
+                .build();
+        thingDiscovered(result);
     }
 
     private void discoverThing(ThingUID thingUID, ThingUID bridgeUID, Endpoint root, String id,

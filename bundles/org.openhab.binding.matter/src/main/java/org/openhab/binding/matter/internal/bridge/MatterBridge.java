@@ -28,18 +28,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
-import org.openhab.binding.matter.internal.bridge.devices.ColorDevice;
-import org.openhab.binding.matter.internal.bridge.devices.ContactSensorDevice;
-import org.openhab.binding.matter.internal.bridge.devices.DimmableLightDevice;
-import org.openhab.binding.matter.internal.bridge.devices.DoorLockDevice;
+import org.openhab.binding.matter.internal.bridge.devices.DeviceRegistry;
 import org.openhab.binding.matter.internal.bridge.devices.GenericDevice;
-import org.openhab.binding.matter.internal.bridge.devices.HumiditySensorDevice;
-import org.openhab.binding.matter.internal.bridge.devices.OccupancySensorDevice;
-import org.openhab.binding.matter.internal.bridge.devices.OnOffLightDevice;
-import org.openhab.binding.matter.internal.bridge.devices.OnOffPlugInUnitDevice;
-import org.openhab.binding.matter.internal.bridge.devices.TemperatureSensorDevice;
-import org.openhab.binding.matter.internal.bridge.devices.ThermostatDevice;
-import org.openhab.binding.matter.internal.bridge.devices.WindowCoveringDevice;
 import org.openhab.binding.matter.internal.client.MatterClientListener;
 import org.openhab.binding.matter.internal.client.MatterWebsocketService;
 import org.openhab.binding.matter.internal.client.dto.ws.AttributeChangedMessage;
@@ -48,7 +38,7 @@ import org.openhab.binding.matter.internal.client.dto.ws.BridgeEventAttributeCha
 import org.openhab.binding.matter.internal.client.dto.ws.BridgeEventMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.BridgeEventTriggered;
 import org.openhab.binding.matter.internal.client.dto.ws.EventTriggeredMessage;
-import org.openhab.binding.matter.internal.client.dto.ws.NodeInitializedMessage;
+import org.openhab.binding.matter.internal.client.dto.ws.NodeDataMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.NodeStateMessage;
 import org.openhab.core.OpenHAB;
 import org.openhab.core.common.ThreadPoolManager;
@@ -272,7 +262,7 @@ public class MatterBridge implements MatterClientListener {
     }
 
     @Override
-    public void onEvent(NodeInitializedMessage message) {
+    public void onEvent(NodeDataMessage message) {
     }
 
     @Override
@@ -441,44 +431,7 @@ public class MatterBridge implements MatterClientListener {
                     }
                     final GenericItem item = (GenericItem) itemRegistry.getItem(uid.getItemName());
                     String deviceType = metadata.getValue();
-                    GenericDevice device = null;
-                    switch (deviceType) {
-                        case "OnOffLight":
-                            device = new OnOffLightDevice(metadataRegistry, client, item);
-                            break;
-                        case "OnOffPlugInUnit":
-                            device = new OnOffPlugInUnitDevice(metadataRegistry, client, item);
-                            break;
-                        case "DimmableLight":
-                            device = new DimmableLightDevice(metadataRegistry, client, item);
-                            break;
-                        case "Thermostat":
-                            device = new ThermostatDevice(metadataRegistry, client, item);
-                            break;
-                        case "WindowCovering":
-                            device = new WindowCoveringDevice(metadataRegistry, client, item);
-                            break;
-                        case "DoorLock":
-                            device = new DoorLockDevice(metadataRegistry, client, item);
-                            break;
-                        case "TemperatureSensor":
-                            device = new TemperatureSensorDevice(metadataRegistry, client, item);
-                            break;
-                        case "HumiditySensor":
-                            device = new HumiditySensorDevice(metadataRegistry, client, item);
-                            break;
-                        case "OccupancySensor":
-                            device = new OccupancySensorDevice(metadataRegistry, client, item);
-                            break;
-                        case "ContactSensor":
-                            device = new ContactSensorDevice(metadataRegistry, client, item);
-                            break;
-                        case "ColorLight":
-                            device = new ColorDevice(metadataRegistry, client, item);
-                            break;
-                        default:
-                            break;
-                    }
+                    GenericDevice device = DeviceRegistry.createDevice(deviceType, metadataRegistry, client, item);
                     if (device != null) {
                         try {
                             device.registerDevice().get();

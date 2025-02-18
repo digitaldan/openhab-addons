@@ -35,11 +35,11 @@ export class Nodes {
     }
     
     /**
-     * Refreshes a nodes attributes and events
+     * Requests all attributes data for a node
      * @param nodeId 
      * @returns 
      */
-    async refreshNode(nodeId: string | number) {
+    async requestAllData(nodeId: string | number) {
          const node = await this.controllerNode.getNode(nodeId);
          if (node.initialized) {
             return this.controllerNode.sendSerializedNode(node);
@@ -134,9 +134,10 @@ export class Nodes {
         const commissionedNodeId =
             await this.controllerNode.commissioningController.commissionNode(options);
 
-        console.log("Commissioned Node:", commissionedNodeId);
-        const node = await this.controllerNode.getNode(commissionedNodeId);
-        return node.nodeId;
+        console.log(`Commissioned Node: ${commissionedNodeId}`);
+        // const node = await this.controllerNode.getNode(commissionedNodeId);
+        // return node.nodeId;
+        return commissionedNodeId;
     }
 
     /**
@@ -209,7 +210,7 @@ export class Nodes {
      * @param nodeId 
      */
     async removeNode(nodeId: number | string) {
-        await this.controllerNode.commissioningController?.removeNode(NodeId(BigInt(nodeId)), true);
+       await this.controllerNode.removeNode(nodeId);
     }
 
     /**

@@ -7,7 +7,7 @@ import { Environment, Logger, StorageContext } from "@matter/general";
 import { ControllerStore } from "@matter/node";
 import { WebSocketSession } from "../app";
 import { EventType, NodeState } from '../MessageTypes';
-
+import { printError } from "../util/error";
 const logger = Logger.get("ControllerNode");
 
 /**
@@ -92,11 +92,16 @@ export class ControllerNode {
     }
 
     /**
-     * Connects to a node, setting up event listeners.  If called multiple times for the same node, it will trigger a node reconnect.
+     * Connects to a node, setting up event listeners. If called multiple times for the same node, it will trigger a node reconnect.
+     * If a connection timeout is provided, the function will return a promise that will resolve when the node is initialized or reject if the node
+     * becomes disconnected or the timeout is reached. Note that the node will continue to connect in the background and the client will be notified
+     * when the node is initialized through the NodeStateInformation event.  To stop the reconnection, call the disconnectNode method.
      * @param nodeId 
-     * @returns 
+     * @param connectionTimeout Optional timeout in milliseconds. If omitted or non-positive, no timeout will be applied
+     * @returns Promise that resolves when the node is initialized
+     * @throws Error if connection times out or node becomes disconnected
      */
-    async initializeNode(nodeId: string | number) {
+    async initializeNode(nodeId: string | number, connectionTimeout?: number): Promise<void> {
         if (this.commissioningController === undefined) {
             throw new Error("CommissioningController not initialized");
         }
@@ -104,48 +109,102 @@ export class ControllerNode {
         let node = this.nodes.get(NodeId(BigInt(nodeId)));
         if (node !== undefined) {
             node.triggerReconnect();
-            return;
+            
+            return new Promise((resolve, reject) => {
+                let timeoutId: NodeJS.Timeout | undefined;
+
+                if (connectionTimeout && connectionTimeout > 0) {
+                    timeoutId = setTimeout(() => {
+                        logger.info(`Node ${node?.nodeId} state: ${node?.state}`);
+                        if (node?.state === NodeStates.Disconnected || 
+                            node?.state === NodeStates.WaitingForDeviceDiscovery || 
+                            node?.state === NodeStates.Reconnecting) {
+                            reject(new Error(`Node ${node?.nodeId} reconnection failed: ${NodeStates[node?.state]}`));
+                        } else {
+                            reject(new Error(`Node ${node?.nodeId} reconnection timed out`));
+                        }
+                    }, connectionTimeout);
+                }
+
+                // Cancel timer if node initializes
+                node?.events.initializedFromRemote.once(() => {
+                    logger.info(`Node ${node?.nodeId} initialized from remote`);
+                    if (timeoutId) clearTimeout(timeoutId);
+                    resolve();
+                });
+            });
         }
 
         node = await this.commissioningController.connectNode(NodeId(BigInt(nodeId)));
         this.nodes.set(node.nodeId, node);
-        node.events.attributeChanged.on((data) => {
-            data.path.nodeId = node.nodeId;
-            this.ws.sendEvent(EventType.AttributeChanged, data);
+
+        //register event listeners once the node is fully connected
+        node.events.initializedFromRemote.once(() => {
+            node.events.attributeChanged.on((data) => {
+                data.path.nodeId = node.nodeId;
+                this.ws.sendEvent(EventType.AttributeChanged, data);
+            });
+    
+            node.events.eventTriggered.on((data) => {
+                data.path.nodeId = node.nodeId;
+                this.ws.sendEvent(EventType.EventTriggered, data);
+            });
+            
+            node.events.stateChanged.on(info => {
+                const data: any = {
+                    nodeId: node.nodeId,
+                    state: NodeStates[info]
+                };
+                this.ws.sendEvent(EventType.NodeStateInformation, data)
+            });
+    
+            node.events.structureChanged.on(() => {
+                const data: any = {
+                    nodeId: node.nodeId,
+                    state: NodeState.STRUCTURE_CHANGED
+                };
+                this.ws.sendEvent(EventType.NodeStateInformation, data)
+            });
+    
+            node.events.decommissioned.on(() => {
+                this.nodes.delete(node.nodeId);
+                const data: any = {
+                    nodeId: node.nodeId,
+                    state: NodeState.DECOMMISSIONED
+                };
+                this.ws.sendEvent(EventType.NodeStateInformation, data)
+            });
         });
 
-        node.events.eventTriggered.on((data) => {
-            data.path.nodeId = node.nodeId;
-            this.ws.sendEvent(EventType.EventTriggered, data);
-        });
-        
-        node.events.stateChanged.on(info => {
-            const data: any = {
-                nodeId: node.nodeId,
-                state: NodeStates[info]
-            };
-            this.ws.sendEvent(EventType.NodeStateInformation, data)
-        });
+        return new Promise((resolve, reject) => {
+            let timeoutId: NodeJS.Timeout | undefined;
 
-        node.events.structureChanged.on(() => {
-            const data: any = {
-                nodeId: node.nodeId,
-                state: NodeState.STRUCTURE_CHANGED
-            };
-            this.ws.sendEvent(EventType.NodeStateInformation, data)
-        });
+            if (connectionTimeout && connectionTimeout > 0) {
+                timeoutId = setTimeout(() => {
+                    logger.info(`Node ${node?.nodeId} initialization timed out`);
+                    
+                    // register a listener to send the node state information once the node is connected at some future time
+                    node.events.initializedFromRemote.once(() => {
+                        const data: any = {
+                            nodeId: node.nodeId,
+                            state: NodeStates.Connected
+                        };
+                        this.ws.sendEvent(EventType.NodeStateInformation, data)
+                    });
 
-        node.events.decommissioned.on(() => {
-            this.nodes.delete(node.nodeId);
-            const data: any = {
-                nodeId: node.nodeId,
-                state: NodeState.DECOMMISSIONED
-            };
-            this.ws.sendEvent(EventType.NodeStateInformation, data)
-        });
+                    if (node?.state === NodeStates.Disconnected || 
+                        node?.state === NodeStates.WaitingForDeviceDiscovery) {
+                        reject(new Error(`Node ${node.nodeId} connection failed: ${NodeStates[node.state]}`));
+                    } else {
+                        reject(new Error(`Node ${node.nodeId} connection timed out`));
+                    }
+                }, connectionTimeout);
+            }
 
-        node.events.initializedFromRemote.on(() => {
-            this.sendSerializedNode(node);
+            node.events.initializedFromRemote.once(() => {
+                if (timeoutId) clearTimeout(timeoutId);
+                resolve();
+            });
         });
     }
 
@@ -164,6 +223,25 @@ export class ControllerNode {
             throw new Error(`Node ${nodeId} not connected`);
         }
         return node;
+    }
+
+    /**
+     * Removes a node from the controller
+     * @param nodeId 
+     */
+    async removeNode(nodeId: number | string | NodeId) {
+        const node = this.nodes.get(NodeId(BigInt(nodeId)));
+        if (node !== undefined) {
+            try {
+                await node.decommission();
+            } catch (error) {
+                logger.error(`Error decommissioning node ${nodeId}: ${error} force removing node`);
+                await this.commissioningController?.removeNode(NodeId(BigInt(nodeId)), false);
+                this.nodes.delete(NodeId(BigInt(nodeId)));
+            }
+        } else {
+            await this.commissioningController?.removeNode(NodeId(BigInt(nodeId)), false);
+        }   
     }
 
     /**
@@ -216,10 +294,10 @@ export class ControllerNode {
      */
     sendSerializedNode(node: PairedNode) {
         this.serializePairedNode(node).then(data => {
-            this.ws.sendEvent(EventType.NodeInitialized, data);
+            this.ws.sendEvent(EventType.NodeData, data);
         }).catch(error => {
             logger.error(`Error serializing node: ${error}`);
-            this.printError(error, "serializePairedNode");
+            printError(logger, error, "serializePairedNode");
             node.triggerReconnect();
         });
     }
@@ -278,25 +356,7 @@ export class ControllerNode {
             id: node.nodeId,
             rootEndpoint: await serializeEndpoint(rootEndpoint)
         };
-    
+
         return data;
-    }
-
-    printError(error: Error, functionName: String) {
-
-        logger.error(`Error executing function ${functionName}: ${error.message}`);
-        logger.error(`Stack trace: ${error.stack}`);
-
-        // Log additional error properties if available
-        if ('code' in error) {
-            logger.error(`Error code: ${(error as any).code}`);
-        }
-        if ('name' in error) {
-            logger.error(`Error name: ${(error as any).name}`);
-        }
-
-        // Fallback: log the entire error object in case there are other useful details
-        logger.error(`Full error object: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`)
-        logger.error(error)
     }
 }
