@@ -76,7 +76,7 @@ public class MatterControllerClient extends MatterWebsocketClient {
         });
     }
 
-    public CompletableFuture<Void> pairNode(String code) {
+    public CompletableFuture<BigInteger> pairNode(String code) {
         String[] parts = code.trim().split(" ");
         CompletableFuture<JsonElement> future = null;
         if (parts.length == 2) {
@@ -86,8 +86,8 @@ public class MatterControllerClient extends MatterWebsocketClient {
             String pairCode = parts[0].indexOf("MT:") == 0 ? parts[0] : parts[0].replaceAll("-", "");
             future = sendMessage("nodes", "pairNode", new Object[] { pairCode });
         }
-        return future.thenAccept(obj -> {
-            // Do nothing, just to complete the future
+        return future.thenApply(obj -> {
+            return new BigInteger(obj.getAsString());
         });
     }
 

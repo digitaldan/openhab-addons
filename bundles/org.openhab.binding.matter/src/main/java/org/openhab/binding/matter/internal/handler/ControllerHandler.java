@@ -155,10 +155,8 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
             logger.debug("not connected");
             return CompletableFuture.completedFuture(null);
         }
-
         if (code != null) {
-            // If code provided, do pairing first, then sync all nodes
-            return client.pairNode(code).thenCompose(v -> syncUnknownNodes());
+            return client.pairNode(code).thenCompose(nodeId -> updateNode(nodeId));
         } else {
             // If no code, just sync unknown nodes
             return syncUnknownNodes();
