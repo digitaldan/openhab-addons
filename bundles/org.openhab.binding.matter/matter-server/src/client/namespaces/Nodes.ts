@@ -64,6 +64,7 @@ export class Nodes {
         let ble = false
 
         if (typeof pairingCode === "string" && pairingCode.trim().length > 0) {
+            pairingCode = pairingCode.trim();
             if (pairingCode.toUpperCase().indexOf('MT:') == 0) {
                 const qrcode = QrPairingCodeCodec.decode(pairingCode.toUpperCase())[0];
                 setupPinCode = qrcode.passcode;
@@ -135,8 +136,6 @@ export class Nodes {
             await this.controllerNode.commissioningController.commissionNode(options);
 
         console.log(`Commissioned Node: ${commissionedNodeId}`);
-        // const node = await this.controllerNode.getNode(commissionedNodeId);
-        // return node.nodeId;
         return commissionedNodeId;
     }
 

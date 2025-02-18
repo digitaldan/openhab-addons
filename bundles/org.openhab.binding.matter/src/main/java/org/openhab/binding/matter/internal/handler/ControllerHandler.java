@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -134,8 +135,13 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
             return;
         }
         if (childHandler instanceof NodeHandler handler) {
-            // todo support decommissioned removal
             removeNode(handler.getNodeId());
+            try {
+                client.disconnectNode(handler.getNodeId()).get();
+            } catch (InterruptedException | ExecutionException e) {
+                logger.debug("Could not disconnect node {}", handler.getNodeId(), e);
+            }
+
         }
     }
 
@@ -249,15 +255,10 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
     }
 
     protected void removeNode(BigInteger nodeId) {
-        try {
-            logger.debug("removing node {}", nodeId);
-            disconnectedNodes.remove(nodeId);
-            outstandingNodeRequests.remove(nodeId);
-            linkedNodes.remove(nodeId);
-            client.disconnectNode(nodeId).get();
-        } catch (Exception e) {
-            logger.debug("Could not remove node {}", nodeId, e);
-        }
+        logger.debug("removing node {}", nodeId);
+        disconnectedNodes.remove(nodeId);
+        outstandingNodeRequests.remove(nodeId);
+        linkedNodes.remove(nodeId);
     }
 
     /**

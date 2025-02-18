@@ -39,6 +39,8 @@ import com.google.gson.reflect.TypeToken;
 @NonNullByDefault
 public class MatterControllerClient extends MatterWebsocketClient {
 
+    public static final int PAIRING_TIMEOUT_SECONDS = 60 * 3;
+
     public void connect(MatterWebsocketService wss, BigInteger nodeId, String controllerName, String storagePath) {
         Map<String, String> params = Map.of("nodeId", nodeId.toString(), "controllerName", controllerName,
                 "storagePath", storagePath);
@@ -80,11 +82,11 @@ public class MatterControllerClient extends MatterWebsocketClient {
         String[] parts = code.trim().split(" ");
         CompletableFuture<JsonElement> future = null;
         if (parts.length == 2) {
-            future = sendMessage("nodes", "pairNode", new Object[] { "", parts[0], parts[1] });
+            future = sendMessage("nodes", "pairNode", new Object[] { "", parts[0], parts[1] }, PAIRING_TIMEOUT_SECONDS);
         } else {
             // MT is a matter QR code, other wise remove any dashes in a manual pairing code
-            String pairCode = parts[0].indexOf("MT:") == 0 ? parts[0] : parts[0].replaceAll("-", "");
-            future = sendMessage("nodes", "pairNode", new Object[] { pairCode });
+            String pairCode = parts[0].toUpperCase().indexOf("MT:") == 0 ? parts[0] : parts[0].replaceAll("-", "");
+            future = sendMessage("nodes", "pairNode", new Object[] { pairCode }, PAIRING_TIMEOUT_SECONDS);
         }
         return future.thenApply(obj -> {
             return new BigInteger(obj.getAsString());

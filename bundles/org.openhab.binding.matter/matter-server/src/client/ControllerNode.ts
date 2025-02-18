@@ -135,7 +135,12 @@ export class ControllerNode {
             });
         }
 
-        node = await this.commissioningController.connectNode(NodeId(BigInt(nodeId)));
+        //node = await this.commissioningController.connectNode(NodeId(BigInt(nodeId)));
+        node = await this.commissioningController.getNode(NodeId(BigInt(nodeId)));
+        if (node === undefined) {
+            throw new Error(`Node ${nodeId} not connected`);
+        }
+        node.connect();
         this.nodes.set(node.nodeId, node);
 
         //register event listeners once the node is fully connected
