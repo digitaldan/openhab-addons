@@ -69,7 +69,7 @@ A **Thread Border Router** is a device that allows devices connected via Thread 
 
 **Example:**
 
-- An Open Thread Boarder Router (open source) as well as recent versions of Apple TVs, Amazon Echos and Google Nest Hubs all have embedded thread boarder routers. 
+- An Open Thread Border Router (open source) as well as recent versions of Apple TVs, Amazon Echos and Google Nest Hubs all have embedded thread border routers. 
 
 ## IPv6 and Network Connectivity
 
@@ -95,7 +95,7 @@ For Matter devices to function correctly, **IPv6 must be enabled** and supported
 
 ### Enabling IPv6 Thread Connectivity on Linux Hosts
 
-It is important to make sure that Route Announcements (RA) and Route Information Options (RIO) are enabled on your host so that Thread boarder routers can announce routes to the Thread network. 
+It is important to make sure that Route Announcements (RA) and Route Information Options (RIO) are enabled on your host so that Thread border routers can announce routes to the Thread network. 
 This is done by setting the following sysctl options:
 
 1. `net.ipv6.conf.wlan0.accept_ra` should be at least `1` if ip forwarding is not enabled, and `2` otherwise.
@@ -187,7 +187,7 @@ When using the discovery feature of openHAB use the provided code in the text en
 
 Thread devices require a Thread Border Router and a bluetooth enabled device to facilitate the thread joining process (typically a mobile device).  Until there is a supported thread border router integration in openHAB and the openHAB mobile apps, it's strongly recommended to pair the device to a commercial router with thread support first (Apple TV 4k, Google Nest Hub 2, Amazon Gen 4 Echo, etc... ), then generate a matter pairing code and add the device normally.  This will still allow openHAB to have direct access to the device using only the embedded thread border router and does not interact with the underlying providers home automation stack.
 
-Support for using a Open Thread Border Router has been verified to work and will be coming soon to openHAB, but in some cases requires strong expertise in IPv6 routing as well as support in our mobile clients. 
+Support for using Open Thread Border Router has been verified to work and will be coming soon to openHAB, but in some cases requires strong expertise in IPv6 routing as well as support in our mobile clients. 
 
 ## Binding Configuration
 
