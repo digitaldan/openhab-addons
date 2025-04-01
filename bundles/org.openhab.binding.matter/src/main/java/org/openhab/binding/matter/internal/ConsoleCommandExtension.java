@@ -82,13 +82,23 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
     }
 
     private void handleControllerCommand(String[] args, Console console) {
-        if (args.length < 3) {
+        if (args.length < 2) {
             console.println("Invalid use of controller command. Usage: controller <controller_id> <subcommand>");
             printUsage(console);
             return;
         }
 
         String controllerId = args[1];
+        if (controllerId.equals("list")) {
+            listControllers(console);
+            return;
+        }
+
+        if (args.length < 3) {
+            console.println("Invalid use of controller command. Usage: controller <controller_id> <subcommand>");
+            printUsage(console);
+            return;
+        }
         String subcommand = args[2];
         Optional<ControllerHandler> controllerHandler = getControllerHandler(controllerId);
 
@@ -98,13 +108,6 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
         }
 
         switch (subcommand) {
-            case "restart":
-                // controllerHandler.get().restart();
-                console.println("Restarting controller '" + controllerId + "'");
-                break;
-            case "list":
-                listControllers(console);
-                break;
             case "nodes":
                 listNodes(console, controllerId);
                 break;
@@ -139,7 +142,7 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
                     printUsage(console);
                     return;
                 }
-                handleRpcCommand(console, controllerId, args[3]);
+                // handleRpcCommand(console, controllerId, args[3]);
                 break;
             default:
                 console.println("Unknown controller subcommand '" + subcommand + "'");
@@ -149,54 +152,41 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
     }
 
     private void handleBridgeCommand(String[] args, Console console) {
-        if (args.length < 3) {
-            console.println("Invalid use of bridge command. Usage: bridge <bridge_id> <subcommand>");
+        if (args.length < 2) {
+            console.println("Invalid use of bridge command. Usage: bridge <command>");
             printUsage(console);
             return;
         }
 
-        String bridgeId = args[1];
-        String subcommand = args[2];
-        Optional<ControllerHandler> bridgeHandler = getControllerHandler(bridgeId);
-
-        if (bridgeHandler.isEmpty()) {
-            console.println("Bridge '" + bridgeId + "' not found.");
-            return;
-        }
+        String subcommand = args[1];
 
         switch (subcommand) {
             case "fabrics":
-                listFabrics(console, bridgeId);
+                listFabrics(console);
                 break;
             case "removeFabric":
-                if (args.length < 4) {
+                if (args.length < 3) {
                     console.println("Missing fabric ID for removeFabric command");
                     printUsage(console);
                     return;
                 }
-                // bridgeHandler.get().removeFabric(args[3]);
-                console.println("Removing fabric '" + args[3] + "' from bridge '" + bridgeId + "'");
+                console.println("Removing fabric '" + args[2] + "'");
+                matterBridge.removeFabric(args[2]);
+                listFabrics(console);
                 break;
             case "allowCommissioning":
-                if (args.length < 4) {
-                    console.println("Missing allow parameter for allowCommissioning command");
-                    printUsage(console);
-                    return;
-                }
-                // bridgeHandler.get().setAllowCommissioning(Boolean.parseBoolean(args[3]));
-                console.println("Setting allowCommissioning to '" + args[3] + "' for bridge '" + bridgeId + "'");
+                matterBridge.allowCommissioning();
                 break;
             case "resetStorage":
-                // bridgeHandler.get().resetStorage();
-                console.println("Resetting storage for bridge '" + bridgeId + "'");
+                matterBridge.resetStorage();
                 break;
             case "rpc":
-                if (args.length < 4) {
+                if (args.length < 3) {
                     console.println("Missing RPC command");
                     printUsage(console);
                     return;
                 }
-                handleRpcCommand(console, bridgeId, args[3]);
+                handleRpcCommand(console, args[2]);
                 break;
             default:
                 console.println("Unknown bridge subcommand '" + subcommand + "'");
@@ -264,22 +254,11 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
         }
     }
 
-    private void listFabrics(Console console, String bridgeId) {
-        Optional<ControllerHandler> bridgeHandler = getControllerHandler(bridgeId);
-        if (bridgeHandler.isPresent()) {
-            console.println("Listing fabrics for bridge '" + bridgeId + "'");
-            // TODO: Implement fabric listing
-        }
+    private void listFabrics(Console console) {
+        console.println(matterBridge.listFabrics());
     }
 
-    private void handleRpcCommand(Console console, String id, String command) {
-        Optional<ControllerHandler> handler = getControllerHandler(id);
-        if (handler.isPresent()) {
-            console.println("Executing RPC command '" + command + "' for '" + id + "'");
-            // TODO: Implement RPC command execution
-        } else {
-            console.println("Controller '" + id + "' not found.");
-        }
+    private void handleRpcCommand(Console console, String command) {
     }
 
     private void restartNode(Console console) {
@@ -294,20 +273,19 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
 
     @Override
     public List<String> getUsages() {
-        return Arrays.asList(
+        return Arrays.asList(buildCommandUsage(CONTROLLER + " list", "List all controllers"),
                 buildCommandUsage(CONTROLLER + " <controller_id> restart", "Restart the specified controller"),
-                buildCommandUsage(CONTROLLER + " <controller_id> list", "List all controllers"),
                 buildCommandUsage(CONTROLLER + " <controller_id> nodes", "List all nodes for the specified controller"),
                 buildCommandUsage(CONTROLLER + " <controller_id> commission <pairing_code>", "Commission a new node"),
                 buildCommandUsage(CONTROLLER + " <controller_id> decommission <node_id>", "Decommission a node"),
                 buildCommandUsage(CONTROLLER + " <controller_id> resetStorage", "Reset controller storage"),
                 buildCommandUsage(CONTROLLER + " <controller_id> sessionInfo", "List session information"),
                 buildCommandUsage(CONTROLLER + " <controller_id> rpc <command>", "Execute RPC command"),
-                buildCommandUsage(BRIDGE + " <bridge_id> fabrics", "List all fabrics"),
-                buildCommandUsage(BRIDGE + " <bridge_id> removeFabric <fabric_id>", "Remove a fabric"),
-                buildCommandUsage(BRIDGE + " <bridge_id> allowCommissioning <true|false>", "Set commissioning mode"),
-                buildCommandUsage(BRIDGE + " <bridge_id> resetStorage", "Reset bridge storage"),
-                buildCommandUsage(BRIDGE + " <bridge_id> rpc <command>", "Execute RPC command"),
+                buildCommandUsage(BRIDGE + " fabrics", "List all fabrics"),
+                buildCommandUsage(BRIDGE + " removeFabric <fabric_id>", "Remove a fabric"),
+                buildCommandUsage(BRIDGE + " allowCommissioning <true|false>", "Set commissioning mode"),
+                buildCommandUsage(BRIDGE + " resetStorage", "Reset bridge storage"),
+                buildCommandUsage(BRIDGE + " rpc <command>", "Execute RPC command"),
                 buildCommandUsage(COMMON + " restartNode", "Restart the NodeJs server"));
     }
 }

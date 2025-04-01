@@ -272,12 +272,6 @@ public class MatterBridge implements MatterClientListener {
                 case "commissioningWindowOpen":
                     commissioningWindowOpen = true;
                     updateConfig(Map.of("openCommissioningWindow", true));
-                    // commissioningWindowOpen = true;
-                    // Object qrPairingCode = bridgeEventTriggered.data.data.get("qrPairingCode");
-                    // Object manualPairingCode = bridgeEventTriggered.data.data.get("manualPairingCode");
-                    // if (qrPairingCode != null && manualPairingCode != null) {
-                    // updatePairingCodes(qrPairingCode.toString(), manualPairingCode.toString());
-                    // }
                     break;
                 case "commissioningWindowClosed":
                     commissioningWindowOpen = false;
@@ -286,6 +280,33 @@ public class MatterBridge implements MatterClientListener {
                 default:
             }
         }
+    }
+
+    public void restart() {
+        stopClient();
+        connectClient();
+    }
+
+    public void allowCommissioning() {
+        manageCommissioningWindow(true);
+    }
+
+    public void resetStorage() {
+        this.resetStorage = true;
+        stopClient();
+        connectClient();
+    }
+
+    public String listFabrics() {
+        return client.getFabrics().toString();
+    }
+
+    public void removeFabric(String fabricId) {
+        client.removeFabric(Integer.parseInt(fabricId));
+    }
+
+    public void rpc(String command) {
+        // client.rpc(command);
     }
 
     private synchronized void connectClient() {

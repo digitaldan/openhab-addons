@@ -22,17 +22,17 @@ import { FanDeviceType } from "./devices/FanDeviceType";
 import { ColorDeviceType } from "./devices/ColorDeviceType";
 import { BridgeEvent, BridgeEventType, EventType } from "../MessageTypes";
 
+type DeviceType = OnOffLightDeviceType | OnOffPlugInDeviceType | DimmableDeviceType | ThermostatDeviceType | WindowCoveringDeviceType | DoorLockDeviceType | TemperatureSensorType | HumiditySensorType | OccupancySensorDeviceType | ContactSensorDeviceType | FanDeviceType | ColorDeviceType;
 
 const logger = Logger.get("DeviceNode");
 const DEFAULT_NODE_ID = "bridge-0"
 
 export class DeviceNode {
-    private server!: ServerNode;
+    private server: ServerNode | null = null;
     #environment: Environment = Environment.default;
 
-    private aggregator!: Endpoint<AggregatorEndpoint>;
+    private aggregator: Endpoint<AggregatorEndpoint> | null = null;
     private devices: Map<string, GenericDeviceType> = new Map();
-    private inCommission = false;
     private storageService: StorageService;
     
     constructor(private bridgeController: BridgeController, private storagePath: string, private deviceName: string, private vendorName: string, private passcode: number, private discriminator: number, private vendorId: number, private productName: string, private productId: number, private port: number) {
@@ -44,13 +44,12 @@ export class DeviceNode {
     //public methods
 
     async initializeBridge(resetStorage: boolean = false) {
-        logger.info(`Closing bridge`);
         await this.close();
         logger.info(`Initializing bridge`);
         await this.#init();
         if (resetStorage) {
             logger.info(`!!! Erasing ServerNode Storage !!!`);
-            await this.server.erase();
+            await this.server?.erase();
             await this.close();
             //generate a new uniqueId for the bridge (bridgeBasicInformation.uniqueId)
             const ohStorage = await this.#ohBridgeStorage();
@@ -58,7 +57,6 @@ export class DeviceNode {
             logger.info(`Initializing bridge again`);
             await this.#init();
         }
-       
         logger.info(`Bridge initialized`);
     }
 
@@ -66,82 +64,73 @@ export class DeviceNode {
         if (this.devices.size == 0) {
             throw new Error("No devices added, not starting");
         }
+        if(!this.server) {
+            throw new Error("Server not initialized, not starting");
+        }
+        if(this.server.lifecycle.isOnline) {
+            throw new Error("Server is already started, not starting");
+        }
+        this.server.events.commissioning.enabled$Changed.on(async () => {
+            logger.info(`Commissioning state changed to ${this.server?.state.commissioning.enabled}`);
+            this.#sendCommissioningStatus();
+        });
+        this.server.lifecycle.online.on(() => {
+            logger.info(`Bridge online`);
+            this.#sendCommissioningStatus();
+        });
         logEndpoint(EndpointServer.forEndpoint(this.server));
         logger.info(`Starting bridge`);
         await this.server.start();
         logger.info(`Bridge started`);
         const ohStorage = await this.#ohBridgeStorage();
         await ohStorage.set("lastStart", Date.now());
-        this.#sendCommissioningStatus();
     }
 
     async close() {
         await this.server?.close();
         // await Promise.race([
         //     this.server?.close(),
-        //     new Promise((_, reject) => 
+        //     new Promise((_, reject) =>
         //         setTimeout(() => reject(new Error('Server close operation timed out after 10 seconds')), 10000)
         //     )
         // ]);
+        this.server = null;
         this.devices.clear();
     }
 
     async addEndpoint(deviceType: string, id: string, nodeLabel: string, productName: string, productLabel: string, serialNumber: string, attributeMap: { [key: string]: any }) {
-        let device: GenericDeviceType | null = null;
-
         if (this.devices.has(id)) {
-            throw new Error(`Device ${id} already exists! Call 'resetEndpoints' first and try again.`);
+            throw new Error(`Device ${id} already exists!`);
         }
 
         if (!this.aggregator) {
             throw new Error(`Aggregator not initialized, aborting.`);
         }
 
-        switch (deviceType) {
-            case "OnOffLight":
-                device = new OnOffLightDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "OnOffPlugInUnit":
-                device = new OnOffPlugInDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "DimmableLight":
-                device = new DimmableDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "Thermostat":
-                device = new ThermostatDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "WindowCovering":
-                device = new WindowCoveringDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "DoorLock":
-                device = new DoorLockDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "TemperatureSensor":
-                device = new TemperatureSensorType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "HumiditySensor":
-                device = new HumiditySensorType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "OccupancySensor":
-                device = new OccupancySensorDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "ContactSensor":
-                device = new ContactSensorDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "Fan":
-                device = new FanDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            case "ColorLight":
-                device = new ColorDeviceType(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
-                break;
-            default:
-                throw new Error(`Unsupported device type ${deviceType}`);
-        }
-        if (device != null) {
-            this.devices.set(id, device);
-            await this.aggregator.add(device.endpoint);
+        //little hack to get the correct device class and initialize it with the correct parameters once
+        const deviceTypeMap: { [key: string]: new (bridgeController: BridgeController, attributeMap: { [key: string]: any }, id: string, nodeLabel: string, productName: string, productLabel: string, serialNumber: string) => DeviceType } = {
+            "OnOffLight": OnOffLightDeviceType,
+            "OnOffPlugInUnit": OnOffPlugInDeviceType,
+            "DimmableLight": DimmableDeviceType,
+            "Thermostat": ThermostatDeviceType,
+            "WindowCovering": WindowCoveringDeviceType,
+            "DoorLock": DoorLockDeviceType,
+            "TemperatureSensor": TemperatureSensorType,
+            "HumiditySensor": HumiditySensorType,
+            "OccupancySensor": OccupancySensorDeviceType,
+            "ContactSensor": ContactSensorDeviceType,
+            "Fan": FanDeviceType,
+            "ColorLight": ColorDeviceType
+        };
+
+        const DeviceClass = deviceTypeMap[deviceType];
+        if (!DeviceClass) {
+            throw new Error(`Unsupported device type ${deviceType}`);
         }
 
+        const device = new DeviceClass(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
+        this.devices.set(id, device);
+        await this.aggregator.add(device.endpoint);
     }
 
     async setEndpointState(endpointId: string, clusterName: string, stateName: string, stateValue: any) {
@@ -152,41 +141,45 @@ export class DeviceNode {
     }
 
     async openCommissioningWindow() {
-        const dc = this.server.env.get(DeviceCommissioner);
+        const dc = this.#getStartedServer().env.get(DeviceCommissioner);
         logger.debug('opening basic commissioning window')
         await dc.allowBasicCommissioning(() => {
-            this.inCommission = false;
             logger.debug('commissioning window closed')
-           this.#sendCommissioningStatus();
         });
-        this.inCommission = true;
         logger.debug('basic commissioning window open')
         this.#sendCommissioningStatus();
     }
 
     async closeCommissioningWindow() {
-        const dc = this.server.env.get(DeviceCommissioner);
+        const server = this.#getStartedServer();
+        if(!server.state.commissioning.commissioned) {
+            logger.debug('bridge is not commissioned, not closing commissioning window')
+            this.#sendCommissioningStatus();
+            return;
+        }
+        const dc = server.env.get(DeviceCommissioner);
         logger.debug('closing basic commissioning window')
         await dc.endCommissioning();
     }
 
     getCommissioningState() {
+        const server = this.#getStartedServer();
         return {
             pairingCodes: {
-                manualPairingCode: this.server.state.commissioning.pairingCodes.manualPairingCode,
-                qrPairingCode: this.server.state.commissioning.pairingCodes.qrPairingCode
+                manualPairingCode: server.state.commissioning.pairingCodes.manualPairingCode,
+                qrPairingCode: server.state.commissioning.pairingCodes.qrPairingCode
             },
-            commissioningWindowOpen : !this.server.state.commissioning.commissioned || this.inCommission
+            commissioningWindowOpen : server.state.commissioning.enabled
         }
     }
 
     getFabrics() {
-        const fabricManager = this.server.env.get(FabricManager);
+        const fabricManager = this.#getStartedServer().env.get(FabricManager);
         return fabricManager.fabrics;
     }
 
     async removeFabric(fabricIndex: number) {
-        const fabricManager = this.server.env.get(FabricManager);
+        const fabricManager = this.#getStartedServer().env.get(FabricManager);
         await fabricManager.removeFabric(FabricIndex(fabricIndex));
     }
 
@@ -249,6 +242,14 @@ export class DeviceNode {
             logger.error(`Error starting server: ${e}`);
             throw e;
         }
+    }
+
+    
+    #getStartedServer() {
+        if(!this.server || !this.server.lifecycle.isOnline) {
+            throw new Error("Server not ready");
+        }
+        return this.server;
     }
 
     async #ohBridgeStorage() {

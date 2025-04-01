@@ -19,6 +19,7 @@ export function printError(logger: Logger, error: Error, functionName: String) {
     }
 
     // Fallback: log the entire error object in case there are other useful details
-    logger.error(`Full error object: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`)
+    logger.error(`Full error object: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`)
+    logger.error("--------------------------------")
     logger.error(error)
 }
