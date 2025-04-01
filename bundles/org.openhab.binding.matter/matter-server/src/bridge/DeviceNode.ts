@@ -41,81 +41,42 @@ export class DeviceNode {
         this.storageService = this.#environment.get(StorageService);
     }
 
-    async ohBridgeStorage() {
-        return (await this.storageService.open(DEFAULT_NODE_ID)).createContext("openhab");
-    }
+    //public methods
 
-    //remove this after some amount of time that users have upgraded.
-    async isLegacyBridge() {
-        const rootContext = (await this.storageService.open(DEFAULT_NODE_ID)).createContext("root");
-        const ohStorage = await this.ohBridgeStorage();
-        //is there an existing common matter.js root element but not our openhab storage? 
-        return (await rootContext.has("__number__")) && !(await ohStorage.has("lastStart"));
-    }
-
-    async init() {
-        const ohStorage = await this.ohBridgeStorage();
-        //use the default node id as unique id unless one has been reset by the user. Used the basicCluster of the root endpoint to uniquely identify the bridge
-        const uniqueId = await ohStorage.get("basicInformation.uniqueId", (await this.isLegacyBridge()) ? DEFAULT_NODE_ID : this.#randomUUID());
-
-        logger.info(`Unique ID: ${uniqueId}`);
-        /**
-         * Create a Matter ServerNode, which contains the Root Endpoint and all relevant data and configuration
-         */
-        try {
-            this.server = await ServerNode.create({
-                // Required: Give the Node a unique ID which is used to store the state of this node
-                id: DEFAULT_NODE_ID,
-
-                // Provide Network relevant configuration like the port
-                // Optional when operating only one device on a host, Default port is 5540
-                network: {
-                    port: this.port,
-                },
-
-                // Provide Commissioning relevant settings
-                // Optional for development/testing purposes
-                commissioning: {
-                    passcode: this.passcode,
-                    discriminator: this.discriminator,
-
-                },
-
-                // Provide Node announcement settings
-                // Optional: If Ommitted some development defaults are used
-                productDescription: {
-                    name: this.deviceName,
-                    deviceType: AggregatorEndpoint.deviceType,
-                },
-
-                // Provide defaults for the BasicInformation cluster on the Root endpoint
-                // Optional: If Omitted some development defaults are used
-                basicInformation: {
-                    vendorName: this.vendorName,
-                    vendorId: VendorId(this.vendorId),
-                    nodeLabel: this.productName,
-                    productName: this.productName,
-                    productLabel: this.productName,
-                    productId: this.productId,
-                    serialNumber:`${this.productName}-${this.productId}`,
-                    uniqueId: uniqueId,
-                },
-            });
-
-            logger.info(`ServerNode created with ID: ${this.server.id}`);
-            this.aggregator = new Endpoint(AggregatorEndpoint, { id: "aggregator" });
-            await this.server.add(this.aggregator);
-            await ohStorage.set("basicInformation.uniqueId", uniqueId);
-        } catch (e) {
-            logger.error(`Error starting server: ${e}`);
-            throw e;
+    async initializeBridge(resetStorage: boolean = false) {
+        logger.info(`Closing bridge`);
+        await this.close();
+        logger.info(`Initializing bridge`);
+        await this.#init();
+        if (resetStorage) {
+            logger.info(`!!! Erasing ServerNode Storage !!!`);
+            await this.server.erase();
+            await this.close();
+            //generate a new uniqueId for the bridge (bridgeBasicInformation.uniqueId)
+            const ohStorage = await this.#ohBridgeStorage();
+            await ohStorage.set("basicInformation.uniqueId", this.#randomUUID());
+            logger.info(`Initializing bridge again`);
+            await this.#init();
         }
+       
+        logger.info(`Bridge initialized`);
+    }
+
+    async startBridge() {
+        if (this.devices.size == 0) {
+            throw new Error("No devices added, not starting");
+        }
+        logEndpoint(EndpointServer.forEndpoint(this.server));
+        logger.info(`Starting bridge`);
+        await this.server.start();
+        logger.info(`Bridge started`);
+        const ohStorage = await this.#ohBridgeStorage();
+        await ohStorage.set("lastStart", Date.now());
+        this.#sendCommissioningStatus();
     }
 
     async close() {
         await this.server?.close();
-        this.devices.clear();
-
         // await Promise.race([
         //     this.server?.close(),
         //     new Promise((_, reject) => 
@@ -125,28 +86,7 @@ export class DeviceNode {
         this.devices.clear();
     }
 
-    getCommissioningState() {
-        return {
-            pairingCodes: {
-                manualPairingCode: this.server.state.commissioning.pairingCodes.manualPairingCode,
-                qrPairingCode: this.server.state.commissioning.pairingCodes.qrPairingCode
-            },
-            commissioningWindowOpen : !this.server.state.commissioning.commissioned || this.inCommission
-        }
-    }
-
-    getFabrics() {
-        const fabricManager = this.server.env.get(FabricManager);
-        return fabricManager.fabrics;
-    }
-
-    async removeFabric(fabricIndex: number) {
-        const fabricManager = this.server.env.get(FabricManager);
-        await fabricManager.removeFabric(FabricIndex(fabricIndex));
-    }
-
     async addEndpoint(deviceType: string, id: string, nodeLabel: string, productName: string, productLabel: string, serialNumber: string, attributeMap: { [key: string]: any }) {
-        //const deviceType = this.deviceTypes[endpointType];
         let device: GenericDeviceType | null = null;
 
         if (this.devices.has(id)) {
@@ -204,35 +144,6 @@ export class DeviceNode {
 
     }
 
-    async initializeBridge(resetStorage: boolean = false) {
-        //remove these hacks once we have a proper way to close the server
-        logger.info(`Closing bridge`);
-        await this.close();
-        logger.info(`Initializing bridge`);
-        await this.init();
-        if (resetStorage) {
-            logger.info(`!!! Erasing ServerNode Storage !!!`);
-            await this.server.erase();
-            //generate a new uniqueId for the bridge (bridgeBasicInformation.uniqueId)
-            const ohStorage = await this.ohBridgeStorage();
-            await ohStorage.set("basicInformation.uniqueId", this.#randomUUID());
-            await this.init();
-        }
-        logger.info(`Bridge initialized`);
-    }
-
-    async startBridge() {
-        if (this.devices.size == 0) {
-            throw new Error("No devices added, not starting");
-        }
-        logEndpoint(EndpointServer.forEndpoint(this.server));
-        logger.info(`Starting bridge`);
-        await this.server.start();
-        logger.info(`Bridge started`);
-        const ohStorage = await this.ohBridgeStorage();
-        await ohStorage.set("lastStart", Date.now());
-    }
-
     async setEndpointState(endpointId: string, clusterName: string, stateName: string, stateValue: any) {
         const device = this.devices.get(endpointId);
         if (device) {
@@ -246,17 +157,11 @@ export class DeviceNode {
         await dc.allowBasicCommissioning(() => {
             this.inCommission = false;
             logger.debug('commissioning window closed')
-            const be: BridgeEvent = {
-                type: BridgeEventType.EventTriggered,
-                data: {
-                    eventName: "commissioningWindowClosed",
-                    data: {}
-                }
-            }
-            this.bridgeController.ws.sendEvent(EventType.BridgeEvent, be);
+           this.#sendCommissioningStatus();
         });
         this.inCommission = true;
         logger.debug('basic commissioning window open')
+        this.#sendCommissioningStatus();
     }
 
     async closeCommissioningWindow() {
@@ -265,32 +170,112 @@ export class DeviceNode {
         await dc.endCommissioning();
     }
 
+    getCommissioningState() {
+        return {
+            pairingCodes: {
+                manualPairingCode: this.server.state.commissioning.pairingCodes.manualPairingCode,
+                qrPairingCode: this.server.state.commissioning.pairingCodes.qrPairingCode
+            },
+            commissioningWindowOpen : !this.server.state.commissioning.commissioned || this.inCommission
+        }
+    }
+
+    getFabrics() {
+        const fabricManager = this.server.env.get(FabricManager);
+        return fabricManager.fabrics;
+    }
+
+    async removeFabric(fabricIndex: number) {
+        const fabricManager = this.server.env.get(FabricManager);
+        await fabricManager.removeFabric(FabricIndex(fabricIndex));
+    }
+
+    //private methods
+
+    async #init() {
+        const ohStorage = await this.#ohBridgeStorage();
+        //use the default node id as unique id unless one has been reset by the user. Used the basicCluster of the root endpoint to uniquely identify the bridge
+        const uniqueId = await ohStorage.get("basicInformation.uniqueId", (await this.#isLegacyBridge()) ? DEFAULT_NODE_ID : this.#randomUUID());
+
+        logger.info(`Unique ID: ${uniqueId}`);
+        /**
+         * Create a Matter ServerNode, which contains the Root Endpoint and all relevant data and configuration
+         */
+        try {
+            this.server = await ServerNode.create({
+                // Required: Give the Node a unique ID which is used to store the state of this node
+                id: DEFAULT_NODE_ID,
+
+                // Provide Network relevant configuration like the port
+                // Optional when operating only one device on a host, Default port is 5540
+                network: {
+                    port: this.port,
+                },
+
+                // Provide Commissioning relevant settings
+                // Optional for development/testing purposes
+                commissioning: {
+                    passcode: this.passcode,
+                    discriminator: this.discriminator,
+
+                },
+
+                // Provide Node announcement settings
+                // Optional: If Ommitted some development defaults are used
+                productDescription: {
+                    name: this.deviceName,
+                    deviceType: AggregatorEndpoint.deviceType,
+                },
+
+                // Provide defaults for the BasicInformation cluster on the Root endpoint
+                // Optional: If Omitted some development defaults are used
+                basicInformation: {
+                    vendorName: this.vendorName,
+                    vendorId: VendorId(this.vendorId),
+                    nodeLabel: this.productName,
+                    productName: this.productName,
+                    productLabel: this.productName,
+                    productId: this.productId,
+                    //serial number should != uniqueId according to the spec
+                    serialNumber:`${this.productName}-${this.productId}`,
+                    uniqueId: uniqueId,
+                },
+            });
+            this.aggregator = new Endpoint(AggregatorEndpoint, { id: "aggregator" });
+            await this.server.add(this.aggregator);
+            await ohStorage.set("basicInformation.uniqueId", uniqueId);
+            logger.info(`ServerNode created with uniqueId: ${uniqueId}`);
+        } catch (e) {
+            logger.error(`Error starting server: ${e}`);
+            throw e;
+        }
+    }
+
+    async #ohBridgeStorage() {
+        return (await this.storageService.open(DEFAULT_NODE_ID)).createContext("openhab");
+    }
+
+    //remove this after some amount of time that users have upgraded.
+    async #isLegacyBridge() {
+        const rootContext = (await this.storageService.open(DEFAULT_NODE_ID)).createContext("root");
+        const ohStorage = await this.#ohBridgeStorage();
+        //is there an existing common matter.js root element but not our openhab storage? 
+        return (await rootContext.has("__number__")) && !(await ohStorage.has("lastStart"));
+    }
+
     #randomUUID() {
         return crypto.randomUUID().replace(/-/g, '');
     }
 
-    // #sendCommissioningCodes() {
-    //     if (!this.server.state.commissioning.commissioned || this.inCommission) {
-    //         const be: BridgeEvent = {
-    //             type: BridgeEventType.EventTriggered,
-    //             data: {
-    //                 eventName: "commissioningWindowOpen",
-    //                 data: {
-    //                     manualPairingCode: this.server.state.commissioning.pairingCodes.manualPairingCode,
-    //                     qrPairingCode: this.server.state.commissioning.pairingCodes.qrPairingCode
-    //                 }
-    //             }
-    //         }
-    //         this.bridgeController.ws.sendEvent(EventType.BridgeEvent, be);
-    //     } else {
-    //         const be: BridgeEvent = {
-    //             type: BridgeEventType.EventTriggered,
-    //             data: {
-    //                 eventName: "commissioningWindowClosed",
-    //                 data: {}
-    //             }
-    //         }
-    //         this.bridgeController.ws.sendEvent(EventType.BridgeEvent, be);
-    //     }
-    //}
+    #sendCommissioningStatus() {
+        const state = this.getCommissioningState();
+        const be: BridgeEvent = {
+            type: BridgeEventType.EventTriggered,
+            data: {
+                eventName: state.commissioningWindowOpen ? "commissioningWindowOpen" : "commissioningWindowClosed",
+                data: state.pairingCodes
+            }
+        }
+        this.bridgeController.ws.sendEvent(EventType.BridgeEvent, be);
+    }
 }

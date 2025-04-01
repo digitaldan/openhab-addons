@@ -206,18 +206,17 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
     }
 
     private void handleCommonCommand(String[] args, Console console) {
-        if (args.length < 3) {
-            console.println("Invalid use of common command. Usage: common <subcommand> <node_id>");
+        if (args.length < 2) {
+            console.println("Invalid use of common command. Usage: common <subcommand>");
             printUsage(console);
             return;
         }
 
         String subcommand = args[1];
-        String nodeId = args[2];
 
         switch (subcommand) {
             case "restartNode":
-                restartNode(console, nodeId);
+                restartNode(console);
                 break;
             default:
                 console.println("Unknown common subcommand '" + subcommand + "'");
@@ -283,8 +282,8 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
         }
     }
 
-    private void restartNode(Console console, String nodeId) {
-        console.println("Restarting node '" + nodeId + "'");
+    private void restartNode(Console console) {
+        console.println("Restarting node");
         try {
             matterWebsocketService.restart();
         } catch (IOException e) {
@@ -309,6 +308,6 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
                 buildCommandUsage(BRIDGE + " <bridge_id> allowCommissioning <true|false>", "Set commissioning mode"),
                 buildCommandUsage(BRIDGE + " <bridge_id> resetStorage", "Reset bridge storage"),
                 buildCommandUsage(BRIDGE + " <bridge_id> rpc <command>", "Execute RPC command"),
-                buildCommandUsage(COMMON + " restartNode <node_id>", "Restart the NodeJs server"));
+                buildCommandUsage(COMMON + " restartNode", "Restart the NodeJs server"));
     }
 }

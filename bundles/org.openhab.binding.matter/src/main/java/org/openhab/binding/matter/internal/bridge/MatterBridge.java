@@ -77,6 +77,7 @@ public class MatterBridge implements MatterClientListener {
     private static final String CONFIG_PID = "org.openhab.matter";
     private static final String CONFIG_URI = "io:matter";
 
+    // Matter Bridge Device Info *Basic Information Cluster*
     private static final String VENDOR_NAME = "openHAB";
     private static final String DEVICE_NAME = "Bridge Device";
     private static final String PRODUCT_ID = "0001";
@@ -208,10 +209,12 @@ public class MatterBridge implements MatterClientListener {
         }
         if (settings.resetBridge) {
             this.resetStorage = true;
+            settings.resetBridge = false;
             restart = true;
-
         }
-        settings.resetBridge = false;
+        if (settings.openCommissioningWindow != commissioningWindowOpen) {
+            manageCommissioningWindow(settings.openCommissioningWindow);
+        }
 
         this.settings = settings;
 
@@ -220,8 +223,6 @@ public class MatterBridge implements MatterClientListener {
         } else if (!client.isConnected() || restart) {
             stopClient();
             scheduleConnect();
-        } else {
-            manageCommissioningWindow();
         }
     }
 
@@ -269,6 +270,8 @@ public class MatterBridge implements MatterClientListener {
         } else if (message instanceof BridgeEventTriggered bridgeEventTriggered) {
             switch (bridgeEventTriggered.data.eventName) {
                 case "commissioningWindowOpen":
+                    commissioningWindowOpen = true;
+                    updateConfig(Map.of("openCommissioningWindow", true));
                     // commissioningWindowOpen = true;
                     // Object qrPairingCode = bridgeEventTriggered.data.data.get("qrPairingCode");
                     // Object manualPairingCode = bridgeEventTriggered.data.data.get("manualPairingCode");
@@ -471,21 +474,19 @@ public class MatterBridge implements MatterClientListener {
         }
     }
 
-    private void manageCommissioningWindow() {
+    private void manageCommissioningWindow(boolean open) {
         if (runningState != RunningState.Running) {
             return;
         }
-        if (settings.openCommissioningWindow && !commissioningWindowOpen) {
+        if (open) {
             try {
                 client.openCommissioningWindow().get();
-                commissioningWindowOpen = true;
             } catch (CancellationException | InterruptedException | ExecutionException e) {
                 logger.debug("Could not open commissioning window", e);
             }
-        } else if (!settings.openCommissioningWindow && commissioningWindowOpen) {
+        } else {
             try {
                 client.closeCommissioningWindow().get();
-                commissioningWindowOpen = false;
             } catch (CancellationException | InterruptedException | ExecutionException e) {
                 logger.debug("Could not close commissioning window", e);
             }
