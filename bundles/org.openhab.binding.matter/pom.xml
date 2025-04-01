@@ -79,6 +79,17 @@
 
           <!-- Code generation commands -->
           <execution>
+            <id>Install node and npm for codegen</id>
+            <goals>
+              <goal>install-node-and-npm</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <workingDirectory>code-gen</workingDirectory>
+            </configuration>
+          </execution>
+
+          <execution>
             <id>npm-install-codegen</id>
             <phase>generate-sources</phase>
             <goals>

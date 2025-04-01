@@ -81,8 +81,6 @@ public class MatterBridge implements MatterClientListener {
     private static final String DEVICE_NAME = "Bridge Device";
     private static final String PRODUCT_ID = "0001";
     private static final String VENDOR_ID = "65521";
-    // this will be used in the name of the storage directory
-    private static final String UNIQUE_ID = "bridge-0";
 
     private final Map<String, GenericDevice> devices = new HashMap<>();
 
@@ -311,7 +309,6 @@ public class MatterBridge implements MatterClientListener {
             paramsMap.put("vendorName", VENDOR_NAME);
             paramsMap.put("vendorId", VENDOR_ID);
             paramsMap.put("productId", PRODUCT_ID);
-            paramsMap.put("uniqueId", UNIQUE_ID);
 
             paramsMap.put("productName", settings.bridgeName);
             paramsMap.put("passcode", String.valueOf(settings.passcode));
