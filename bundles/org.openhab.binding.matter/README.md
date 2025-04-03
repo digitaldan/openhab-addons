@@ -369,6 +369,15 @@ Number                TestFanMode              "Mode"                     (TestF
 Switch                TestFanSingleItem         "On/Off"                                                                 {matter="Fan, fanControl.fanMode"}
 ```
 
+### Bridge FAQ
+
+* Alexa: When pairing, after a minute Alexa reports "Something went wrong" 
+  * Alexa can take 3-4 seconds per device to process which can take longer then the Alexa UI is willing to wait.  Eventually the pairing will complete, which for a large number of devices may be a few minutes. 
+* Alexa: Suddenly stops working and says it could not connect to a device or device not responding.
+  * Check the Settings page in the Main UI to confirm the bridge is running
+  * Ensure the openHAB item has the proper matter tag, or that the item is being loaded at all (check item file errors)
+  * Rarely, you may need to reboot the Alexa device.  If you have multiple devices and not sure which is the primary matter connection, you may need to reboot all of them.
+
 # Matter Ecosystem Overview
 
 Matter is an open-source connectivity standard for smart home devices, allowing seamless communication between a wide range of devices, controllers, and ecosystems. 

@@ -25,16 +25,18 @@ import { BridgeEvent, BridgeEventType, EventType } from "../MessageTypes";
 type DeviceType = OnOffLightDeviceType | OnOffPlugInDeviceType | DimmableDeviceType | ThermostatDeviceType | WindowCoveringDeviceType | DoorLockDeviceType | TemperatureSensorType | HumiditySensorType | OccupancySensorDeviceType | ContactSensorDeviceType | FanDeviceType | ColorDeviceType;
 
 const logger = Logger.get("DeviceNode");
-const DEFAULT_NODE_ID = "bridge-0"
 
 export class DeviceNode {
+    static DEFAULT_NODE_ID = "oh-bridge";
+
     private server: ServerNode | null = null;
     #environment: Environment = Environment.default;
 
     private aggregator: Endpoint<AggregatorEndpoint> | null = null;
     private devices: Map<string, GenericDeviceType> = new Map();
     private storageService: StorageService;
-    
+    private inCommissioning: boolean = false;
+
     constructor(private bridgeController: BridgeController, private storagePath: string, private deviceName: string, private vendorName: string, private passcode: number, private discriminator: number, private vendorId: number, private productName: string, private productId: number, private port: number) {
         logger.info(`Device Node Storage location: ${this.storagePath} (Directory)`);
         this.#environment.vars.set('storage.path', this.storagePath)
@@ -88,12 +90,6 @@ export class DeviceNode {
 
     async close() {
         await this.server?.close();
-        // await Promise.race([
-        //     this.server?.close(),
-        //     new Promise((_, reject) =>
-        //         setTimeout(() => reject(new Error('Server close operation timed out after 10 seconds')), 10000)
-        //     )
-        // ]);
         this.server = null;
         this.devices.clear();
     }
@@ -127,7 +123,6 @@ export class DeviceNode {
         if (!DeviceClass) {
             throw new Error(`Unsupported device type ${deviceType}`);
         }
-
         const device = new DeviceClass(this.bridgeController, attributeMap, id, nodeLabel, productName, productLabel, serialNumber);
         this.devices.set(id, device);
         await this.aggregator.add(device.endpoint);
@@ -145,7 +140,10 @@ export class DeviceNode {
         logger.debug('opening basic commissioning window')
         await dc.allowBasicCommissioning(() => {
             logger.debug('commissioning window closed')
+            this.inCommissioning = false;
+            this.#sendCommissioningStatus();
         });
+        this.inCommissioning = true;
         logger.debug('basic commissioning window open')
         this.#sendCommissioningStatus();
     }
@@ -169,7 +167,7 @@ export class DeviceNode {
                 manualPairingCode: server.state.commissioning.pairingCodes.manualPairingCode,
                 qrPairingCode: server.state.commissioning.pairingCodes.qrPairingCode
             },
-            commissioningWindowOpen : server.state.commissioning.enabled
+            commissioningWindowOpen : !server.state.commissioning.commissioned || this.inCommissioning
         }
     }
 
@@ -188,8 +186,8 @@ export class DeviceNode {
     async #init() {
         const ohStorage = await this.#ohBridgeStorage();
         //use the default node id as unique id unless one has been reset by the user. Used the basicCluster of the root endpoint to uniquely identify the bridge
-        const uniqueId = await ohStorage.get("basicInformation.uniqueId", (await this.#isLegacyBridge()) ? DEFAULT_NODE_ID : this.#randomUUID());
-
+        //const uniqueId = await ohStorage.get("basicInformation.uniqueId", (await this.#isLegacyBridge()) ? DEFAULT_NODE_ID : this.#randomUUID());
+        const uniqueId = await this.#uniqueIdForBridge();
         logger.info(`Unique ID: ${uniqueId}`);
         /**
          * Create a Matter ServerNode, which contains the Root Endpoint and all relevant data and configuration
@@ -197,7 +195,7 @@ export class DeviceNode {
         try {
             this.server = await ServerNode.create({
                 // Required: Give the Node a unique ID which is used to store the state of this node
-                id: DEFAULT_NODE_ID,
+                id: DeviceNode.DEFAULT_NODE_ID,
 
                 // Provide Network relevant configuration like the port
                 // Optional when operating only one device on a host, Default port is 5540
@@ -229,8 +227,6 @@ export class DeviceNode {
                     productName: this.productName,
                     productLabel: this.productName,
                     productId: this.productId,
-                    //serial number should != uniqueId according to the spec
-                    serialNumber:`${this.productName}-${this.productId}`,
                     uniqueId: uniqueId,
                 },
             });
@@ -253,19 +249,41 @@ export class DeviceNode {
     }
 
     async #ohBridgeStorage() {
-        return (await this.storageService.open(DEFAULT_NODE_ID)).createContext("openhab");
+        return (await this.storageService.open(DeviceNode.DEFAULT_NODE_ID)).createContext("openhab");
+    }
+
+    async #rootStorage() {
+        return (await this.storageService.open(DeviceNode.DEFAULT_NODE_ID)).createContext("root");
     }
 
     //remove this after some amount of time that users have upgraded.
-    async #isLegacyBridge() {
-        const rootContext = (await this.storageService.open(DEFAULT_NODE_ID)).createContext("root");
-        const ohStorage = await this.#ohBridgeStorage();
-        //is there an existing common matter.js root element but not our openhab storage? 
-        return (await rootContext.has("__number__")) && !(await ohStorage.has("lastStart"));
-    }
+    // async #isLegacyBridge() {
+    //     const rootContext = await this.#rootStorage();
+    //     const ohStorage = await this.#ohBridgeStorage();
+    //     //is there an existing common matter.js root element but not our openhab storage? 
+    //     return (await rootContext.has("__number__")) && !(await ohStorage.has("lastStart"));
+    // }
 
     #randomUUID() {
-        return crypto.randomUUID().replace(/-/g, '');
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        const charLength = chars.length;
+        let id = "";
+        for (let i = 0; i < 32; i++) {
+            id += chars.charAt(Math.floor(Math.random() * charLength));
+        }
+        return id;
+    }
+
+    // async #uniqueIdForEndpoint(endpointId: string) {
+    //     const rootContext = await this.#rootStorage();
+    //     const uniqueId = await rootContext.get(`parts.aggregator.parts.${endpointId}.bridgedDeviceBasicInformation.uniqueId`, this.#randomUUID());
+    //     await rootContext.set(`parts.aggregator.parts.${endpointId}.bridgedDeviceBasicInformation.uniqueId`, uniqueId);
+    //     return uniqueId;
+    // }
+
+    async #uniqueIdForBridge() {
+        const rootContext = await this.#ohBridgeStorage();
+        return rootContext.get("basicInformation.uniqueId", this.#randomUUID());
     }
 
     #sendCommissioningStatus() {

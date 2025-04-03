@@ -32,7 +32,7 @@ export class BridgeController extends Controller {
         this.deviceNode = new DeviceNode(this, storagePath, deviceName, vendorName, parseInt(passcode), parseInt(discriminator), parseInt(vendorId), productName, parseInt(productId), parseInt(port));
     }
     override id(): string {
-        return "bridge-0"
+        return DeviceNode.DEFAULT_NODE_ID;
     }
 
     override async init() {
