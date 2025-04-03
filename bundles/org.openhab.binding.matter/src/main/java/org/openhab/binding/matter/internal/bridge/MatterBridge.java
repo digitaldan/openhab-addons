@@ -212,9 +212,6 @@ public class MatterBridge implements MatterClientListener {
             settings.resetBridge = false;
             restart = true;
         }
-        if (settings.openCommissioningWindow != commissioningWindowOpen) {
-            manageCommissioningWindow(settings.openCommissioningWindow);
-        }
 
         this.settings = settings;
 
@@ -223,6 +220,8 @@ public class MatterBridge implements MatterClientListener {
         } else if (!client.isConnected() || restart) {
             stopClient();
             scheduleConnect();
+        } else {
+            manageCommissioningWindow(settings.openCommissioningWindow);
         }
     }
 
