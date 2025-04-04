@@ -55,7 +55,7 @@ public class MatterWebsocketService {
     // Delay before restarting the node process after it exits as well as notifying listeners when it's ready
     private static final int STARTUP_DELAY_SECONDS = 5;
     // Timeout for shutting down the node process
-    private static final int SHUTDOWN_TIMEOUT_SECONDS = 5;
+    private static final int SHUTDOWN_TIMEOUT_SECONDS = 3;
     private final List<NodeProcessListener> processListeners = new ArrayList<>();
     private final ExecutorService executorService = Executors.newFixedThreadPool(4);
     private final ScheduledExecutorService scheduler = ThreadPoolManager
@@ -76,7 +76,7 @@ public class MatterWebsocketService {
         NodeJSRuntimeManager nodeManager = new NodeJSRuntimeManager(httpClientFactory.getCommonHttpClient());
         String nodePath = nodeManager.getNodePath();
         this.nodePath = nodePath;
-        restart();
+        scheduledStart(0);
     }
 
     @Deactivate
@@ -87,7 +87,7 @@ public class MatterWebsocketService {
 
     public void restart() throws IOException {
         stopNode();
-        port = runNodeWithResource(MATTER_JS_PATH);
+        scheduledStart(STARTUP_DELAY_SECONDS);
     }
 
     public void addProcessListener(NodeProcessListener listener) {
@@ -139,6 +139,26 @@ public class MatterWebsocketService {
         }
     }
 
+    private boolean isRestarting() {
+        ScheduledFuture<?> restartFuture = this.restartFuture;
+        return restartFuture != null && !restartFuture.isDone();
+    }
+
+    private synchronized void scheduledStart(int delay) {
+        if (isRestarting()) {
+            logger.debug("Restart already scheduled, skipping");
+            return;
+        }
+        logger.debug("Scheduling restart in {} seconds", delay);
+        restartFuture = scheduler.schedule(() -> {
+            try {
+                port = runNodeWithResource(MATTER_JS_PATH);
+            } catch (IOException e) {
+                logger.warn("Failed to restart the Matter Node process", e);
+            }
+        }, delay, TimeUnit.SECONDS);
+    }
+
     private int runNodeWithResource(String resourcePath, String... additionalArgs) throws IOException {
         state = ServiceState.STARTING;
         Path scriptPath = extractResourceToTempFile(resourcePath);
@@ -181,15 +201,8 @@ public class MatterWebsocketService {
                 }
 
                 if (state != ServiceState.SHUTTING_DOWN) {
-                    state = ServiceState.STARTING;
-                    cancelFutures();
-                    restartFuture = scheduler.schedule(() -> {
-                        try {
-                            restart();
-                        } catch (IOException e) {
-                            logger.error("Failed to restart Node process", e);
-                        }
-                    }, STARTUP_DELAY_SECONDS, TimeUnit.SECONDS);
+                    logger.debug("trying to restart, state: {}", state);
+                    scheduledStart(STARTUP_DELAY_SECONDS);
                 }
             }
         });
