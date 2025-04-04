@@ -89,7 +89,7 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
         }
 
         String controllerId = args[1];
-        if (controllerId.equals("list")) {
+        if ("list".equals(controllerId)) {
             listControllers(console);
             return;
         }

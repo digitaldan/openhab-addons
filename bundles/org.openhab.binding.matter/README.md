@@ -50,11 +50,23 @@ Bridged endpoints will be added to the inbox once the parent Node is added as a 
 
 ### Device Pairing: General
 
+The pairing action can be found in the settings of the "Controller" thing under the "Actions" -> "Pair Matter Device" 
+
+<img src="doc/pairing.png" alt="Matter Pairing" width="600"/>
+
+This action will give feedback on the pairing process, if successful a device will be added to the Inbox.
+
+See [Device Pairing: Code Types](#device-pairing-code-types) for more information on pairing codes and code formats.
+
+The same codes can also be used in the openHAB Thing discovery UI, although feedback is limited and only a single controller is supported.  
+
+<img src="doc/thing-discovery.png" alt="Thing Discovery" width="600"/>
+
+### Device Pairing: Code Types
+
 In order to pair (commission in matter terminology) a device, you must have an 11 digit manual pairing code (eg 123-4567-8901 or 12345678901) or a QR Code (eg MT:ABCDEF1234567890123).  If the device has not been paired before, use the code provided by the manufacturer and **ensure the device is in pairing mode**, refer to your devices instructions for pairing for more information. You can include dashes or omit them in a manual pairing code.
 
 If the device is paired with another Matter ecosystem (Apple, Google, Amazon, etc..) you must that ecosystem to generate a new pairing code and search for devices.  The pairing code and device will only be available for commissioning for a limited time.  Refer to the ecosystem that generated the code for the exact duration (typically 1-15 minutes). In this case, openHAB still talks directly to the device and is not associated with that existing ecosystem. 
-
-When using the discovery feature of openHAB use the provided code in the text entry box before pushing "scan"
 
 If the device seems to be found in the logs, but can not be added, its possible the device has been already paired.  Hard resetting the device may help this case.  See your device documentation for how to hard reset the device.
 

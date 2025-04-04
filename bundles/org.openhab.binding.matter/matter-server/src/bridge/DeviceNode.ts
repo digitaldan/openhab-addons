@@ -21,6 +21,7 @@ import { ContactSensorDeviceType } from "./devices/ContactSensorDeviceType";
 import { FanDeviceType } from "./devices/FanDeviceType";
 import { ColorDeviceType } from "./devices/ColorDeviceType";
 import { BridgeEvent, BridgeEventType, EventType } from "../MessageTypes";
+import { BasicInformationServer } from "@matter/node/behaviors";
 
 type DeviceType = OnOffLightDeviceType | OnOffPlugInDeviceType | DimmableDeviceType | ThermostatDeviceType | WindowCoveringDeviceType | DoorLockDeviceType | TemperatureSensorType | HumiditySensorType | OccupancySensorDeviceType | ContactSensorDeviceType | FanDeviceType | ColorDeviceType;
 
@@ -55,7 +56,7 @@ export class DeviceNode {
             await this.close();
             //generate a new uniqueId for the bridge (bridgeBasicInformation.uniqueId)
             const ohStorage = await this.#ohBridgeStorage();
-            await ohStorage.set("basicInformation.uniqueId", this.#randomUUID());
+            await ohStorage.set("basicInformation.uniqueId", BasicInformationServer.createUniqueId());
             logger.info(`Initializing bridge again`);
             await this.#init();
         }
@@ -185,8 +186,6 @@ export class DeviceNode {
 
     async #init() {
         const ohStorage = await this.#ohBridgeStorage();
-        //use the default node id as unique id unless one has been reset by the user. Used the basicCluster of the root endpoint to uniquely identify the bridge
-        //const uniqueId = await ohStorage.get("basicInformation.uniqueId", (await this.#isLegacyBridge()) ? DEFAULT_NODE_ID : this.#randomUUID());
         const uniqueId = await this.#uniqueIdForBridge();
         logger.info(`Unique ID: ${uniqueId}`);
         /**
@@ -256,34 +255,9 @@ export class DeviceNode {
         return (await this.storageService.open(DeviceNode.DEFAULT_NODE_ID)).createContext("root");
     }
 
-    //remove this after some amount of time that users have upgraded.
-    // async #isLegacyBridge() {
-    //     const rootContext = await this.#rootStorage();
-    //     const ohStorage = await this.#ohBridgeStorage();
-    //     //is there an existing common matter.js root element but not our openhab storage? 
-    //     return (await rootContext.has("__number__")) && !(await ohStorage.has("lastStart"));
-    // }
-
-    #randomUUID() {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        const charLength = chars.length;
-        let id = "";
-        for (let i = 0; i < 32; i++) {
-            id += chars.charAt(Math.floor(Math.random() * charLength));
-        }
-        return id;
-    }
-
-    // async #uniqueIdForEndpoint(endpointId: string) {
-    //     const rootContext = await this.#rootStorage();
-    //     const uniqueId = await rootContext.get(`parts.aggregator.parts.${endpointId}.bridgedDeviceBasicInformation.uniqueId`, this.#randomUUID());
-    //     await rootContext.set(`parts.aggregator.parts.${endpointId}.bridgedDeviceBasicInformation.uniqueId`, uniqueId);
-    //     return uniqueId;
-    // }
-
     async #uniqueIdForBridge() {
         const rootContext = await this.#ohBridgeStorage();
-        return rootContext.get("basicInformation.uniqueId", this.#randomUUID());
+        return rootContext.get("basicInformation.uniqueId", BasicInformationServer.createUniqueId());
     }
 
     #sendCommissioningStatus() {
