@@ -1,11 +1,14 @@
 import { Endpoint } from "@matter/node";
 import { OccupancySensorDevice } from "@matter/node/devices/occupancy-sensor";
 import { GenericDeviceType } from "./GenericDeviceType";
-
+import { OccupancySensing } from "@matter/main/clusters";
+import { OccupancySensingServer } from "@matter/node/behaviors";
 export class OccupancySensorDeviceType extends GenericDeviceType {
   override createEndpoint(clusterValues: Record<string, any>) {
     const endpoint = new Endpoint(
-      OccupancySensorDevice.with(...this.defaultClusterServers()),
+      OccupancySensorDevice.with(
+        OccupancySensingServer.with(OccupancySensing.Feature.PassiveInfrared),
+        ...this.defaultClusterServers()),
       {
         ...this.endPointDefaults(),
         ...clusterValues,
@@ -20,7 +23,7 @@ export class OccupancySensorDeviceType extends GenericDeviceType {
         occupancy: {
           occupied: false,
         },
-        occupancySensorType: 3,
+        occupancySensorType: OccupancySensing.OccupancySensorType.Pir,
       },
     };
   }
