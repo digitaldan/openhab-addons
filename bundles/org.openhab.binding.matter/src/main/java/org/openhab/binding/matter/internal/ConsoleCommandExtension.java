@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.matter.internal.bridge.MatterBridge;
@@ -255,7 +256,11 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
     }
 
     private void listFabrics(Console console) {
-        console.println(matterBridge.listFabrics());
+        try {
+            console.println(matterBridge.listFabrics());
+        } catch (InterruptedException | ExecutionException e) {
+            console.println("Failed to list fabrics: " + e.getMessage());
+        }
     }
 
     private void handleRpcCommand(Console console, String command) {
@@ -274,7 +279,6 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
     @Override
     public List<String> getUsages() {
         return Arrays.asList(buildCommandUsage(CONTROLLER + " list", "List all controllers"),
-                buildCommandUsage(CONTROLLER + " <controller_id> restart", "Restart the specified controller"),
                 buildCommandUsage(CONTROLLER + " <controller_id> nodes", "List all nodes for the specified controller"),
                 buildCommandUsage(CONTROLLER + " <controller_id> commission <pairing_code>", "Commission a new node"),
                 buildCommandUsage(CONTROLLER + " <controller_id> decommission <node_id>", "Decommission a node"),

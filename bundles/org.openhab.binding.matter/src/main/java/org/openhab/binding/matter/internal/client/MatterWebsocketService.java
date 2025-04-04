@@ -27,6 +27,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -47,6 +49,8 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class MatterWebsocketService {
     private final Logger logger = LoggerFactory.getLogger(getClass());
+    private static final Pattern LOG_PATTERN = Pattern
+            .compile("^\\S+\\s+\\S+\\s+(TRACE|DEBUG|INFO|WARN|ERROR)\\s+(\\S+)\\s+(.*)$");
     private static final String MATTER_JS_PATH = "/matter-server/matter.js";
     // Delay before restarting the node process after it exits as well as notifying listeners when it's ready
     private static final int STARTUP_DELAY_SECONDS = 5;
@@ -218,7 +222,16 @@ public class MatterWebsocketService {
                         notifyReadyListeners();
                     }, STARTUP_DELAY_SECONDS, TimeUnit.SECONDS);
                 }
-                logger.trace(line);
+                if (logger.isTraceEnabled()) {
+                    Matcher matcher = LOG_PATTERN.matcher(line);
+                    if (matcher.matches()) {
+                        String component = matcher.group(2);
+                        String message = matcher.group(3);
+                        logger.trace("{}: {}", component, message);
+                    } else {
+                        logger.trace(line);
+                    }
+                }
             }
         } catch (IOException e) {
             if (!state.equals(ServiceState.SHUTTING_DOWN)) {

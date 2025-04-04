@@ -11,7 +11,7 @@ import { printError } from './util/error';
 const argv: any = yargs(hideBin(process.argv)).argv
 
 const logger = Logger.get("matter");
-Logger.defaultLogLevel = LogLevel.DEBUG;
+Logger.level = LogLevel.DEBUG;
 Logger.format = LogFormat.PLAIN;
 
 process.on("SIGINT", () => shutdownHandler("SIGINT"));

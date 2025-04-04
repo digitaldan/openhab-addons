@@ -296,8 +296,8 @@ public class MatterBridge implements MatterClientListener {
         connectClient();
     }
 
-    public String listFabrics() {
-        return client.getFabrics().toString();
+    public String listFabrics() throws InterruptedException, ExecutionException {
+        return client.getFabrics().get().toString();
     }
 
     public void removeFabric(String fabricId) {
