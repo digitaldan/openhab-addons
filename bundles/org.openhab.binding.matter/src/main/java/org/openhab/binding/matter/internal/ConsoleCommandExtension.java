@@ -14,7 +14,6 @@ package org.openhab.binding.matter.internal;
 
 import static org.openhab.binding.matter.internal.MatterBindingConstants.BINDING_ID;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -267,13 +266,8 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
     }
 
     private void restartNode(Console console) {
-        console.println("Restarting node");
-        try {
-            matterWebsocketService.restart();
-        } catch (IOException e) {
-            console.println("Failed to restart node: " + e.getMessage());
-        }
-        console.println("Node server restarted");
+        matterWebsocketService.restart();
+        console.println("Node server restarting...");
     }
 
     @Override
@@ -288,7 +282,7 @@ public class ConsoleCommandExtension extends AbstractConsoleCommandExtension {
                 buildCommandUsage(BRIDGE + " fabrics", "List all fabrics"),
                 buildCommandUsage(BRIDGE + " removeFabric <fabric_id>", "Remove a fabric"),
                 buildCommandUsage(BRIDGE + " allowCommissioning <true|false>", "Set commissioning mode"),
-                buildCommandUsage(BRIDGE + " resetStorage", "Reset bridge storage"),
+                buildCommandUsage(BRIDGE + " resetStorage", "Reset bridge storage (WARNING: This will delete all fabrics!)"),
                 buildCommandUsage(BRIDGE + " rpc <command>", "Execute RPC command"),
                 buildCommandUsage(COMMON + " restartNode", "Restart the NodeJs server"));
     }

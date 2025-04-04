@@ -85,7 +85,7 @@ public class MatterWebsocketService {
         executorService.shutdown();
     }
 
-    public void restart() throws IOException {
+    public void restart() {
         stopNode();
         scheduledStart(STARTUP_DELAY_SECONDS);
     }
