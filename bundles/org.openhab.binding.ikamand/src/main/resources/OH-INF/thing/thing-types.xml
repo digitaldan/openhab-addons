@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="ikamand"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<thing-type id="ikamand">
+		<label>iKamand Binding Thing</label>
+		<description>iKamand device</description>
+		<channels>
+			<channel id="fan-speed" typeId="fan-speed"/>
+			<channel id="pit-temp" typeId="temperature-pit"/>
+			<channel id="target-temp" typeId="temperature-target"/>
+			<channel id="probe1-temp" typeId="temperature-probe1"/>
+			<channel id="probe2-temp" typeId="temperature-probe2"/>
+			<channel id="probe3-temp" typeId="temperature-probe3"/>
+			<channel id="rm" typeId="rm"/>
+			<channel id="cm" typeId="cm"/>
+			<channel id="grill-start" typeId="grill-start"/>
+			<channel id="as" typeId="as"/>
+			<channel id="food-probe" typeId="food-probe"/>
+			<channel id="current-time" typeId="datetime-current"/>
+			<channel id="cook-end-time" typeId="datetime-cook-end"/>
+			<channel id="grill-end-time" typeId="datetime-grill-end"/>
+			<channel id="cook-id" typeId="cook-id"/>
+			<channel id="cook-start" typeId="cook-start"/>
+			<channel id="target-food-temp" typeId="temperature-target-food"/>
+		</channels>
+
+		<config-description>
+			<parameter name="hostname" type="text" required="true">
+				<context>network-address</context>
+				<label>Hostname</label>
+				<description>Hostname or IP address of the device</description>
+			</parameter>
+			<parameter name="refreshInterval" type="integer" unit="s" min="1">
+				<label>Refresh Interval</label>
+				<description>Interval the device is polled in sec.</description>
+				<default>10</default>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="grillStartDuration" type="integer" unit="s" min="10">
+				<label>Grill Start Duration</label>
+				<description>The duration in seconds that the grill will run for when using the grill start channel</description>
+				<default>300</default>
+				<advanced>true</advanced>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<channel-type id="fan-speed">
+		<item-type>Number</item-type>
+		<label>Fan Speed</label>
+		<description>Current fan speed percentage</description>
+	</channel-type>
+
+	<channel-type id="temperature-pit">
+		<item-type>Number:Temperature</item-type>
+		<label>Pit Temperature</label>
+		<description>Current pit temperature</description>
+	</channel-type>
+
+	<channel-type id="temperature-target">
+		<item-type>Number:Temperature</item-type>
+		<label>Target Temperature</label>
+		<description>Target pit temperature</description>
+	</channel-type>
+
+	<channel-type id="temperature-probe1">
+		<item-type>Number:Temperature</item-type>
+		<label>Probe 1 Temperature</label>
+		<description>Temperature from probe 1</description>
+	</channel-type>
+
+	<channel-type id="temperature-probe2">
+		<item-type>Number:Temperature</item-type>
+		<label>Probe 2 Temperature</label>
+		<description>Temperature from probe 2</description>
+	</channel-type>
+
+	<channel-type id="temperature-probe3">
+		<item-type>Number:Temperature</item-type>
+		<label>Probe 3 Temperature</label>
+		<description>Temperature from probe 3</description>
+	</channel-type>
+
+	<channel-type id="rm" advanced="true">
+		<item-type>String</item-type>
+		<label>RM</label>
+		<description>RM status field</description>
+	</channel-type>
+
+	<channel-type id="cm" advanced="true">
+		<item-type>String</item-type>
+		<label>CM</label>
+		<description>CM status field</description>
+	</channel-type>
+
+	<channel-type id="grill-start">
+		<item-type>Switch</item-type>
+		<label>Start Grill</label>
+		<description>Starts the grill fan at 100% for 5 minutes. Used to get the grill lit.</description>
+	</channel-type>
+
+	<channel-type id="as" advanced="true">
+		<item-type>String</item-type>
+		<label>AS</label>
+		<description>AS status field</description>
+	</channel-type>
+
+	<channel-type id="food-probe">
+		<item-type>Number</item-type>
+		<label>Food Probe For Cook</label>
+		<description>Which probe is used for determining the cook time. 0 for no probe, or probe 1, 2, or 3.</description>
+		<state pattern="%d" min="0" max="3"/>
+	</channel-type>
+
+	<channel-type id="datetime-current" advanced="true">
+		<item-type>DateTime</item-type>
+		<label>Current Time</label>
+		<description>Current epoch time reported by device</description>
+	</channel-type>
+
+	<channel-type id="datetime-cook-end">
+		<item-type>DateTime</item-type>
+		<label>Cook End Time</label>
+		<description>Epoch cook end time</description>
+	</channel-type>
+
+	<channel-type id="datetime-grill-end">
+		<item-type>DateTime</item-type>
+		<label>Grill End Time</label>
+		<description>Epoch grill end time</description>
+	</channel-type>
+
+	<channel-type id="cook-id" advanced="true">
+		<item-type>String</item-type>
+		<label>Cook ID</label>
+		<description>Cook session identifier</description>
+	</channel-type>
+
+	<channel-type id="cook-start">
+		<item-type>Switch</item-type>
+		<label>Start Cook</label>
+		<description>Starts a cook session. The target food temperature is set to the value of the targetFoodTemp channel.</description>
+	</channel-type>
+
+	<channel-type id="temperature-target-food">
+		<item-type>Number:Temperature</item-type>
+		<label>Target Food Temperature</label>
+		<description>Target food temperature</description>
+	</channel-type>
+</thing:thing-descriptions>
