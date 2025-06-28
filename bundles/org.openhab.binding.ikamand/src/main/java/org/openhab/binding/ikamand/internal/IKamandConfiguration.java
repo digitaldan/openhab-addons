@@ -27,5 +27,5 @@ public class IKamandConfiguration {
      */
     public String hostname = "";
     public int refreshInterval = 10;
-    public int grillStartDuration = 300;
+    public int defaultGrillTemperature = 190;
 }

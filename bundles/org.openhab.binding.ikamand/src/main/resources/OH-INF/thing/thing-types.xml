@@ -9,22 +9,26 @@
 		<description>iKamand device</description>
 		<channels>
 			<channel id="fan-speed" typeId="fan-speed"/>
-			<channel id="pit-temp" typeId="temperature-pit"/>
-			<channel id="target-temp" typeId="temperature-target"/>
-			<channel id="probe1-temp" typeId="temperature-probe1"/>
-			<channel id="probe2-temp" typeId="temperature-probe2"/>
-			<channel id="probe3-temp" typeId="temperature-probe3"/>
+			<channel id="temperature-pit-current" typeId="temperature-pit-current"/>
+			<channel id="temperature-pit-target" typeId="temperature-pit-target"/>
+			<channel id="temperature-probe1-current" typeId="temperature-probe1-current"/>
+			<channel id="temperature-probe2-current" typeId="temperature-probe2-current"/>
+			<channel id="temperature-probe3-current" typeId="temperature-probe3-current"/>
+			<channel id="temperature-probe1-target" typeId="temperature-probe1-target"/>
+			<channel id="temperature-probe2-target" typeId="temperature-probe2-target"/>
+			<channel id="temperature-probe3-target" typeId="temperature-probe3-target"/>
+			<channel id="cook-start-probe-1" typeId="cook-start-probe-1"/>
+			<channel id="cook-start-probe-2" typeId="cook-start-probe-2"/>
+			<channel id="cook-start-probe-3" typeId="cook-start-probe-3"/>
+			<channel id="cook-stop" typeId="cook-stop"/>
+			<channel id="grill-start" typeId="grill-start"/>
+			<channel id="grill-running" typeId="grill-running"/>
 			<channel id="rm" typeId="rm"/>
 			<channel id="cm" typeId="cm"/>
-			<channel id="grill-start" typeId="grill-start"/>
 			<channel id="as" typeId="as"/>
-			<channel id="food-probe" typeId="food-probe"/>
 			<channel id="current-time" typeId="datetime-current"/>
 			<channel id="cook-end-time" typeId="datetime-cook-end"/>
 			<channel id="grill-end-time" typeId="datetime-grill-end"/>
-			<channel id="cook-id" typeId="cook-id"/>
-			<channel id="cook-start" typeId="cook-start"/>
-			<channel id="target-food-temp" typeId="temperature-target-food"/>
 		</channels>
 
 		<config-description>
@@ -39,10 +43,10 @@
 				<default>10</default>
 				<advanced>true</advanced>
 			</parameter>
-			<parameter name="grillStartDuration" type="integer" unit="s" min="10">
-				<label>Grill Start Duration</label>
-				<description>The duration in seconds that the grill will run for when using the grill start channel</description>
-				<default>300</default>
+			<parameter name="defaultGrillTemperature" type="integer" unit="Cel" min="66" max="260">
+				<label>Default Grill Temperature</label>
+				<description>The default temperature to use when starting the grill.</description>
+				<default>190</default>
 				<advanced>true</advanced>
 			</parameter>
 		</config-description>
@@ -52,36 +56,63 @@
 		<item-type>Number</item-type>
 		<label>Fan Speed</label>
 		<description>Current fan speed percentage</description>
+		<state pattern="%d %%" readOnly="true"/>
 	</channel-type>
 
-	<channel-type id="temperature-pit">
+	<channel-type id="temperature-pit-current">
 		<item-type>Number:Temperature</item-type>
 		<label>Pit Temperature</label>
 		<description>Current pit temperature</description>
+		<state pattern="%.1f %unit%" readOnly="true"/>
 	</channel-type>
 
-	<channel-type id="temperature-target">
+	<channel-type id="temperature-pit-target">
 		<item-type>Number:Temperature</item-type>
 		<label>Target Temperature</label>
 		<description>Target pit temperature</description>
+		<state pattern="%.1f %unit%" readOnly="true"/>
 	</channel-type>
 
-	<channel-type id="temperature-probe1">
+	<channel-type id="temperature-probe1-current">
 		<item-type>Number:Temperature</item-type>
 		<label>Probe 1 Temperature</label>
 		<description>Temperature from probe 1</description>
+		<state pattern="%.1f %unit%" readOnly="true"/>
 	</channel-type>
 
-	<channel-type id="temperature-probe2">
+	<channel-type id="temperature-probe2-current">
 		<item-type>Number:Temperature</item-type>
 		<label>Probe 2 Temperature</label>
 		<description>Temperature from probe 2</description>
+		<state pattern="%.1f %unit%" readOnly="true"/>
 	</channel-type>
 
-	<channel-type id="temperature-probe3">
+	<channel-type id="temperature-probe3-current">
 		<item-type>Number:Temperature</item-type>
 		<label>Probe 3 Temperature</label>
 		<description>Temperature from probe 3</description>
+		<state pattern="%.1f %unit%" readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="temperature-probe1-target">
+		<item-type>Number:Temperature</item-type>
+		<label>Probe 1 Target Temperature</label>
+		<description>Target temperature for probe 1</description>
+		<state pattern="%.1f %unit%" readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="temperature-probe2-target">
+		<item-type>Number:Temperature</item-type>
+		<label>Probe 2 Target Temperature</label>
+		<description>Target temperature for probe 2</description>
+		<state pattern="%.1f %unit%" readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="temperature-probe3-target">
+		<item-type>Number:Temperature</item-type>
+		<label>Probe 3 Target Temperature</label>
+		<description>Target temperature for probe 3</description>
+		<state pattern="%.1f %unit%" readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="rm" advanced="true">
@@ -96,58 +127,79 @@
 		<description>CM status field</description>
 	</channel-type>
 
-	<channel-type id="grill-start">
-		<item-type>Switch</item-type>
-		<label>Start Grill</label>
-		<description>Starts the grill fan at 100% for 5 minutes. Used to get the grill lit.</description>
-	</channel-type>
-
 	<channel-type id="as" advanced="true">
 		<item-type>String</item-type>
 		<label>AS</label>
 		<description>AS status field</description>
 	</channel-type>
 
-	<channel-type id="food-probe">
-		<item-type>Number</item-type>
-		<label>Food Probe For Cook</label>
-		<description>Which probe is used for determining the cook time. 0 for no probe, or probe 1, 2, or 3.</description>
-		<state pattern="%d" min="0" max="3"/>
-	</channel-type>
 
 	<channel-type id="datetime-current" advanced="true">
 		<item-type>DateTime</item-type>
 		<label>Current Time</label>
 		<description>Current epoch time reported by device</description>
+		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="datetime-cook-end">
 		<item-type>DateTime</item-type>
 		<label>Cook End Time</label>
 		<description>Epoch cook end time</description>
+		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="datetime-grill-end">
 		<item-type>DateTime</item-type>
 		<label>Grill End Time</label>
 		<description>Epoch grill end time</description>
+		<state readOnly="true"/>
 	</channel-type>
 
-	<channel-type id="cook-id" advanced="true">
-		<item-type>String</item-type>
-		<label>Cook ID</label>
-		<description>Cook session identifier</description>
-	</channel-type>
-
-	<channel-type id="cook-start">
-		<item-type>Switch</item-type>
-		<label>Start Cook</label>
-		<description>Starts a cook session. The target food temperature is set to the value of the targetFoodTemp channel.</description>
-	</channel-type>
-
-	<channel-type id="temperature-target-food">
+	<channel-type id="grill-start">
 		<item-type>Number:Temperature</item-type>
-		<label>Target Food Temperature</label>
-		<description>Target food temperature</description>
+		<label>Start Grill</label>
+		<description>Starts the grill using the target pit temperature.</description>
+		<state pattern="%.1f %unit%" min="66" max="260"/>
+	</channel-type>
+
+	<channel-type id="grill-running">
+		<item-type>Switch</item-type>
+		<label>Grill Running Status</label>
+		<description>Grill Running Status, and can stops the grill if toggled off.</description>
+	</channel-type>
+
+	<channel-type id="cook-start-probe-1">
+		<item-type>Number:Temperature</item-type>
+		<label>Start Cook for Probe 1 at the desired temperature</label>
+		<description>Starts a cook session for probe 1 at the desired temperature.</description>
+		<state pattern="%.1f %unit%" min="66" max="260"/>
+	</channel-type>
+
+	<channel-type id="cook-start-probe-2">
+		<item-type>Number:Temperature</item-type>
+		<label>Start Cook for Probe 2 at the desired temperature</label>
+		<description>Starts a cook session for probe 2 at the desired temperature.</description>
+		<state pattern="%.1f %unit%" min="66" max="260"/>
+	</channel-type>
+
+	<channel-type id="cook-start-probe-3">
+		<item-type>Number:Temperature</item-type>
+		<label>Start Cook for Probe 3 at the desired temperature</label>
+		<description>Starts a cook session for probe 3 at the desired temperature.</description>
+		<state pattern="%.1f %unit%" min="66" max="260"/>
+	</channel-type>
+
+	<channel-type id="cook-stop">
+		<item-type>Number</item-type>
+		<label>Stops the cook session for the probe</label>
+		<description>Stops the cook session for the probe</description>
+		<state pattern="%.1f %unit%" min="0" max="3">
+			<options>
+				<option value="0">None</option>
+				<option value="1">Probe 1</option>
+				<option value="2">Probe 2</option>
+				<option value="3">Probe 3</option>
+			</options>
+		</state>
 	</channel-type>
 </thing:thing-descriptions>

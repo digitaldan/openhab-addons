@@ -20,17 +20,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -39,6 +42,7 @@ import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.types.StringType;
+import org.openhab.core.library.unit.ImperialUnits;
 import org.openhab.core.library.unit.SIUnits;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
@@ -46,6 +50,7 @@ import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.thing.binding.BaseThingHandler;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
+import org.openhab.core.types.Type;
 import org.openhab.core.types.UnDefType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,12 +65,16 @@ import org.slf4j.LoggerFactory;
 public class IKamandHandler extends BaseThingHandler {
 
     private final Logger logger = LoggerFactory.getLogger(IKamandHandler.class);
-    private static final BigDecimal TEMPERATURE_UNDEFINED = new BigDecimal(400);
+    private static final BigDecimal TEMPERATURE_UNDEFINED_MAX = new BigDecimal(400);
+    private static final BigDecimal TEMPERATURE_UNDEFINED_MIN = new BigDecimal(-400);
+
     private IKamandConfiguration config = new IKamandConfiguration();
-    private int targetPitTemperature = 160; // default to 160C or 320F
-    private int targetFoodTemperature = 60; // default to 60C or 140F
-    private int foodProbe = 0; // default to probe 0. or no food probe
     private @Nullable ScheduledFuture<?> pollFuture;
+    private List<String> probeTargetTemperaturesChannels = Arrays.asList(CHANNEL_TEMPERATURE_PROBE1_TARGET,
+            CHANNEL_TEMPERATURE_PROBE2_TARGET, CHANNEL_TEMPERATURE_PROBE3_TARGET);
+
+    private final ReentrantLock pollLock = new ReentrantLock();
+    private int cachedTargetGrillTemperature = 0;
 
     public IKamandHandler(Thing thing) {
         super(thing);
@@ -74,6 +83,9 @@ public class IKamandHandler extends BaseThingHandler {
     @Override
     public void initialize() {
         config = getConfigAs(IKamandConfiguration.class);
+        cachedTargetGrillTemperature = config.defaultGrillTemperature;
+        updateTemperatureChannel(CHANNEL_TEMPERATURE_PIT_TARGET, String.valueOf(cachedTargetGrillTemperature));
+        probeTargetTemperaturesChannels.forEach(channel -> updateState(channel, UnDefType.UNDEF));
         initPolling(0, config.refreshInterval);
     }
 
@@ -95,43 +107,50 @@ public class IKamandHandler extends BaseThingHandler {
 
         try {
             switch (id) {
-                case CHANNEL_COOK_START:
-                    if (command instanceof OnOffType onoff) {
-                        if (onoff == OnOffType.ON) {
-                            startCook();
+                case CHANNEL_COOK_START_PROBE_1:
+                case CHANNEL_COOK_START_PROBE_2:
+                case CHANNEL_COOK_START_PROBE_3:
+                    if (command instanceof QuantityType<?> quantityType) {
+                        String probeString = id.substring(id.length() - 1);
+                        int probe = Integer.parseInt(probeString);
+                        Integer targetTemperature = temperatureToValue(quantityType);
+                        if (targetTemperature != null && targetTemperature > 0) {
+                            startCook(probe, targetTemperature);
+                            updateTemperatureChannel(probeTargetTemperaturesChannels.get(probe - 1), probeString);
                         } else {
-                            stopGrill();
+                            updateState(probeTargetTemperaturesChannels.get(probe - 1), UnDefType.UNDEF);
                         }
                     }
                     break;
 
-                case CHANNEL_TARGET_TEMPERATURE:
-                    if (command instanceof QuantityType<?> decimalType) {
-                        targetPitTemperature = decimalType.intValue();
-                        startCook();
-                    }
-                    break;
-
-                case CHANNEL_TARGET_FOOD_TEMP:
-                    if (command instanceof QuantityType<?> decimalType) {
-                        targetFoodTemperature = decimalType.intValue();
-                        startCook();
-                    }
-                    break;
-
-                case CHANNEL_GRILL_START:
-                    if (command instanceof OnOffType onoff) {
-                        if (onoff == OnOffType.ON) {
-                            startGrill(config.grillStartDuration);
-                        } else {
-                            stopGrill();
-                        }
-                    }
-                    break;
-
-                case CHANNEL_FOOD_PROBE:
+                case CHANNEL_COOK_STOP:
                     if (command instanceof DecimalType decimalType) {
-                        foodProbe = decimalType.intValue();
+                        int probe = decimalType.intValue();
+                        stopCook(probe);
+                        updateState(new ChannelUID(getThing().getUID(), id), DecimalType.ZERO);
+                        updateState(probeTargetTemperaturesChannels.get(probe - 1), UnDefType.UNDEF);
+                    }
+                    break;
+                case CHANNEL_GRILL_START:
+                    if (command instanceof QuantityType<?> quantityType) {
+                        Integer targetTemperature = temperatureToValue(quantityType);
+                        if (targetTemperature == null || targetTemperature <= 0) {
+                            targetTemperature = config.defaultGrillTemperature;
+                        }
+                        startGrill(targetTemperature);
+                        updateTemperatureChannel(CHANNEL_TEMPERATURE_PIT_TARGET, String.valueOf(targetTemperature));
+                    }
+                    break;
+
+                case CHANNEL_GRILL_RUNNING:
+                    if (command instanceof OnOffType onoff) {
+                        if (onoff == OnOffType.OFF) {
+                            stopGrill();
+                        } else {
+                            startGrill(cachedTargetGrillTemperature);
+                            updateTemperatureChannel(CHANNEL_TEMPERATURE_PIT_TARGET,
+                                    String.valueOf(cachedTargetGrillTemperature));
+                        }
                     }
                     break;
 
@@ -139,7 +158,7 @@ public class IKamandHandler extends BaseThingHandler {
                     logger.debug("Unhandled command for channel {}", id);
                     break;
             }
-            initPolling(2, config.refreshInterval);
+            initPolling(1, config.refreshInterval);
         } catch (Exception e) {
             logger.warn("Error while handling command {} for channel {}", command, id, e);
         }
@@ -151,33 +170,31 @@ public class IKamandHandler extends BaseThingHandler {
         pollFuture = scheduler.scheduleWithFixedDelay(this::pollDevice, initialDelay, refresh, TimeUnit.SECONDS);
     }
 
-    /**
-     * Stops/clears this thing's polling future
-     */
     private void clearPolling() {
-        ScheduledFuture<?> localFuture = pollFuture;
-        if (isFutureValid(localFuture)) {
-            if (localFuture != null) {
-                localFuture.cancel(true);
-            }
+        ScheduledFuture<?> pollFuture = this.pollFuture;
+        if (pollFuture != null && !pollFuture.isCancelled()) {
+            pollFuture.cancel(true);
         }
     }
 
-    private boolean isFutureValid(@Nullable ScheduledFuture<?> future) {
-        return future != null && !future.isCancelled();
-    }
+    private void pollDevice() {
+        if (!pollLock.tryLock()) {
+            return; // another poll is already running
+        }
+        try {
+            String dataUrl = "http://" + config.hostname + "/cgi-bin/data";
 
-    private synchronized void pollDevice() {
-        String dataUrl = "http://" + config.hostname + "/cgi-bin/data";
+            String body = fetchWithSocket(dataUrl, null);
 
-        String body = fetchWithSocket(dataUrl, null);
-
-        if (body != null) {
-            Map<String, String> rawData = convertToMap(body);
-            updateChannels(rawData);
-            updateStatus(ThingStatus.ONLINE);
-        } else {
-            updateStatus(ThingStatus.OFFLINE);
+            if (body != null) {
+                Map<String, String> rawData = convertToMap(body);
+                updateChannels(rawData);
+                updateStatus(ThingStatus.ONLINE);
+            } else {
+                updateStatus(ThingStatus.OFFLINE);
+            }
+        } finally {
+            pollLock.unlock();
         }
     }
 
@@ -202,29 +219,38 @@ public class IKamandHandler extends BaseThingHandler {
         });
 
         updateNumberChannel(CHANNEL_FAN_SPEED, data.get(KEY_FAN_SPEED));
-        updateTemperatureChannel(CHANNEL_TEMPERATURE_PIT, data.get(KEY_PIT_TEMP));
-        updateTemperatureChannel(CHANNEL_TARGET_TEMPERATURE, data.get(KEY_TARGET_PIT_TEMP));
-        updateTemperatureChannel(CHANNEL_TEMPERATURE_PROBE1, data.get(KEY_PROBE_1));
-        updateTemperatureChannel(CHANNEL_TEMPERATURE_PROBE2, data.get(KEY_PROBE_2));
-        updateTemperatureChannel(CHANNEL_TEMPERATURE_PROBE3, data.get(KEY_PROBE_3));
+        updateTemperatureChannel(CHANNEL_TEMPERATURE_PIT_CURRENT, data.get(KEY_PIT_TEMP));
+        if (data.get(KEY_TARGET_PIT_TEMP) instanceof String pitTempString) {
+            int temp = Integer.parseInt(pitTempString);
+            if (temp > 32 && temp <= 260) {
+                cachedTargetGrillTemperature = temp;
+            } else {
+                cachedTargetGrillTemperature = config.defaultGrillTemperature;
+            }
+            updateTemperatureChannel(CHANNEL_TEMPERATURE_PIT_TARGET, String.valueOf(cachedTargetGrillTemperature));
+        }
+
+        updateTemperatureChannel(CHANNEL_TEMPERATURE_PROBE1_CURRENT, data.get(KEY_PROBE_1));
+        updateTemperatureChannel(CHANNEL_TEMPERATURE_PROBE2_CURRENT, data.get(KEY_PROBE_2));
+        updateTemperatureChannel(CHANNEL_TEMPERATURE_PROBE3_CURRENT, data.get(KEY_PROBE_3));
 
         updateStringChannel(CHANNEL_RM, data.get(KEY_UNKNOWN_RECEIVE_VAR1));
         updateStringChannel(CHANNEL_CM, data.get(KEY_UNKNOWN_RECEIVE_VAR2));
         updateStringChannel(CHANNEL_AS, data.get(KEY_UNKNOWN_SEND_VAR1));
 
         // same channel for both grill and cook status
-        updateSwitchChannel(CHANNEL_COOK_START, data.get(KEY_COOK_START));
-        updateSwitchChannel(CHANNEL_GRILL_START, data.get(KEY_COOK_START));
+        // updateSwitchChannel(CHANNEL_COOK_START, data.get(KEY_COOK_START));
+        updateSwitchChannel(CHANNEL_GRILL_RUNNING, data.get(KEY_COOK_START));
 
-        updateTemperatureChannel(CHANNEL_TARGET_FOOD_TEMP, data.get(KEY_TARGET_FOOD_TEMP));
+        // updateTemperatureChannel(CHANNEL_TARGET_FOOD_TEMP, data.get(KEY_TARGET_FOOD_TEMP));
 
-        updateNumberChannel(CHANNEL_FOOD_PROBE, data.getOrDefault(KEY_FOOD_PROBE, "0"));
+        // updateNumberChannel(CHANNEL_FOOD_PROBE, data.getOrDefault(KEY_FOOD_PROBE, "0"));
 
         updateDateChannel(CHANNEL_CURRENT_TIME, data.get(KEY_CURRENT_TIME));
         updateDateChannel(CHANNEL_COOK_END_TIME, data.get(KEY_COOK_END_TIME));
         updateDateChannel(CHANNEL_GRILL_END_TIME, data.get(KEY_GRILL_END_TIME));
 
-        updateStringChannel(CHANNEL_COOK_ID, data.get(KEY_COOK_ID));
+        // updateStringChannel(CHANNEL_COOK_ID, data.get(KEY_COOK_ID));
     }
 
     private void updateTemperatureChannel(String channelId, @Nullable String valueStr) {
@@ -234,7 +260,7 @@ public class IKamandHandler extends BaseThingHandler {
         }
         try {
             BigDecimal value = new BigDecimal(valueStr);
-            if (value.compareTo(TEMPERATURE_UNDEFINED) == 0) {
+            if (value.compareTo(TEMPERATURE_UNDEFINED_MIN) == 0 || value.compareTo(TEMPERATURE_UNDEFINED_MAX) == 0) {
                 updateState(new ChannelUID(getThing().getUID(), channelId), UnDefType.UNDEF);
                 return;
             }
@@ -288,21 +314,38 @@ public class IKamandHandler extends BaseThingHandler {
         updateState(new ChannelUID(getThing().getUID(), channelId), on ? OnOffType.ON : OnOffType.OFF);
     }
 
-    private void startCook() {
-
-        String url = "http://" + config.hostname + "/cgi-bin/cook";
+    private void startCook(int probe, int targetTemperature) {
         long currentTime = Instant.now().getEpochSecond();
         long currentTimePlusOneDay = currentTime + 86400;
 
+        String url = "http://" + config.hostname + "/cgi-bin/cook";
         StringBuilder payload = new StringBuilder();
-        payload.append(KEY_COOK_START).append("=1");
-        payload.append("&").append(KEY_COOK_ID).append("=").append(UUID.randomUUID());
-        payload.append("&").append(KEY_TARGET_PIT_TEMP).append("=").append(targetPitTemperature);
-        payload.append("&").append(KEY_COOK_END_TIME).append("=").append(currentTimePlusOneDay);
-        payload.append("&").append(KEY_FOOD_PROBE).append("=").append(foodProbe);
-        payload.append("&").append(KEY_TARGET_FOOD_TEMP).append("=").append(targetFoodTemperature);
-        payload.append("&").append(KEY_UNKNOWN_SEND_VAR1).append("=0");
-        payload.append("&").append(KEY_CURRENT_TIME).append("=").append(currentTime);
+        appendQuery(payload, KEY_COOK_START, "1");
+        appendQuery(payload, KEY_COOK_ID, String.valueOf(probe));
+        appendQuery(payload, KEY_TARGET_PIT_TEMP, String.valueOf(cachedTargetGrillTemperature));
+        appendQuery(payload, KEY_COOK_END_TIME, String.valueOf(currentTimePlusOneDay));
+        appendQuery(payload, KEY_FOOD_PROBE, String.valueOf(probe));
+        appendQuery(payload, KEY_TARGET_FOOD_TEMP, String.valueOf(targetTemperature));
+        // appendQuery(payload, KEY_UNKNOWN_SEND_VAR1, "0");
+        appendQuery(payload, KEY_CURRENT_TIME, String.valueOf(currentTime));
+
+        sendPost(url, payload.toString());
+    }
+
+    private void stopCook(int probe) {
+
+        String url = "http://" + config.hostname + "/cgi-bin/cook";
+        long currentTime = Instant.now().getEpochSecond();
+        // long currentTimePlusOneDay = currentTime + 86400;
+
+        StringBuilder payload = new StringBuilder();
+        appendQuery(payload, KEY_COOK_START, "0");
+        appendQuery(payload, KEY_COOK_ID, String.valueOf(probe));
+        // appendQuery(payload, KEY_TARGET_PIT_TEMP, String.valueOf(targetPitTemperature));
+        // appendQuery(payload, KEY_COOK_END_TIME, String.valueOf(currentTimePlusOneDay));
+        appendQuery(payload, KEY_TARGET_FOOD_TEMP, "0");
+        // appendQuery(payload, KEY_UNKNOWN_SEND_VAR1, "0");
+        // appendQuery(payload, KEY_CURRENT_TIME, String.valueOf(currentTime));
 
         sendPost(url, payload.toString());
     }
@@ -324,28 +367,25 @@ public class IKamandHandler extends BaseThingHandler {
     private void setupWifi(String ssid, String pass, String user) {
         String url = "http://" + config.hostname + "/cgi-bin/netset";
         StringBuilder payload = new StringBuilder();
-        payload.append("ssid=").append(java.util.Base64.getEncoder().encodeToString(ssid.getBytes()));
-        payload.append("&pass=").append(java.util.Base64.getEncoder().encodeToString(pass.getBytes()));
-        payload.append("&user=").append(java.util.Base64.getEncoder().encodeToString(user.getBytes()));
+        appendQuery(payload, "ssid", java.util.Base64.getEncoder().encodeToString(ssid.getBytes()));
+        appendQuery(payload, "pass", java.util.Base64.getEncoder().encodeToString(pass.getBytes()));
+        appendQuery(payload, "user", java.util.Base64.getEncoder().encodeToString(user.getBytes()));
         sendPost(url, payload.toString());
     }
 
-    /**
-     * Fan boost at 100% for durationMinutes.
-     */
-    private void startGrill(int durationMinutes) {
+    private void startGrill(int targetPitTemperature) {
         long currentTime = Instant.now().getEpochSecond();
-        long cookEnd = currentTime + durationMinutes * 60L;
+        long cookEnd = currentTime + 86400L;
 
         StringBuilder payload = new StringBuilder();
-        payload.append(KEY_COOK_START).append("=1");
-        payload.append("&").append(KEY_COOK_ID).append("=");
-        payload.append("&").append(KEY_TARGET_PIT_TEMP).append("=260");
-        payload.append("&").append(KEY_COOK_END_TIME).append("=").append(cookEnd);
-        payload.append("&p=0");
-        payload.append("&").append(KEY_TARGET_FOOD_TEMP).append("=0");
-        payload.append("&").append(KEY_UNKNOWN_SEND_VAR1).append("=0");
-        payload.append("&").append(KEY_CURRENT_TIME).append("=").append(currentTime);
+        appendQuery(payload, KEY_COOK_START, "1");
+        appendQuery(payload, KEY_COOK_ID, "");
+        appendQuery(payload, KEY_TARGET_PIT_TEMP, String.valueOf(targetPitTemperature));
+        appendQuery(payload, KEY_COOK_END_TIME, String.valueOf(cookEnd));
+        appendQuery(payload, KEY_FOOD_PROBE, "0");
+        appendQuery(payload, KEY_TARGET_FOOD_TEMP, "0");
+        appendQuery(payload, KEY_UNKNOWN_SEND_VAR1, "0");
+        appendQuery(payload, KEY_CURRENT_TIME, String.valueOf(currentTime));
 
         sendPost("http://" + config.hostname + "/cgi-bin/cook", payload.toString());
     }
@@ -354,14 +394,14 @@ public class IKamandHandler extends BaseThingHandler {
         long currentTime = Instant.now().getEpochSecond();
 
         StringBuilder payload = new StringBuilder();
-        payload.append(KEY_COOK_START).append("=0");
-        payload.append("&").append(KEY_COOK_ID).append("=");
-        payload.append("&").append(KEY_TARGET_PIT_TEMP).append("=0");
-        payload.append("&").append(KEY_COOK_END_TIME).append("=").append(currentTime);
-        payload.append("&p=0");
-        payload.append("&").append(KEY_TARGET_FOOD_TEMP).append("=0");
-        payload.append("&").append(KEY_UNKNOWN_SEND_VAR1).append("=0");
-        payload.append("&").append(KEY_CURRENT_TIME).append("=").append(currentTime);
+        appendQuery(payload, KEY_COOK_START, "0");
+        appendQuery(payload, KEY_COOK_ID, "");
+        appendQuery(payload, KEY_TARGET_PIT_TEMP, "0");
+        appendQuery(payload, KEY_COOK_END_TIME, String.valueOf(currentTime));
+        appendQuery(payload, KEY_FOOD_PROBE, "0");
+        appendQuery(payload, KEY_TARGET_FOOD_TEMP, "0");
+        appendQuery(payload, KEY_UNKNOWN_SEND_VAR1, "0");
+        appendQuery(payload, KEY_CURRENT_TIME, String.valueOf(currentTime));
 
         sendPost("http://" + config.hostname + "/cgi-bin/cook", payload.toString());
     }
@@ -393,6 +433,7 @@ public class IKamandHandler extends BaseThingHandler {
                 if (postBody == null) {
                     writer.write("GET " + path + " HTTP/1.0\r\n");
                     writer.write("Host: " + host + "\r\n");
+                    writer.write("User-Agent: ikamand\r\n");
                     writer.write("Connection: close\r\n\r\n");
                 } else {
                     byte[] bodyBytes = postBody.getBytes(StandardCharsets.US_ASCII);
@@ -400,6 +441,7 @@ public class IKamandHandler extends BaseThingHandler {
                     writer.write("Host: " + host + "\r\n");
                     writer.write("Content-Type: application/x-www-form-urlencoded\r\n");
                     writer.write("Content-Length: " + bodyBytes.length + "\r\n");
+                    writer.write("User-Agent: ikamand\r\n");
                     writer.write("Connection: close\r\n\r\n");
                     writer.flush();
                     socket.getOutputStream().write(bodyBytes);
@@ -425,5 +467,35 @@ public class IKamandHandler extends BaseThingHandler {
             logger.debug("Socket fallback failed for url {}", url, e);
         }
         return null;
+    }
+
+    private StringBuilder appendQuery(StringBuilder sb, String key, String value) {
+        if (sb.length() > 0) {
+            sb.append("&");
+        }
+        sb.append(key).append("=").append(value);
+        return sb;
+    }
+
+    public static @Nullable Integer temperatureToValue(Type type) {
+        BigDecimal value = null;
+        if (type instanceof QuantityType<?> quantity) {
+            if (quantity.getUnit() == SIUnits.CELSIUS) {
+                value = quantity.toBigDecimal();
+            } else if (quantity.getUnit() == ImperialUnits.FAHRENHEIT) {
+                QuantityType<?> celsius = quantity.toUnit(SIUnits.CELSIUS);
+                if (celsius != null) {
+                    value = celsius.toBigDecimal();
+                }
+            }
+        } else if (type instanceof Number number) {
+            // No scale, so assumed to be Celsius
+            value = BigDecimal.valueOf(number.doubleValue());
+        }
+        if (value == null) {
+            return null;
+        }
+        // originally this used RoundingMode.CEILING, if there are accuracy problems, we may want to revisit that
+        return value.setScale(2, RoundingMode.HALF_UP).intValue();
     }
 }

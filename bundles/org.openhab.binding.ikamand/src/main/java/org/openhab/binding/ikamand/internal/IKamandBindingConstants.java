@@ -31,24 +31,28 @@ public class IKamandBindingConstants {
 
     // List of all Channel ids
     public static final String CHANNEL_FAN_SPEED = "fan-speed";
-    public static final String CHANNEL_TEMPERATURE_PIT = "pit-temp";
-    public static final String CHANNEL_TARGET_TEMPERATURE = "target-temp";
-    public static final String CHANNEL_TEMPERATURE_PROBE1 = "probe1-temp";
-    public static final String CHANNEL_TEMPERATURE_PROBE2 = "probe2-temp";
-    public static final String CHANNEL_TEMPERATURE_PROBE3 = "probe3-temp";
+    public static final String CHANNEL_TEMPERATURE_PIT_CURRENT = "temperature-pit-current";
+    public static final String CHANNEL_TEMPERATURE_PIT_TARGET = "temperature-pit-target";
+    public static final String CHANNEL_TEMPERATURE_PROBE1_CURRENT = "temperature-probe1-current";
+    public static final String CHANNEL_TEMPERATURE_PROBE2_CURRENT = "temperature-probe2-current";
+    public static final String CHANNEL_TEMPERATURE_PROBE3_CURRENT = "temperature-probe3-current";
+    public static final String CHANNEL_TEMPERATURE_PROBE1_TARGET = "temperature-probe1-target";
+    public static final String CHANNEL_TEMPERATURE_PROBE2_TARGET = "temperature-probe2-target";
+    public static final String CHANNEL_TEMPERATURE_PROBE3_TARGET = "temperature-probe3-target";
     public static final String CHANNEL_RM = "rm";
     public static final String CHANNEL_CM = "cm";
     public static final String CHANNEL_AG = "ag";
     public static final String CHANNEL_AS = "as";
-    public static final String CHANNEL_FOOD_PROBE = "food-probe";
     public static final String CHANNEL_CURRENT_TIME = "current-time";
     public static final String CHANNEL_COOK_END_TIME = "cook-end-time";
     public static final String CHANNEL_GRILL_END_TIME = "grill-end-time";
     public static final String CHANNEL_COOK_ID = "cook-id";
-    public static final String CHANNEL_COOK_START = "cook-start";
-    public static final String CHANNEL_TARGET_FOOD_TEMP = "target-food-temp";
-    // Alias for AG – grill start flag
+    public static final String CHANNEL_COOK_START_PROBE_1 = "cook-start-probe-1";
+    public static final String CHANNEL_COOK_START_PROBE_2 = "cook-start-probe-2";
+    public static final String CHANNEL_COOK_START_PROBE_3 = "cook-start-probe-3";
+    public static final String CHANNEL_COOK_STOP = "cook-stop";
     public static final String CHANNEL_GRILL_START = "grill-start";
+    public static final String CHANNEL_GRILL_RUNNING = "grill-running";
 
     // iKamand API key constants
     public static final String KEY_COOK_END_TIME = "sce";
