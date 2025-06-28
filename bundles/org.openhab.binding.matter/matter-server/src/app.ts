@@ -1,3 +1,6 @@
+// workaround for node 18 crypto issue, node 19+ sets this by default
+globalThis.crypto ??= require("node:crypto").webcrypto;
+
 import { LogFormat, Logger, LogLevel } from "@matter/general";
 import { IncomingMessage } from "http";
 import WebSocket, { Server } from "ws";

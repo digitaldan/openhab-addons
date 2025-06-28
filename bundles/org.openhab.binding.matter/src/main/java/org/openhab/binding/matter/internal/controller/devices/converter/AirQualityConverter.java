@@ -53,7 +53,7 @@ public class AirQualityConverter extends GenericConverter<AirQualityCluster> {
     public Map<Channel, @Nullable StateDescription> createChannels(ChannelGroupUID channelGroupUID) {
         Channel channel = ChannelBuilder
                 .create(new ChannelUID(channelGroupUID, CHANNEL_ID_AIRQUALITY_AIRQUALITY), CoreItemFactory.NUMBER)
-                .withType(CHANNEL_AIRQUALITY_AIRQUALITY).withLabel(formatLabel("Air Quality")).build();
+                .withType(CHANNEL_AIRQUALITY_AIRQUALITY).build();
 
         List<StateOption> options = new ArrayList<>();
         for (AirQualityCluster.AirQualityEnum e : AirQualityCluster.AirQualityEnum.values()) {

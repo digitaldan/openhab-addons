@@ -54,7 +54,7 @@ public class RvcCleanModeConverter extends GenericConverter<RvcCleanModeCluster>
     public Map<Channel, @Nullable StateDescription> createChannels(ChannelGroupUID channelGroupUID) {
         Channel channel = ChannelBuilder
                 .create(new ChannelUID(channelGroupUID, CHANNEL_ID_RVCCLEANMODE_MODE), CoreItemFactory.NUMBER)
-                .withType(CHANNEL_RVCCLEANMODE_MODE).withLabel(formatLabel("Clean Mode")).build();
+                .withType(CHANNEL_RVCCLEANMODE_MODE).build();
 
         List<StateOption> modeOptions = new ArrayList<>();
         initializingCluster.supportedModes
