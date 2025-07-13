@@ -5,7 +5,7 @@
 	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
 
 	<thing-type id="ikamand">
-		<label>iKamand Binding Thing</label>
+		<label>iKamand</label>
 		<description>iKamand device</description>
 		<channels>
 			<channel id="fan-speed" typeId="fan-speed"/>
