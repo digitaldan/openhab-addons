@@ -19,12 +19,14 @@ Earlier or later firmware revisions are expected to work as the HTTP API used by
 ### How to connect the iKamand module to your Wi-Fi router
 
 The iKamand must be connected to your home network before it can be added to openHAB.
-Follow these steps once:
+Follow these steps if you iKamand is not already connected:
 
-1. Power the iKamand from its supplied USB power supply.
-2. Install the official *Kamado Joe iKamand* mobile application on your phone.
-3. Use the app to join the device to your Wi-Fi network (2.4 GHz only).
-4. Note the IP address that the controller receives from your DHCP server (or configure a static lease).
+1. Plug in to power on iKamand.
+2. Hold down the button on left side of iKamand for 4-8 seconds then release. The LED will flash blue rapidly.
+3. Navigate to the Wi-Fi Settings on your phone.
+4. Connect to the iKamand Wi-Fi network.
+5. Scan the previous QR code with your phone or visit `http://192.168.10.1/cgi-bin/netset`
+6. Fill in with base64 encoded SSID and PASSWORD. USERID is useless, you can leave it blank.
 
 <span align="center">
 
