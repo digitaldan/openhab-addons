@@ -217,12 +217,17 @@
 	<channel-type id="joinGroup">
 		<item-type>String</item-type>
 		<label>Join Group</label>
-		<description>Join a group</description>
+		<description>Join another player's group</description>
 	</channel-type>
 	<channel-type id="leaveGroup">
 		<item-type>String</item-type>
 		<label>Leave Group</label>
-		<description>Leave a group</description>
+		<description>Leave this player's group</description>
+	</channel-type>
+	<channel-type id="addRemoveMember">
+		<item-type>String</item-type>
+		<label>Add or Remove a Member</label>
+		<description>Add or remove a member from this player's group</description>
 	</channel-type>
 	<channel-type id="ungroup">
 		<item-type>Switch</item-type>
@@ -369,6 +374,7 @@
 			<channel id="multiroomActive" typeId="multiroomActive"/>
 			<channel id="joinGroup" typeId="joinGroup"/>
 			<channel id="leaveGroup" typeId="leaveGroup"/>
+			<channel id="addRemoveMember" typeId="addRemoveMember"/>
 			<channel id="ungroup" typeId="ungroup"/>
 		</channels>
 	</channel-group-type>

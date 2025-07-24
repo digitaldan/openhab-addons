@@ -395,16 +395,16 @@ public class LinkPlayHTTPClient {
     /**
      * Corresponds to /setAlarmClock:{n}:{trig}:{op}:{time}:{day}:{url}
      */
-    public CompletableFuture<String> setAlarmClock(int n, int trig, int op, String time, String day, String url) {
-        String path = String.format("setAlarmClock:%d:%d:%d:%s:%s:%s", n, trig, op, time, day, encode(url));
+    public CompletableFuture<String> setAlarmClock(int number, int trigger, int operation, String time, String day, String url) {
+        String path = String.format("setAlarmClock:%d:%d:%d:%s:%s:%s", number, trigger, operation, time, day, encode(url));
         return sendGetRequest(path, String.class);
     }
 
     /**
      * Corresponds to /getAlarmClock:{n}
      */
-    public CompletableFuture<AlarmClockInfo> getAlarmClock(int n) {
-        return sendGetRequest("getAlarmClock:" + n, AlarmClockInfo.class);
+    public CompletableFuture<AlarmClockInfo> getAlarmClock(int number) {
+        return sendGetRequest("getAlarmClock:" + number, AlarmClockInfo.class);
     }
 
     /**
