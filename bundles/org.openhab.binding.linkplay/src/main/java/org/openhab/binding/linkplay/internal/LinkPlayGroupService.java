@@ -123,6 +123,39 @@ public class LinkPlayGroupService {
         }
     }
 
+    public void addRemoveMember(GroupParticipant leader, String memberIpAddress) {
+        GroupParticipant member = participants.get(memberIpAddress);
+        if (member != null) {
+            try {
+                List<Slave> slaves = groups.get(leader.getIpAddress());
+                if (slaves == null) {
+                    if (slaves.stream().anyMatch(slave -> slave.ip.equals(memberIpAddress))) {
+                        member.getApiClient().multiroomSlaveKickout(memberIpAddress).get(5,
+                                java.util.concurrent.TimeUnit.SECONDS);
+                        return;
+                    }
+                }
+                member.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get(5,
+                java.util.concurrent.TimeUnit.SECONDS);
+                
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                logger.error("Error adding member: {}", e.getMessage(), e);
+            }
+        }
+    }
+
+    public void removeMember(GroupParticipant leader, String ipAddress) {
+        GroupParticipant member = participants.get(ipAddress);
+        if (member != null) {
+            try {
+                leader.getApiClient().multiroomSlaveKickout(member.getIpAddress()).get(5,
+                        java.util.concurrent.TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                logger.error("Error leaving group: {}", e.getMessage(), e);
+            }
+        }
+    }
+
     public void ungroup(GroupParticipant member) {
         GroupParticipant leader = groups.containsKey(member.getIpAddress()) ? member : getLeader(member);
         if (leader != null) {
@@ -144,6 +177,10 @@ public class LinkPlayGroupService {
                 participant.groupProxyUpdateState(groupId, channelId, state);
             }
         });
+    }
+
+    public List<Slave> getGroup(GroupParticipant member) {
+        return groups.getOrDefault(member.getIpAddress(), List.of());
     }
 
     public interface GroupParticipant {

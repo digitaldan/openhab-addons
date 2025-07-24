@@ -95,6 +95,7 @@ public class LinkPlayBindingConstants {
     public static final String CHANNEL_MULTIROOM_LEADER = "multiroomLeader";
     public static final String CHANNEL_JOIN_GROUP = "joinGroup";
     public static final String CHANNEL_LEAVE_GROUP = "leaveGroup";
+    public static final String CHANNEL_ADD_REMOVE_MEMBER = "addRemoveMember";
     public static final String CHANNEL_UNGROUP = "ungroup";
 
     // Device & System

@@ -44,6 +44,7 @@ import org.openhab.binding.linkplay.internal.client.dto.DeviceStatus;
 import org.openhab.binding.linkplay.internal.client.dto.PlayMode;
 import org.openhab.binding.linkplay.internal.client.dto.PlayerStatus;
 import org.openhab.binding.linkplay.internal.client.dto.PresetList;
+import org.openhab.binding.linkplay.internal.client.dto.Slave;
 import org.openhab.binding.linkplay.internal.client.dto.SlaveListResponse;
 import org.openhab.binding.linkplay.internal.client.dto.SourceInputMode;
 import org.openhab.binding.linkplay.internal.client.dto.TrackMetadata;
@@ -254,6 +255,15 @@ public class LinkPlayHandler extends BaseThingHandler
                 case LinkPlayBindingConstants.CHANNEL_LEAVE_GROUP:
                     linkPlayGroupService.leaveGroup(this);
                     break;
+                case LinkPlayBindingConstants.CHANNEL_ADD_REMOVE_MEMBER:
+                    if (command instanceof StringType stringType) {
+                        if (stringType.toString().equals("LEAVE")) {
+                            linkPlayGroupService.leaveGroup(this);
+                        } else {
+                            linkPlayGroupService.addRemoveMember(this, stringType.toString());
+                        }
+                    }
+                    break;
                 case LinkPlayBindingConstants.CHANNEL_UNGROUP:
                     linkPlayGroupService.ungroup(this);
                     break;
@@ -408,6 +418,7 @@ public class LinkPlayHandler extends BaseThingHandler
         updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_ACTIVE,
                 OnOffType.ON);
         updateJoinGroupCommandDescription();
+        updateAddRemoveMemberCommandDescription();
     }
 
     @Override
@@ -421,12 +432,14 @@ public class LinkPlayHandler extends BaseThingHandler
                 OnOffType.OFF);
         pollFast();
         updateJoinGroupCommandDescription();
+        updateAddRemoveMemberCommandDescription();
     }
 
     @Override
     public void groupParticipantsUpdated(Collection<GroupParticipant> participants) {
         allParticipants = participants;
         updateJoinGroupCommandDescription();
+        updateAddRemoveMemberCommandDescription();
     }
 
     @Override
@@ -954,7 +967,7 @@ public class LinkPlayHandler extends BaseThingHandler
         if (inGroup) {
             String label = "Leave Group";
             if (isLeader) {
-                label = "Un-Group All";
+                label = "Remove All Members";
             } else {
                 GroupParticipant leader = linkPlayGroupService.getLeader(this);
                 if (leader != null) {
@@ -969,6 +982,37 @@ public class LinkPlayHandler extends BaseThingHandler
         }
         updateCommandDescription(new ChannelUID(getThing().getUID(), LinkPlayBindingConstants.GROUP_MULTIROOM,
                 LinkPlayBindingConstants.CHANNEL_JOIN_GROUP), commandOptions);
+    }
+
+    public void updateAddRemoveMemberCommandDescription() {
+        logger.debug("Updating add member command description for {} participants", allParticipants.size());
+        List<CommandOption> commandOptions = new ArrayList<>();
+        if (inGroup && !isLeader) {
+            String label = "Leave Existing Group";
+            GroupParticipant leader = linkPlayGroupService.getLeader(this);
+            if (leader != null) {
+                label = "Leave " + leader.getGroupParticipantLabel() + "'s Group";
+            }
+            commandOptions.add(new CommandOption("LEAVE", label));
+        } else {
+            if (isLeader) {
+                List<Slave> slaves = linkPlayGroupService.getGroup(this);
+                for (GroupParticipant participant : allParticipants) {
+                    if (slaves.stream().anyMatch(slave -> slave.ip.equals(participant.getIpAddress()))) {
+                        commandOptions.add(new CommandOption(participant.getIpAddress(),
+                                "Remove " + participant.getGroupParticipantLabel()));
+                    } else {
+                        commandOptions.add(new CommandOption(participant.getIpAddress(),
+                                "Add " + participant.getGroupParticipantLabel()));
+                    }
+                }
+            }
+            allParticipants.stream().filter(participant -> !participant.getIpAddress().equals(getIpAddress()))
+                    .forEach(participant -> commandOptions.add(
+                            new CommandOption(participant.getIpAddress(), participant.getGroupParticipantLabel())));
+        }
+        updateCommandDescription(new ChannelUID(getThing().getUID(), LinkPlayBindingConstants.GROUP_MULTIROOM,
+                LinkPlayBindingConstants.CHANNEL_ADD_REMOVE_MEMBER), commandOptions);
     }
 
     protected void updateCommandDescription(ChannelUID channelUID, List<CommandOption> commandOptionList) {
