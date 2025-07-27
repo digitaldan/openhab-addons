@@ -49,72 +49,73 @@ public class LinkPlayBindingConstants {
     public static final String GROUP_PLAYBACK = "playback";
     public static final String GROUP_METADATA = "metadata";
     public static final String GROUP_INPUT = "input";
-    public static final String GROUP_EQUALISER = "equaliser";
+    public static final String GROUP_EQUALISER = "equalizer";
     public static final String GROUP_MULTIROOM = "multiroom";
     public static final String GROUP_DEVICE = "device";
     public static final String GROUP_PRESETS = "presets";
+    public static final String GROUP_PRESET = "preset";
 
     // ----------------- Channel IDs -----------------
-    public static final String CHANNEL_PLAYER_CONTROL = "playerControl";
-    public static final String CHANNEL_PLAYBACK_STATE = "playbackState";
-    public static final String CHANNEL_TRACK_POSITION = "trackPosition";
-    public static final String CHANNEL_TRACK_DURATION = "trackDuration";
+    public static final String CHANNEL_PLAYER_CONTROL = "control";
+    public static final String CHANNEL_PLAYBACK_STATE = "state";
+    public static final String CHANNEL_TRACK_POSITION = "position";
+    public static final String CHANNEL_TRACK_DURATION = "duration";
     public static final String CHANNEL_REPEAT_SHUFFLE_MODE = "repeatShuffleMode";
-    public static final String CHANNEL_EQ_PRESET = "eqPreset";
+    public static final String CHANNEL_EQ_PRESET = "eq-preset";
     public static final String CHANNEL_VOLUME = "volume";
     public static final String CHANNEL_MUTE = "mute";
 
     // Metadata
-    public static final String CHANNEL_TRACK_TITLE = "trackTitle";
-    public static final String CHANNEL_TRACK_ARTIST = "trackArtist";
-    public static final String CHANNEL_TRACK_ALBUM = "trackAlbum";
-    public static final String CHANNEL_ALBUM_ART_URL = "albumArtUrl";
-    public static final String CHANNEL_ALBUM_ART = "albumArt";
-    public static final String CHANNEL_SAMPLE_RATE = "sampleRate";
-    public static final String CHANNEL_BIT_DEPTH = "bitDepth";
-    public static final String CHANNEL_BIT_RATE = "bitRate";
+    public static final String CHANNEL_TRACK_TITLE = "track-title";
+    public static final String CHANNEL_TRACK_ARTIST = "track-artist";
+    public static final String CHANNEL_TRACK_ALBUM = "track-album";
+    public static final String CHANNEL_ALBUM_ART_URL = "album-art-url";
+    public static final String CHANNEL_ALBUM_ART = "album-art";
+    public static final String CHANNEL_SAMPLE_RATE = "sample-rate";
+    public static final String CHANNEL_BIT_DEPTH = "bit-depth";
+    public static final String CHANNEL_BIT_RATE = "bit-rate";
 
     // Input / Source
-    public static final String CHANNEL_SOURCE_INPUT = "sourceInput";
-    public static final String CHANNEL_BT_CONNECTED = "bluetoothConnected";
-    public static final String CHANNEL_BT_PAIRED_DEVICE = "bluetoothPairedDevice";
-    public static final String CHANNEL_LINE_IN_ACTIVE = "lineInActive";
+    public static final String CHANNEL_SOURCE_INPUT = "source";
+    public static final String CHANNEL_BT_CONNECTED = "bluetooth-connected";
+    public static final String CHANNEL_BT_PAIRED_DEVICE = "bluetooth-paired-device";
+    public static final String CHANNEL_LINE_IN_ACTIVE = "line-in-active";
 
     // Equaliser & Output
-    public static final String CHANNEL_EQ_ENABLED = "eqEnabled";
-    public static final String CHANNEL_EQ_BAND = "eqBand";
-    public static final String CHANNEL_OUTPUT_HW_MODE = "outputHardwareMode";
-    public static final String CHANNEL_CHANNEL_BALANCE = "channelBalance";
-    public static final String CHANNEL_SPDIF_DELAY = "spdifSwitchDelayMs";
+    public static final String CHANNEL_EQ_ENABLED = "enabled";
+    public static final String CHANNEL_EQ_BAND = "band";
+    public static final String CHANNEL_OUTPUT_HW_MODE = "output-hardware-mode";
+    public static final String CHANNEL_CHANNEL_BALANCE = "channel-balance";
+    public static final String CHANNEL_SPDIF_DELAY = "spdif-switch-delay-ms";
 
     // Multi-room
-    public static final String CHANNEL_SLAVE_VOLUME = "slaveVolume";
-    public static final String CHANNEL_SLAVE_MUTE = "slaveMute";
-    public static final String CHANNEL_SLAVE_CHANNEL = "slaveChannel";
-    public static final String CHANNEL_MULTIROOM_ACTIVE = "multiroomActive";
-    public static final String CHANNEL_MULTIROOM_LEADER = "multiroomLeader";
-    public static final String CHANNEL_JOIN_GROUP = "joinGroup";
-    public static final String CHANNEL_LEAVE_GROUP = "leaveGroup";
-    public static final String CHANNEL_ADD_REMOVE_MEMBER = "addRemoveMember";
-    public static final String CHANNEL_UNGROUP = "ungroup";
+    public static final String CHANNEL_MULTIROOM_VOLUME = "volume";
+    public static final String CHANNEL_MULTIROOM_MUTE = "mute";
+    public static final String CHANNEL_MULTIROOM_ACTIVE = "active";
+    public static final String CHANNEL_MULTIROOM_LEADER = "leader";
+    public static final String CHANNEL_MULTIROOM_JOIN = "join";
+    public static final String CHANNEL_MULTIROOM_LEAVE = "leave";
+    public static final String CHANNEL_MULTIROOM_MANAGE = "manage";
+    public static final String CHANNEL_MULTIROOM_UNGROUP = "ungroup";
 
     // Device & System
-    public static final String CHANNEL_LED_ENABLED = "ledEnabled";
-    public static final String CHANNEL_TOUCH_KEYS_ENABLED = "touchKeysEnabled";
-    public static final String CHANNEL_SHUTDOWN_TIMER = "shutdownTimer";
+    public static final String CHANNEL_LED_ENABLED = "led-enabled";
+    public static final String CHANNEL_TOUCH_KEYS_ENABLED = "touch-keys-enabled";
+    public static final String CHANNEL_SHUTDOWN_TIMER = "shutdown-timer";
     public static final String CHANNEL_REBOOT = "reboot";
-    public static final String CHANNEL_FACTORY_RESET = "factoryReset";
+    public static final String CHANNEL_FACTORY_RESET = "factory-reset";
 
     // Presets
-    public static final String CHANNEL_PRESET_COUNT = "presetCount";
-    public static final String CHANNEL_PLAY_PRESET = "playPreset";
-    public static final String CHANNEL_PRESET_NAME = "presetName";
-    // New preset detail channels
-    public static final String CHANNEL_PRESET_URL = "presetUrl";
-    public static final String CHANNEL_PRESET_SOURCE = "presetSource";
-    public static final String CHANNEL_PRESET_PIC_URL = "presetPicUrl";
-    public static final String CHANNEL_PRESET_PIC = "presetPic";
-    public static final String CHANNEL_PRESET_PLAY = "presetPlay";
+    public static final String CHANNEL_PRESET_COUNT = "count";
+    public static final String CHANNEL_PLAY_PRESET = "play";
+
+    // preset instance
+    public static final String CHANNEL_PRESET_URL = "url";
+    public static final String CHANNEL_PRESET_SOURCE = "source";
+    public static final String CHANNEL_PRESET_PIC_URL = "pic-url";
+    public static final String CHANNEL_PRESET_PIC = "pic";
+    public static final String CHANNEL_PRESET_PLAY = "play";
+    public static final String CHANNEL_PRESET_NAME = "name";
 
     // Group proxy channels that are set by the leader when in a group
     public static final Set<String> GROUP_PROXY_CHANNELS = Set.of(CHANNEL_PLAYER_CONTROL, CHANNEL_PLAYBACK_STATE,

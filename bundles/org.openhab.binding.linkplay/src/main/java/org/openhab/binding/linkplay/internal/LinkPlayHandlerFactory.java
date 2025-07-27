@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.jupnp.UpnpService;
 import org.jupnp.model.meta.LocalDevice;
 import org.jupnp.model.meta.RemoteDevice;
@@ -55,6 +57,7 @@ public class LinkPlayHandlerFactory extends BaseThingHandlerFactory implements R
     private final LinkPlayCommandDescriptionProvider linkPlayCommandDescriptionProvider;
     private ConcurrentMap<String, RemoteDevice> devices = new ConcurrentHashMap<>();
     private ConcurrentMap<String, LinkPlayHandler> handlers = new ConcurrentHashMap<>();
+    private final HttpClient httpClient;
 
     @Activate
     public LinkPlayHandlerFactory(final @Reference UpnpIOService upnpIOService, @Reference UpnpService upnpService,
@@ -65,6 +68,15 @@ public class LinkPlayHandlerFactory extends BaseThingHandlerFactory implements R
         this.upnpService = upnpService;
         this.linkPlayCommandDescriptionProvider = linkPlayCommandDescriptionProvider;
         upnpService.getRegistry().addListener(this);
+        httpClient = new HttpClient(new SslContextFactory.Client(true));
+        httpClient.setConnectTimeout(30000);
+        httpClient.setName("LinkPlayHTTPClient");
+        try {
+            httpClient.start();
+        } catch (Exception e) {
+            logger.debug("Failed to start HTTP client: {}", e.getMessage(), e);
+            throw new IllegalStateException("Could not create HTTP client", e);
+        }
     }
 
     @Deactivate
@@ -72,6 +84,11 @@ public class LinkPlayHandlerFactory extends BaseThingHandlerFactory implements R
         upnpService.getRegistry().removeListener(this);
         devices.clear();
         handlers.clear();
+        try {
+            httpClient.stop();
+        } catch (Exception e) {
+            logger.debug("Failed to stop HTTP client: {}", e.getMessage(), e);
+        }
     }
 
     @Override
@@ -84,8 +101,8 @@ public class LinkPlayHandlerFactory extends BaseThingHandlerFactory implements R
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
 
         if (THING_TYPE_PLAYER.equals(thingTypeUID)) {
-            LinkPlayHandler handler = new LinkPlayHandler(thing, upnpIOService, upnpService, linkPlayGroupService,
-                    linkPlayCommandDescriptionProvider);
+            LinkPlayHandler handler = new LinkPlayHandler(thing, httpClient, upnpIOService, upnpService,
+                    linkPlayGroupService, linkPlayCommandDescriptionProvider);
             String udn = handler.getUDN();
             if (udn != null) {
                 handlers.put(udn, handler);

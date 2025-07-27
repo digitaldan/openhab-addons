@@ -13,6 +13,7 @@
 package org.openhab.binding.linkplay.internal;
 
 import static org.openhab.binding.linkplay.internal.LinkPlayBindingConstants.GROUP_PROXY_CHANNELS;
+import static org.openhab.binding.linkplay.internal.LinkPlayBindingConstants.PROPERTY_DEVICE_NAME;
 import static org.openhab.binding.linkplay.internal.LinkPlayBindingConstants.PROPERTY_GROUP_NAME;
 
 import java.lang.reflect.Constructor;
@@ -32,20 +33,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.jupnp.UpnpService;
 import org.jupnp.controlpoint.ControlPoint;
 import org.jupnp.model.message.header.UDNHeader;
 import org.jupnp.model.meta.RemoteDevice;
 import org.jupnp.model.types.UDN;
-import org.openhab.binding.linkplay.internal.LinkPlayGroupService.GroupParticipant;
 import org.openhab.binding.linkplay.internal.client.LinkPlayHTTPClient;
 import org.openhab.binding.linkplay.internal.client.dto.DeviceStatus;
 import org.openhab.binding.linkplay.internal.client.dto.PlayMode;
 import org.openhab.binding.linkplay.internal.client.dto.PlayerStatus;
 import org.openhab.binding.linkplay.internal.client.dto.PresetList;
 import org.openhab.binding.linkplay.internal.client.dto.Slave;
-import org.openhab.binding.linkplay.internal.client.dto.SlaveListResponse;
 import org.openhab.binding.linkplay.internal.client.dto.SourceInputMode;
 import org.openhab.binding.linkplay.internal.client.dto.TrackMetadata;
 import org.openhab.binding.linkplay.internal.client.dto.TransportState;
@@ -82,8 +80,7 @@ import org.slf4j.LoggerFactory;
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public class LinkPlayHandler extends BaseThingHandler
-        implements UpnpIOParticipant, LinkPlayGroupService.GroupParticipant {
+public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipant, LinkPlayGroupParticipant {
 
     private final Logger logger = LoggerFactory.getLogger(LinkPlayHandler.class);
 
@@ -95,7 +92,7 @@ public class LinkPlayHandler extends BaseThingHandler
             SERVICE_RENDERING_CONTROL);
 
     private static final int SUBSCRIPTION_DURATION = 1800; // this is the maxAgeSeconds for the device
-
+    private static final int COMMAND_TIMEOUT = 30; // seconds
     private @Nullable LinkPlayConfiguration config;
     private final HttpClient httpClient;
     private @Nullable ScheduledFuture<?> pollJobFast;
@@ -116,14 +113,14 @@ public class LinkPlayHandler extends BaseThingHandler
     private boolean isLeader = false;
     private int currentPosition = 0;
     private int currentDuration = 0;
-    private Collection<GroupParticipant> allParticipants = new ArrayList<>();
+    private Collection<LinkPlayGroupParticipant> allParticipants = new ArrayList<>();
     private Map<String, State> groupStateCache = new HashMap<>();
     private String groupName;
-
+    private String deviceName;
     // Guard to ensure poll executions do not overlap
     private final AtomicBoolean isPolling = new AtomicBoolean(false);
 
-    public LinkPlayHandler(Thing thing, UpnpIOService upnpIOService, UpnpService upnpService,
+    public LinkPlayHandler(Thing thing, HttpClient httpClient, UpnpIOService upnpIOService, UpnpService upnpService,
             LinkPlayGroupService linkPlayGroupService,
             LinkPlayCommandDescriptionProvider linkPlayCommandDescriptionProvider) {
         super(thing);
@@ -131,26 +128,29 @@ public class LinkPlayHandler extends BaseThingHandler
         this.upnpService = upnpService;
         this.linkPlayGroupService = linkPlayGroupService;
         this.linkPlayCommandDescriptionProvider = linkPlayCommandDescriptionProvider;
-        httpClient = new HttpClient(new SslContextFactory.Client(true));
+        this.httpClient = httpClient;
         // Get this in constructor, so the UDN and IP is immediately available from the config. The concrete classes
         // should update the config from the initialize method.
         config = getConfigAs(LinkPlayConfiguration.class);
         apiClient = new LinkPlayHTTPClient(httpClient, config.ipAddress);
         groupName = getThing().getProperties().getOrDefault(PROPERTY_GROUP_NAME,
                 Objects.requireNonNullElse(getThing().getLabel(), getThing().getUID().getAsString()));
+        deviceName = getThing().getProperties().getOrDefault(PROPERTY_DEVICE_NAME,
+                Objects.requireNonNullElse(getThing().getLabel(), getThing().getUID().getAsString()));
     }
 
     @Override
     public void initialize() {
         config = getConfigAs(LinkPlayConfiguration.class);
-        logger.debug("initialize: {}", config);
-        try {
-            httpClient.start();
-        } catch (Exception e) {
-            throw new IllegalStateException("Could not create HTTP client", e);
-        }
+        logger.debug("{}: initialize: {}", deviceName, config);
+        // try {
+        // httpClient.start();
+        // } catch (Exception e) {
+        // throw new IllegalStateException("Could not create HTTP client", e);
+        // }
         apiClient.setHostname(config.ipAddress);
         upnpIOService.registerParticipant(this);
+        linkPlayGroupService.registerParticipant(this);
         pollJobFast = scheduler.scheduleWithFixedDelay(this::pollFast, 0, Math.max(5, config.refreshInterval),
                 TimeUnit.SECONDS);
         pollJobSlow = scheduler.scheduleWithFixedDelay(this::pollSlow, 5, Math.max(10, config.refreshInterval * 5),
@@ -166,16 +166,16 @@ public class LinkPlayHandler extends BaseThingHandler
         removeSubscription();
         upnpIOService.removeStatusListener(this);
         upnpIOService.unregisterParticipant(this);
-        try {
-            httpClient.stop();
-        } catch (Exception e) {
-            logger.debug("Failed to stop HTTP client: {}", e.getMessage(), e);
-        }
+        // try {
+        // httpClient.stop();
+        // } catch (Exception e) {
+        // logger.debug("Failed to stop HTTP client: {}", e.getMessage(), e);
+        // }
     }
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
-        logger.debug("handleCommand: {} {}", channelUID, command);
+        logger.debug("{}: handleCommand: {} {}", deviceName, channelUID, command);
         if (command instanceof RefreshType && !isPolling.get()) {
             // execute immediately in a new thread so we don't block
             scheduler.schedule(this::pollFast, 0, TimeUnit.MILLISECONDS);
@@ -186,108 +186,138 @@ public class LinkPlayHandler extends BaseThingHandler
                 case LinkPlayBindingConstants.CHANNEL_PLAYER_CONTROL:
                     if (command instanceof PlayPauseType playPauseType) {
                         if (playPauseType == PlayPauseType.PLAY) {
-                            apiClient.setPlayerCmdResume().get(5, TimeUnit.SECONDS);
+                            apiClient.setPlayerCmdResume().get();
                         } else {
-                            apiClient.setPlayerCmdPause().get(5, TimeUnit.SECONDS);
+                            apiClient.setPlayerCmdPause().get();
                         }
                     }
                     if (command instanceof RewindFastforwardType rewindFastforwardType) {
                         switch (rewindFastforwardType) {
                             case REWIND:
-                                apiClient.setPlayerCmdSeekPosition(Math.max(0, currentPosition - 10)).get(5,
-                                        TimeUnit.SECONDS);
+                                apiClient.setPlayerCmdSeekPosition(Math.max(0, currentPosition - 10)).get();
                                 break;
                             case FASTFORWARD:
                                 apiClient.setPlayerCmdSeekPosition(Math.min(currentDuration, currentPosition + 10))
-                                        .get(5, TimeUnit.SECONDS);
+                                        .get();
                         }
                     }
                     if (command instanceof NextPreviousType nextPreviousType) {
                         switch (nextPreviousType) {
                             case NEXT:
-                                apiClient.setPlayerCmdNext().get(5, TimeUnit.SECONDS);
+                                apiClient.setPlayerCmdNext().get();
                                 break;
                             case PREVIOUS:
-                                apiClient.setPlayerCmdPrev().get(5, TimeUnit.SECONDS);
+                                apiClient.setPlayerCmdPrev().get();
                                 break;
                         }
                     }
                     break;
                 case LinkPlayBindingConstants.CHANNEL_VOLUME:
                     if (command instanceof PercentType percentType) {
-                        apiClient.setPlayerCmdVol(percentType.intValue()).get(5, TimeUnit.SECONDS);
+                        if (channelUID.getGroupId() instanceof String group) {
+                            if (group.equals(LinkPlayBindingConstants.GROUP_MULTIROOM)) {
+                                apiClient.setPlayerCmdSlaveVol(percentType.intValue()).get(COMMAND_TIMEOUT,
+                                        TimeUnit.SECONDS);
+                            } else {
+                                apiClient.setPlayerCmdVol(percentType.intValue()).get(COMMAND_TIMEOUT,
+                                        TimeUnit.SECONDS);
+                            }
+                        }
+                        apiClient.setPlayerCmdVol(percentType.intValue()).get();
                     }
                     break;
                 case LinkPlayBindingConstants.CHANNEL_MUTE:
                     if (command instanceof OnOffType onOffType) {
-                        if (onOffType == OnOffType.ON) {
-                            apiClient.setPlayerCmdMute(onOffType == OnOffType.ON ? 1 : 0).get(5, TimeUnit.SECONDS);
+                        if (channelUID.getGroupId() instanceof String group) {
+                            if (group.equals(LinkPlayBindingConstants.GROUP_MULTIROOM)) {
+                                if (onOffType == OnOffType.ON) {
+                                    apiClient.setPlayerCmdSlaveMute().get();
+                                } else {
+                                    apiClient.setPlayerCmdSlaveUnmute().get();
+                                }
+                            } else {
+                                apiClient.setPlayerCmdMute(onOffType == OnOffType.ON ? 1 : 0).get(COMMAND_TIMEOUT,
+                                        TimeUnit.SECONDS);
+                            }
                         }
                     }
                     break;
                 case LinkPlayBindingConstants.CHANNEL_PRESET_PLAY:
-                    if (command instanceof OnOffType onOffType) {
-                        if (onOffType == OnOffType.ON) {
-                            if (channelUID.getGroupId() instanceof String group) {
-                                int presetNum = Integer.parseInt(group.substring("preset".length()));
-                                apiClient.mcuKeyShortClick(presetNum).get(5, TimeUnit.SECONDS);
+                    if (channelUID.getGroupId() instanceof String group) {
+                        if (group.equals(LinkPlayBindingConstants.GROUP_PRESETS)) {
+                            if (command instanceof DecimalType decimalType) {
+                                if (decimalType.intValue() > 0) {
+                                    apiClient.mcuKeyShortClick(decimalType.intValue()).get(COMMAND_TIMEOUT,
+                                            TimeUnit.SECONDS);
+                                }
+                            }
+                        } else {
+                            if (command instanceof OnOffType onOffType) {
+                                if (onOffType == OnOffType.ON) {
+                                    try {
+                                        int presetNum = Integer.parseInt(
+                                                group.substring(LinkPlayBindingConstants.GROUP_PRESET.length()));
+                                        apiClient.mcuKeyShortClick(presetNum).get();
+                                    } catch (NumberFormatException e) {
+                                        logger.debug("Invalid preset number: {}", group);
+                                    }
+                                }
+                                updateState(channelUID, OnOffType.OFF);
                             }
                         }
-                        updateState(channelUID, OnOffType.OFF);
                     }
                     break;
-                case LinkPlayBindingConstants.CHANNEL_PLAY_PRESET:
-                    if (command instanceof DecimalType decimalType) {
-                        if (decimalType.intValue() > 0) {
-                            apiClient.mcuKeyShortClick(decimalType.intValue()).get(5, TimeUnit.SECONDS);
-                        }
-                    }
-                    break;
-                case LinkPlayBindingConstants.CHANNEL_JOIN_GROUP:
+                case LinkPlayBindingConstants.CHANNEL_MULTIROOM_JOIN:
                     if (command instanceof StringType stringType) {
                         if (stringType.toString().equals("LEAVE")) {
-                            linkPlayGroupService.leaveGroup(this);
+                            linkPlayGroupService.unGroup(this);
                         } else {
-                            apiClient.multiroomJoinGroupMaster(stringType.toString()).get(5, TimeUnit.SECONDS);
+                            linkPlayGroupService.joinGroup(this, stringType.toString());
                         }
                     }
                     break;
-                case LinkPlayBindingConstants.CHANNEL_LEAVE_GROUP:
-                    linkPlayGroupService.leaveGroup(this);
+                case LinkPlayBindingConstants.CHANNEL_MULTIROOM_LEAVE:
+                    linkPlayGroupService.unGroup(this);
                     break;
-                case LinkPlayBindingConstants.CHANNEL_ADD_REMOVE_MEMBER:
+                case LinkPlayBindingConstants.CHANNEL_MULTIROOM_MANAGE:
                     if (command instanceof StringType stringType) {
-                        if (stringType.toString().equals("LEAVE")) {
-                            linkPlayGroupService.leaveGroup(this);
-                        } else {
-                            linkPlayGroupService.addRemoveMember(this, stringType.toString());
+                        switch (stringType.toString()) {
+                            case "LEAVE":
+                                linkPlayGroupService.unGroup(this);
+                                break;
+                            case "ADD_ALL":
+                                linkPlayGroupService.addAllMembers(this);
+                                break;
+                            default:
+                                linkPlayGroupService.addRemoveMember(this, stringType.toString());
+                                break;
                         }
                     }
                     break;
-                case LinkPlayBindingConstants.CHANNEL_UNGROUP:
-                    linkPlayGroupService.ungroup(this);
+                case LinkPlayBindingConstants.CHANNEL_MULTIROOM_UNGROUP:
+                    linkPlayGroupService.unGroup(this);
                     break;
 
                 // ---------------- Additional commandable channels ----------------
 
                 case LinkPlayBindingConstants.CHANNEL_REPEAT_SHUFFLE_MODE:
                     if (command instanceof DecimalType decimalType) {
-                        apiClient.setPlayerCmdLoopmode(decimalType.intValue()).get(5, TimeUnit.SECONDS);
+                        apiClient.setPlayerCmdLoopmode(decimalType.intValue()).get();
                     }
                     break;
 
                 case LinkPlayBindingConstants.CHANNEL_EQ_PRESET:
                     if (command instanceof StringType stringType) {
-                        apiClient.loadEQByName(stringType.toString()).get(5, TimeUnit.SECONDS);
+                        apiClient.loadEQByName(stringType.toString()).get();
                     }
                     break;
 
                 case LinkPlayBindingConstants.CHANNEL_EQ_ENABLED:
                     if (command instanceof OnOffType onOffType) {
                         if (onOffType == OnOffType.ON) {
-                            apiClient.setEQOn().get(5, TimeUnit.SECONDS);
+                            apiClient.setEQOn().get();
                         } else {
-                            apiClient.setEQOff().get(5, TimeUnit.SECONDS);
+                            apiClient.setEQOff().get();
                         }
                     }
                     break;
@@ -298,7 +328,7 @@ public class LinkPlayHandler extends BaseThingHandler
                                 .filter(m -> m.toString().equalsIgnoreCase(stringType.toString())).findFirst()
                                 .orElse(null);
                         if (mode != null) {
-                            apiClient.setPlayerCmdSwitchMode(mode).get(5, TimeUnit.SECONDS);
+                            apiClient.setPlayerCmdSwitchMode(mode).get();
                         } else {
                             logger.debug("Unsupported source input mode: {}", stringType);
                         }
@@ -307,59 +337,45 @@ public class LinkPlayHandler extends BaseThingHandler
 
                 case LinkPlayBindingConstants.CHANNEL_CHANNEL_BALANCE:
                     if (command instanceof DecimalType decimalType) {
-                        apiClient.setChannelBalance(decimalType.doubleValue()).get(5, TimeUnit.SECONDS);
+                        apiClient.setChannelBalance(decimalType.doubleValue()).get();
                     }
                     break;
 
                 case LinkPlayBindingConstants.CHANNEL_SPDIF_DELAY:
                     if (command instanceof DecimalType decimalType) {
-                        apiClient.setSpdifOutSwitchDelayMs(decimalType.intValue()).get(5, TimeUnit.SECONDS);
+                        apiClient.setSpdifOutSwitchDelayMs(decimalType.intValue()).get(COMMAND_TIMEOUT,
+                                TimeUnit.SECONDS);
                     }
                     break;
-
-                case LinkPlayBindingConstants.CHANNEL_SLAVE_VOLUME:
-                    if (command instanceof PercentType percentType) {
-                        apiClient.setPlayerCmdSlaveVol(percentType.intValue()).get(5, TimeUnit.SECONDS);
-                    }
-                    break;
-
-                case LinkPlayBindingConstants.CHANNEL_SLAVE_MUTE:
-                    if (command instanceof OnOffType onOffType) {
-                        if (onOffType == OnOffType.ON) {
-                            apiClient.setPlayerCmdSlaveMute().get(5, TimeUnit.SECONDS);
-                        } else {
-                            apiClient.setPlayerCmdSlaveUnmute().get(5, TimeUnit.SECONDS);
-                        }
-                    }
-                    break;
-
                 case LinkPlayBindingConstants.CHANNEL_LED_ENABLED:
                     if (command instanceof OnOffType onOffType) {
-                        apiClient.setLedSwitch(onOffType == OnOffType.ON ? 1 : 0).get(5, TimeUnit.SECONDS);
+                        apiClient.setLedSwitch(onOffType == OnOffType.ON ? 1 : 0).get(COMMAND_TIMEOUT,
+                                TimeUnit.SECONDS);
                     }
                     break;
 
                 case LinkPlayBindingConstants.CHANNEL_TOUCH_KEYS_ENABLED:
                     if (command instanceof OnOffType onOffType) {
-                        apiClient.setTouchControls(onOffType == OnOffType.ON ? 1 : 0).get(5, TimeUnit.SECONDS);
+                        apiClient.setTouchControls(onOffType == OnOffType.ON ? 1 : 0).get(COMMAND_TIMEOUT,
+                                TimeUnit.SECONDS);
                     }
                     break;
 
                 case LinkPlayBindingConstants.CHANNEL_SHUTDOWN_TIMER:
                     if (command instanceof DecimalType decimalType) {
-                        apiClient.setShutdownTimer(decimalType.intValue()).get(5, TimeUnit.SECONDS);
+                        apiClient.setShutdownTimer(decimalType.intValue()).get();
                     }
                     break;
 
                 case LinkPlayBindingConstants.CHANNEL_REBOOT:
                     if (command instanceof OnOffType onOffType && onOffType == OnOffType.ON) {
-                        apiClient.rebootDevice().get(5, TimeUnit.SECONDS);
+                        apiClient.rebootDevice().get();
                         updateState(channelUID, OnOffType.OFF); // reset switch
                     }
                     break;
 
                 default:
-                    logger.debug("No handler implemented for channel {}", channelUID);
+                    logger.debug("{}: No handler implemented for channel {}", deviceName, channelUID);
                     break;
             }
         } catch (Exception e) {
@@ -371,7 +387,7 @@ public class LinkPlayHandler extends BaseThingHandler
 
     @Override
     public void onValueReceived(@Nullable String variable, @Nullable String value, @Nullable String service) {
-        logger.debug("onValueReceived: {} {} {}", variable, value, service);
+        logger.debug("{}: onValueReceived: {} {} {}", deviceName, variable, value, service);
         if (value == null) {
             return;
         }
@@ -389,12 +405,12 @@ public class LinkPlayHandler extends BaseThingHandler
 
     @Override
     public void onServiceSubscribed(@Nullable String service, boolean succeeded) {
-        logger.debug("onServiceSubscribed: {} {}", service, succeeded);
+        logger.debug("{}: onServiceSubscribed: {} {}", deviceName, service, succeeded);
     }
 
     @Override
     public void onStatusChanged(boolean status) {
-        logger.debug("onStatusChanged: {}", status);
+        logger.debug("{}: onStatusChanged: {}", deviceName, status);
     }
 
     @Override
@@ -409,21 +425,29 @@ public class LinkPlayHandler extends BaseThingHandler
     }
 
     @Override
-    public void addedToGroup(GroupParticipant leader) {
-        logger.debug("multiroomAddedToGroup: {}", leader.getIpAddress());
+    public void addedToOrUpdatedGroup(LinkPlayGroupParticipant leader, List<Slave> slaves) {
+        logger.debug("{}: multiroomAddedToGroup: {}", deviceName, leader.getIpAddress());
         inGroup = true;
-        isLeader = false;
+        boolean oldLeader = isLeader;
+        isLeader = leader == this;
+        if (!oldLeader && isLeader) {
+            // we are now the leader
+            groupStateCache.entrySet().forEach(entry -> {
+                logger.debug("{}: Leader, updating state {} {}", deviceName, entry.getKey(), entry.getValue());
+                linkPlayGroupService.updateGroupState(this, entry.getKey(), entry.getValue());
+            });
+        }
         updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_LEADER,
-                OnOffType.OFF);
+                isLeader ? OnOffType.ON : OnOffType.OFF);
         updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_ACTIVE,
                 OnOffType.ON);
         updateJoinGroupCommandDescription();
-        updateAddRemoveMemberCommandDescription();
+        updateAddRemoveMemberCommandDescription(slaves);
     }
 
     @Override
-    public void removedFromGroup(GroupParticipant leader) {
-        logger.debug("multiroomRemovedFromGroup: {}", leader.getIpAddress());
+    public void removedFromGroup(LinkPlayGroupParticipant leader) {
+        logger.debug("{}: multiroomRemovedFromGroup: {}", deviceName, leader.getIpAddress());
         inGroup = false;
         isLeader = false;
         updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_LEADER,
@@ -436,16 +460,16 @@ public class LinkPlayHandler extends BaseThingHandler
     }
 
     @Override
-    public void groupParticipantsUpdated(Collection<GroupParticipant> participants) {
+    public void groupParticipantsUpdated(Collection<LinkPlayGroupParticipant> participants) {
         allParticipants = participants;
         updateJoinGroupCommandDescription();
         updateAddRemoveMemberCommandDescription();
     }
 
     @Override
-    public void groupProxyUpdateState(String groupId, String channelId, State state) {
-        logger.debug("groupProxyUpdateState: {} {} {} {}", groupId, channelId, state, getGroupParticipantLabel());
-        super.updateState(groupId + "#" + channelId, state);
+    public void groupProxyUpdateState(String channelId, State state) {
+        logger.debug("{}: groupProxyUpdateState: {} {} {}", deviceName, channelId, state, getGroupParticipantLabel());
+        super.updateState(channelId, state);
     }
 
     @Override
@@ -464,10 +488,11 @@ public class LinkPlayHandler extends BaseThingHandler
      * @param device The remote device
      */
     public synchronized void updateDeviceConfig(RemoteDevice device) {
-        logger.debug("updateDeviceConfig: {}", device.getIdentity().getUdn().getIdentifierString());
+        logger.debug("{}: updateDeviceConfig: {}", deviceName, device.getIdentity().getUdn().getIdentifierString());
         this.device = device;
         int maxAgeSeconds = device.getIdentity().getMaxAgeSeconds();
-        logger.debug("maxAgeSeconds: {} {}", device.getIdentity().getUdn().getIdentifierString(), maxAgeSeconds);
+        logger.debug("{}: maxAgeSeconds: {} {}", deviceName, device.getIdentity().getUdn().getIdentifierString(),
+                maxAgeSeconds);
         cancelKeepAliveJob();
         if (maxAgeSeconds > 0) {
             keepAliveJob = scheduler.scheduleWithFixedDelay(this::sendDeviceSearchRequest, maxAgeSeconds, maxAgeSeconds,
@@ -496,7 +521,7 @@ public class LinkPlayHandler extends BaseThingHandler
         // Ensure that only one poll execution runs at a time. If the previous call
         // is still in progress, this invocation is skipped.
         if (!isPolling.compareAndSet(false, true)) {
-            logger.debug("Poll already in progress, skipping this execution");
+            logger.debug("{}: Poll already in progress, skipping this execution", deviceName);
             return;
         }
         try {
@@ -504,13 +529,13 @@ public class LinkPlayHandler extends BaseThingHandler
             if (apiClient == null || httpClient.isStopped()) {
                 return;
             }
-
+            sendDeviceSearchRequest();
             if (!isUpnpDeviceRegistered()) {
-                logger.debug("UPnP device {} not yet registered", getUDN());
+                logger.debug("{}: UPnP device {} not yet registered", deviceName, getUDN());
                 synchronized (upnpLock) {
                     subscriptionState = new HashMap<>();
                 }
-                sendDeviceSearchRequest();
+                // sendDeviceSearchRequest();
             } else {
                 addSubscription();
             }
@@ -518,15 +543,17 @@ public class LinkPlayHandler extends BaseThingHandler
             try {
                 updatePlayerStatus();
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                logger.debug("Fatal Error while parsing metadata: {}", e.getMessage(), e);
+                logger.debug("Fatal Error while parsing player status: {}", e.getMessage(), e);
                 updateStatus(ThingStatus.OFFLINE);
             }
 
-            try {
-                updateTrackMetadata();
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                // if no track metadata, we're not playing anything
-                logger.trace("Error while parsing metadata: {}", e.getMessage(), e);
+            if (isLeader || !inGroup) {
+                try {
+                    updateTrackMetadata();
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    // if no track metadata, we're not playing anything
+                    logger.trace("Error while parsing metadata: {}", e.getMessage(), e);
+                }
             }
 
             updateMultiroom();
@@ -553,16 +580,17 @@ public class LinkPlayHandler extends BaseThingHandler
     }
 
     public void updatePlayerStatus() throws InterruptedException, ExecutionException, TimeoutException {
-        PlayerStatus playerStatus = apiClient.getPlayerStatus().get(5, TimeUnit.SECONDS);
-        logger.debug("Player status: {}", playerStatus);
+        PlayerStatus playerStatus = apiClient.getPlayerStatus().get();
+        logger.debug("{}: Player status: {}", deviceName, playerStatus);
 
         updateState(LinkPlayBindingConstants.GROUP_PLAYBACK, LinkPlayBindingConstants.CHANNEL_PLAYBACK_STATE,
                 playerStatus.status != null ? new StringType(playerStatus.status.name()) : UnDefType.NULL);
 
         updateState(LinkPlayBindingConstants.GROUP_PLAYBACK, LinkPlayBindingConstants.CHANNEL_PLAYER_CONTROL,
                 playerStatus.status != null
-                        ? (playerStatus.status == PlayerStatus.PlaybackStatus.PLAY ? PlayPauseType.PLAY
-                                : PlayPauseType.PAUSE)
+                        ? (playerStatus.status == PlayerStatus.PlaybackStatus.PLAYING
+                                || playerStatus.status == PlayerStatus.PlaybackStatus.BUFFERING ? PlayPauseType.PLAY
+                                        : PlayPauseType.PAUSE)
                         : UnDefType.NULL);
 
         updateState(LinkPlayBindingConstants.GROUP_PLAYBACK, LinkPlayBindingConstants.CHANNEL_VOLUME,
@@ -597,13 +625,12 @@ public class LinkPlayHandler extends BaseThingHandler
 
         if (getThing().getStatus() != ThingStatus.ONLINE) {
             updateStatus(ThingStatus.ONLINE);
-            linkPlayGroupService.registerParticipant(this);
         }
     }
 
     public void updateTrackMetadata() throws InterruptedException, ExecutionException, TimeoutException {
-        TrackMetadata trackMetadata = apiClient.getMetaInfo().get(5, TimeUnit.SECONDS);
-        logger.debug("Track metadata: {}", trackMetadata);
+        TrackMetadata trackMetadata = apiClient.getMetaInfo().get();
+        logger.debug("{}: Track metadata: {}", deviceName, trackMetadata);
         if (trackMetadata.metaData != null) {
             var md = trackMetadata.metaData;
 
@@ -631,8 +658,10 @@ public class LinkPlayHandler extends BaseThingHandler
     }
 
     public void updatePresetInfo() throws InterruptedException, ExecutionException, TimeoutException {
-        PresetList presetInfo = apiClient.getPresetInfo().get(5, TimeUnit.SECONDS);
+        PresetList presetInfo = apiClient.getPresetInfo().get();
         if (presetInfo != null && presetInfo.presetList != null) {
+            updateState(LinkPlayBindingConstants.GROUP_PRESETS, LinkPlayBindingConstants.CHANNEL_PRESET_COUNT,
+                    stateOrNull(presetInfo.presetNum, DecimalType.class));
             List<CommandOption> commandOptions = new ArrayList<>();
             for (PresetList.Preset p : presetInfo.presetList) {
                 String groupId = "preset" + p.number; // preset1..preset12
@@ -642,6 +671,7 @@ public class LinkPlayHandler extends BaseThingHandler
                 updateState(groupId, LinkPlayBindingConstants.CHANNEL_PRESET_SOURCE,
                         stateOrNull(p.source, StringType.class));
                 updatePresetPicChannels(groupId, p.picUrl);
+
                 commandOptions.add(new CommandOption(String.valueOf(p.number), p.name));
             }
             updateCommandDescription(new ChannelUID(getThing().getUID(), LinkPlayBindingConstants.GROUP_PRESETS,
@@ -650,54 +680,60 @@ public class LinkPlayHandler extends BaseThingHandler
     }
 
     private void updateDeviceStatus() throws InterruptedException, ExecutionException, TimeoutException {
-        DeviceStatus deviceStatus = apiClient.getStatusEx().get(5, TimeUnit.SECONDS);
+        DeviceStatus deviceStatus = apiClient.getStatusEx().get();
         if (deviceStatus.groupName != null && !deviceStatus.groupName.equals(groupName)) {
             getThing().setProperty(PROPERTY_GROUP_NAME, deviceStatus.groupName);
             groupName = deviceStatus.groupName;
             updateJoinGroupCommandDescription();
+            updateAddRemoveMemberCommandDescription();
         }
         logger.debug("Device status: {}", deviceStatus);
     }
 
     private void updateMultiroom() {
-        try {
-            SlaveListResponse slaveList = apiClient.multiroomGetSlaveList().get(5, TimeUnit.SECONDS);
-            if (slaveList.isMaster()) {
-                if (slaveList.slaveList != null && !slaveList.slaveList.isEmpty()) {
-                    linkPlayGroupService.updateGroupParticipants(this, slaveList.slaveList);
-                }
-                // if we were not a leader before push current state
-                if (!isLeader) {
-                    // push the cached states to the group
-                    groupStateCache.entrySet().forEach(entry -> {
-                        String[] parts = entry.getKey().split("#");
-                        if (parts.length == 2) {
-                            linkPlayGroupService.updateGroupState(this, parts[0], parts[1], entry.getValue());
-                        }
-                    });
-                }
-                isLeader = true;
-                inGroup = true;
-                updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_LEADER,
-                        OnOffType.ON);
-                updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_ACTIVE,
-                        OnOffType.ON);
-                updateJoinGroupCommandDescription();
-            } else if (isLeader) {
-                // we are no loner in a group
-                isLeader = false;
-                inGroup = false;
-                linkPlayGroupService.unregisterGroup(this);
-                updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_LEADER,
-                        OnOffType.OFF);
-                updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_ACTIVE,
-                        OnOffType.OFF);
-                updateJoinGroupCommandDescription();
-            }
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            logger.debug("Error while parsing slave list: {}", e.getMessage(), e);
-        }
+        linkPlayGroupService.refreshMemberSlaveList(this);
     }
+
+    // private void updateMultiroom() {
+    // try {
+    // SlaveListResponse slaveList = apiClient.multiroomGetSlaveList().get(5, TimeUnit.SECONDS);
+    // logger.debug("{}: Multiroom slave list: {}", deviceName, slaveList);
+    // if (slaveList.isMaster()) {
+    // if (slaveList.slaveList != null && !slaveList.slaveList.isEmpty()) {
+    // linkPlayGroupService.updateGroupParticipants(this, slaveList.slaveList);
+    // }
+    // // if we were not a leader before push current state
+    // if (!isLeader) {
+    // // push the cached states to the group
+    // groupStateCache.entrySet().forEach(entry -> {
+    // logger.debug("{}: Leader, updating state {} {}", deviceName, entry.getKey(), entry.getValue());
+    // linkPlayGroupService.updateGroupState(this, entry.getKey(), entry.getValue());
+    // });
+    // }
+    // isLeader = true;
+    // inGroup = true;
+    // updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_LEADER,
+    // OnOffType.ON);
+    // updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_ACTIVE,
+    // OnOffType.ON);
+    // updateJoinGroupCommandDescription();
+    // updateAddRemoveMemberCommandDescription();
+    // } else if (isLeader) {
+    // // we are no loner in a group
+    // isLeader = false;
+    // inGroup = false;
+    // linkPlayGroupService.unregisterGroup(this);
+    // updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_LEADER,
+    // OnOffType.OFF);
+    // updateState(LinkPlayBindingConstants.GROUP_MULTIROOM, LinkPlayBindingConstants.CHANNEL_MULTIROOM_ACTIVE,
+    // OnOffType.OFF);
+    // updateJoinGroupCommandDescription();
+    // updateAddRemoveMemberCommandDescription();
+    // }
+    // } catch (InterruptedException | ExecutionException | TimeoutException e) {
+    // logger.debug("Error while parsing slave list: {}", e.getMessage(), e);
+    // }
+    // }
 
     private void sendDeviceSearchRequest() {
         ControlPoint controlPoint = upnpService.getControlPoint();
@@ -747,10 +783,18 @@ public class LinkPlayHandler extends BaseThingHandler
         // Playback state mapping
         TransportState transportState = TransportState.fromString(avt.get("TransportState"));
         if (transportState != null) {
-            PlayPauseType playPauseType = transportState == TransportState.PLAYING ? PlayPauseType.PLAY
-                    : PlayPauseType.PAUSE;
+            PlayPauseType playPauseType = transportState == TransportState.PLAYING
+                    || transportState == TransportState.TRANSITIONING ? PlayPauseType.PLAY : PlayPauseType.PAUSE;
+
+            PlayerStatus.PlaybackStatus status = switch (transportState) {
+                case PLAYING -> PlayerStatus.PlaybackStatus.PLAYING;
+                case PAUSED_PLAYBACK -> PlayerStatus.PlaybackStatus.PAUSED;
+                case STOPPED -> PlayerStatus.PlaybackStatus.STOPPED;
+                case TRANSITIONING -> PlayerStatus.PlaybackStatus.PLAYING;
+                default -> PlayerStatus.PlaybackStatus.STOPPED;
+            };
             updateState(LinkPlayBindingConstants.GROUP_PLAYBACK, LinkPlayBindingConstants.CHANNEL_PLAYBACK_STATE,
-                    new StringType(transportState.name()));
+                    new StringType(status.name()));
             updateState(LinkPlayBindingConstants.GROUP_PLAYBACK, LinkPlayBindingConstants.CHANNEL_PLAYER_CONTROL,
                     playPauseType);
         }
@@ -817,7 +861,7 @@ public class LinkPlayHandler extends BaseThingHandler
         for (Map.Entry<String, @Nullable String> e : rc.entrySet()) {
             String key = e.getKey();
             String value = e.getValue();
-            logger.debug("handleRenderingControlEvent: {} {} {}", key, value, getUDN());
+            logger.debug("{}: handleRenderingControlEvent: {} {} {}", deviceName, key, value, getUDN());
             if (value == null) {
                 continue;
             }
@@ -857,13 +901,15 @@ public class LinkPlayHandler extends BaseThingHandler
             return;
         }
 
+        previousAlbumArtUri = albumArtUri;
+
         updateState(LinkPlayBindingConstants.GROUP_METADATA, LinkPlayBindingConstants.CHANNEL_ALBUM_ART_URL,
                 new StringType(albumArtUri));
 
         try {
             State albumArt = HttpUtil.downloadImage(albumArtUri.trim());
-            updateState(LinkPlayBindingConstants.GROUP_METADATA, LinkPlayBindingConstants.CHANNEL_ALBUM_ART, albumArt);
-            previousAlbumArtUri = albumArtUri;
+            updateState(LinkPlayBindingConstants.GROUP_METADATA, LinkPlayBindingConstants.CHANNEL_ALBUM_ART,
+                    albumArt != null ? albumArt : UnDefType.NULL);
         } catch (IllegalArgumentException e) {
             logger.debug("Invalid album art URI: {}", albumArtUri, e);
         }
@@ -880,7 +926,7 @@ public class LinkPlayHandler extends BaseThingHandler
 
         try {
             State image = HttpUtil.downloadImage(picUrl.trim());
-            updateState(groupId, LinkPlayBindingConstants.CHANNEL_PRESET_PIC, image);
+            updateState(groupId, LinkPlayBindingConstants.CHANNEL_PRESET_PIC, image != null ? image : UnDefType.NULL);
         } catch (IllegalArgumentException e) {
             logger.debug("Invalid preset image URI: {}", picUrl, e);
         }
@@ -889,21 +935,23 @@ public class LinkPlayHandler extends BaseThingHandler
     private void updateState(String groupId, String channelId, State state) {
         boolean isGroupChannel = GROUP_PROXY_CHANNELS.contains(channelId);
         // group proxy channels are set by the leader when in a group
+        String groupIdChannel = groupId + "#" + channelId;
         if (inGroup && isGroupChannel) {
             if (isLeader) {
-                linkPlayGroupService.updateGroupState(this, groupId, channelId, state);
+                logger.debug("{}: Leader, updating state {} {} in group {}", deviceName, channelId, state, groupId);
+                linkPlayGroupService.updateGroupState(this, groupIdChannel, state);
             } else {
                 // if we are not the leader, we these will come from the group proxy
-                logger.debug("Not leader, skipping update of state {} {} in group {} isLeader {}", channelId, state,
-                        inGroup, isLeader);
+                logger.debug("{}: Not leader, skipping update of state {} {} in group {} isLeader {}", deviceName,
+                        channelId, state, inGroup, isLeader);
                 return;
             }
         }
-        super.updateState(groupId + "#" + channelId, state);
+        super.updateState(groupIdChannel, state);
 
         // even when not in a group, we cache the state for the group proxy if we do become a leader
         if (isGroupChannel) {
-            groupStateCache.put(groupId + "#" + channelId, state);
+            groupStateCache.put(groupIdChannel, state);
         }
     }
 
@@ -962,57 +1010,49 @@ public class LinkPlayHandler extends BaseThingHandler
     }
 
     public void updateJoinGroupCommandDescription() {
-        logger.debug("Updating join group command description for {} participants", allParticipants.size());
+        logger.debug("{}: Updating join group command description for {} participants", deviceName,
+                allParticipants.size());
         List<CommandOption> commandOptions = new ArrayList<>();
-        if (inGroup) {
-            String label = "Leave Group";
-            if (isLeader) {
-                label = "Remove All Members";
-            } else {
-                GroupParticipant leader = linkPlayGroupService.getLeader(this);
-                if (leader != null) {
-                    label = "Leave " + leader.getGroupParticipantLabel() + "'s Group";
-                }
-            }
-            commandOptions.add(new CommandOption("LEAVE", label));
-        } else {
-            allParticipants.stream().filter(participant -> !participant.getIpAddress().equals(getIpAddress()))
-                    .forEach(participant -> commandOptions.add(
-                            new CommandOption(participant.getIpAddress(), participant.getGroupParticipantLabel())));
-        }
+        // filter out ourself and participants that are in a group
+        allParticipants.stream()
+                .filter(participant -> participant != this && linkPlayGroupService.getLeader(participant) == null)
+                .forEach(participant -> commandOptions
+                        .add(new CommandOption(participant.getIpAddress(), participant.getGroupParticipantLabel())));
+
         updateCommandDescription(new ChannelUID(getThing().getUID(), LinkPlayBindingConstants.GROUP_MULTIROOM,
-                LinkPlayBindingConstants.CHANNEL_JOIN_GROUP), commandOptions);
+                LinkPlayBindingConstants.CHANNEL_MULTIROOM_JOIN), commandOptions);
     }
 
     public void updateAddRemoveMemberCommandDescription() {
-        logger.debug("Updating add member command description for {} participants", allParticipants.size());
+        updateAddRemoveMemberCommandDescription(null);
+    }
+
+    public void updateAddRemoveMemberCommandDescription(@Nullable List<Slave> slaves) {
+        logger.debug("{}: Updating add member command description for {} participants", deviceName,
+                allParticipants.size());
         List<CommandOption> commandOptions = new ArrayList<>();
-        if (inGroup && !isLeader) {
-            String label = "Leave Existing Group";
-            GroupParticipant leader = linkPlayGroupService.getLeader(this);
-            if (leader != null) {
-                label = "Leave " + leader.getGroupParticipantLabel() + "'s Group";
+        if (slaves == null) {
+            slaves = linkPlayGroupService.getGroupList(this);
+        }
+        logger.info("{}: Slaves: {}", deviceName, slaves);
+        if (isLeader && !slaves.isEmpty()) {
+            commandOptions.add(new CommandOption("LEAVE", "-- Remove all players --"));
+        }
+        commandOptions.add(new CommandOption("ADD_ALL", "-- Add all players --"));
+        for (LinkPlayGroupParticipant participant : allParticipants) {
+            if (participant == this) {
+                continue;
             }
-            commandOptions.add(new CommandOption("LEAVE", label));
-        } else {
-            if (isLeader) {
-                List<Slave> slaves = linkPlayGroupService.getGroup(this);
-                for (GroupParticipant participant : allParticipants) {
-                    if (slaves.stream().anyMatch(slave -> slave.ip.equals(participant.getIpAddress()))) {
-                        commandOptions.add(new CommandOption(participant.getIpAddress(),
-                                "Remove " + participant.getGroupParticipantLabel()));
-                    } else {
-                        commandOptions.add(new CommandOption(participant.getIpAddress(),
-                                "Add " + participant.getGroupParticipantLabel()));
-                    }
-                }
+            if (isLeader && slaves.stream().anyMatch(slave -> slave.ip.equals(participant.getIpAddress()))) {
+                commandOptions.add(new CommandOption(participant.getIpAddress(),
+                        "Remove: " + participant.getGroupParticipantLabel()));
+            } else {
+                commandOptions.add(new CommandOption(participant.getIpAddress(),
+                        "Add: " + participant.getGroupParticipantLabel()));
             }
-            allParticipants.stream().filter(participant -> !participant.getIpAddress().equals(getIpAddress()))
-                    .forEach(participant -> commandOptions.add(
-                            new CommandOption(participant.getIpAddress(), participant.getGroupParticipantLabel())));
         }
         updateCommandDescription(new ChannelUID(getThing().getUID(), LinkPlayBindingConstants.GROUP_MULTIROOM,
-                LinkPlayBindingConstants.CHANNEL_ADD_REMOVE_MEMBER), commandOptions);
+                LinkPlayBindingConstants.CHANNEL_MULTIROOM_MANAGE), commandOptions);
     }
 
     protected void updateCommandDescription(ChannelUID channelUID, List<CommandOption> commandOptionList) {

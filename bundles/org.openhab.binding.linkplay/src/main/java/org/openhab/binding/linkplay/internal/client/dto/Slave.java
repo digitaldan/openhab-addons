@@ -33,4 +33,11 @@ public class Slave {
     public int batteryPercent;
     @SerializedName("battery_charging")
     public int batteryCharging;
+
+    @Override
+    public String toString() {
+        return "Slave [name=" + name + ", uuid=" + uuid + ", ip=" + ip + ", version=" + version + ", deviceType="
+                + deviceType + ", channel=" + channel + ", volume=" + volume + ", mute=" + mute + ", batteryPercent="
+                + batteryPercent + ", batteryCharging=" + batteryCharging + "]";
+    }
 }

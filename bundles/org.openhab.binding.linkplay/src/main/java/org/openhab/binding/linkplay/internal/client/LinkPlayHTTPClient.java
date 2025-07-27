@@ -15,7 +15,9 @@ package org.openhab.binding.linkplay.internal.client;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeoutException;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
@@ -74,7 +76,7 @@ public class LinkPlayHTTPClient {
      * A request is considered successful if the TCP/SSL handshake succeeds and the server responds
      * with any HTTP status (usually 200). If all endpoints fail, the last exception is propagated.
      */
-    private <T> CompletableFuture<T> sendGetRequest(String command, Class<T> responseType) {
+    private synchronized <T> CompletableFuture<T> sendGetRequest(String command, Class<T> responseType) {
 
         Executor executor = httpClient.getExecutor();
         return CompletableFuture.supplyAsync(() -> {
@@ -102,7 +104,7 @@ public class LinkPlayHTTPClient {
                         throw new RuntimeException("Response is null");
                     }
                     return result;
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     logger.trace("Failed to send GET request to {}: {}", url, e.getMessage());
                     // Remember and try next candidate.
                     lastException = e;
@@ -395,8 +397,10 @@ public class LinkPlayHTTPClient {
     /**
      * Corresponds to /setAlarmClock:{n}:{trig}:{op}:{time}:{day}:{url}
      */
-    public CompletableFuture<String> setAlarmClock(int number, int trigger, int operation, String time, String day, String url) {
-        String path = String.format("setAlarmClock:%d:%d:%d:%s:%s:%s", number, trigger, operation, time, day, encode(url));
+    public CompletableFuture<String> setAlarmClock(int number, int trigger, int operation, String time, String day,
+            String url) {
+        String path = String.format("setAlarmClock:%d:%d:%d:%s:%s:%s", number, trigger, operation, time, day,
+                encode(url));
         return sendGetRequest(path, String.class);
     }
 
