@@ -15,12 +15,12 @@
 	<channel-type id="playbackState">
 		<item-type>String</item-type>
 		<label>Playback State</label>
-		<description>Current playback state (PLAY, PAUSE, STOP, BUFFERING)</description>
+		<description>Current playback state (PLAYING, PAUSED, STOPPED, BUFFERING)</description>
 		<state readOnly="true">
 			<options>
-				<option value="PLAY">Playing</option>
-				<option value="PAUSE">Paused</option>
-				<option value="STOP">Stopped</option>
+				<option value="PLAYING">Playing</option>
+				<option value="PAUSED">Paused</option>
+				<option value="STOPPED">Stopped</option>
 				<option value="BUFFERING">Buffering</option>
 			</options>
 		</state>
@@ -211,7 +211,7 @@
 	<channel-type id="multiroomLeader">
 		<item-type>Switch</item-type>
 		<label>Multi-room Leader</label>
-		<description>Indicates if the device leader a group</description>
+		<description>Indicates if the device is a leader of a group</description>
 		<state readOnly="true"/>
 	</channel-type>
 	<channel-type id="joinGroup">
@@ -226,8 +226,8 @@
 	</channel-type>
 	<channel-type id="addRemoveMember">
 		<item-type>String</item-type>
-		<label>Add or Remove a Member</label>
-		<description>Add or remove a member from this player's group</description>
+		<label>Manage Members</label>
+		<description>Add or remove members from this player's group</description>
 	</channel-type>
 	<channel-type id="ungroup">
 		<item-type>Switch</item-type>
@@ -273,13 +273,13 @@
 		<label>Play Preset</label>
 		<description>Sends the chosen preset number (1-12) to play</description>
 	</channel-type>
+	<!-- Added preset detail channel types -->
 	<channel-type id="presetName">
 		<item-type>String</item-type>
 		<label>Preset Name</label>
 		<description>Name of the stored preset</description>
 		<state readOnly="true"/>
 	</channel-type>
-	<!-- Added preset detail channel types -->
 	<channel-type id="presetUrl">
 		<item-type>String</item-type>
 		<label>Preset URL</label>
@@ -315,12 +315,12 @@
 		<label>Playback</label>
 		<description>Playback control and status</description>
 		<channels>
-			<channel id="playerControl" typeId="playerControl"/>
-			<channel id="playbackState" typeId="playbackState"/>
-			<channel id="trackPosition" typeId="trackPosition"/>
-			<channel id="trackDuration" typeId="trackDuration"/>
-			<channel id="repeatShuffleMode" typeId="repeatShuffleMode"/>
-			<channel id="eqPreset" typeId="eqPreset"/>
+			<channel id="control" typeId="playerControl"/>
+			<channel id="state" typeId="playbackState"/>
+			<channel id="position" typeId="trackPosition"/>
+			<channel id="duration" typeId="trackDuration"/>
+			<channel id="repeat-shuffle-mode" typeId="repeatShuffleMode"/>
+			<channel id="eq-preset" typeId="eqPreset"/>
 			<channel id="volume" typeId="volume"/>
 			<channel id="mute" typeId="mute"/>
 		</channels>
@@ -330,14 +330,14 @@
 		<label>Track Metadata</label>
 		<description>Information about the current track</description>
 		<channels>
-			<channel id="trackTitle" typeId="trackTitle"/>
-			<channel id="trackArtist" typeId="trackArtist"/>
-			<channel id="trackAlbum" typeId="trackAlbum"/>
-			<channel id="albumArtUrl" typeId="albumArtUrl"/>
-			<channel id="albumArt" typeId="albumArt"/>
-			<channel id="sampleRate" typeId="sampleRate"/>
-			<channel id="bitDepth" typeId="bitDepth"/>
-			<channel id="bitRate" typeId="bitRate"/>
+			<channel id="track-title" typeId="trackTitle"/>
+			<channel id="track-artist" typeId="trackArtist"/>
+			<channel id="track-album" typeId="trackAlbum"/>
+			<channel id="album-art-url" typeId="albumArtUrl"/>
+			<channel id="album-art" typeId="albumArt"/>
+			<channel id="sample-rate" typeId="sampleRate"/>
+			<channel id="bit-depth" typeId="bitDepth"/>
+			<channel id="bit-rate" typeId="bitRate"/>
 		</channels>
 	</channel-group-type>
 
@@ -345,23 +345,23 @@
 		<label>Source Selection</label>
 		<description>Input and connection related channels</description>
 		<channels>
-			<channel id="sourceInput" typeId="sourceInput"/>
+			<channel id="source" typeId="sourceInput"/>
 			<channel id="bluetoothConnected" typeId="bluetoothConnected"/>
-			<channel id="bluetoothPairedDevice" typeId="bluetoothPairedDevice"/>
-			<channel id="lineInActive" typeId="lineInActive"/>
+			<channel id="bluetooth-paired-device" typeId="bluetoothPairedDevice"/>
+			<channel id="line-in-active" typeId="lineInActive"/>
 		</channels>
 	</channel-group-type>
 
-	<channel-group-type id="equaliser">
-		<label>Equaliser &amp; Output</label>
-		<description>Equaliser settings and audio output</description>
+	<channel-group-type id="equalizer">
+		<label>Equalizer &amp; Output</label>
+		<description>Equalizer settings and audio output</description>
 		<channels>
-			<channel id="eqEnabled" typeId="eqEnabled"/>
-			<channel id="eqPreset" typeId="eqPreset"/>
-			<channel id="eqBand" typeId="eqBand"/>
-			<channel id="outputHardwareMode" typeId="outputHardwareMode"/>
-			<channel id="channelBalance" typeId="channelBalance"/>
-			<channel id="spdifSwitchDelayMs" typeId="spdifSwitchDelayMs"/>
+			<channel id="enabled" typeId="eqEnabled"/>
+			<channel id="preset" typeId="eqPreset"/>
+			<channel id="band" typeId="eqBand"/>
+			<channel id="output-hardware-mode" typeId="outputHardwareMode"/>
+			<channel id="channel-balance" typeId="channelBalance"/>
+			<channel id="spdif-switch-delay-ms" typeId="spdifSwitchDelayMs"/>
 		</channels>
 	</channel-group-type>
 
@@ -369,12 +369,12 @@
 		<label>Multi-room</label>
 		<description>Group playback features</description>
 		<channels>
-			<channel id="slaveVolume" typeId="slaveVolume"/>
-			<channel id="slaveMute" typeId="slaveMute"/>
-			<channel id="multiroomActive" typeId="multiroomActive"/>
-			<channel id="joinGroup" typeId="joinGroup"/>
-			<channel id="leaveGroup" typeId="leaveGroup"/>
-			<channel id="addRemoveMember" typeId="addRemoveMember"/>
+			<channel id="volume" typeId="slaveVolume"/>
+			<channel id="mute" typeId="slaveMute"/>
+			<channel id="active" typeId="multiroomActive"/>
+			<channel id="join" typeId="joinGroup"/>
+			<channel id="leave" typeId="leaveGroup"/>
+			<channel id="manage" typeId="addRemoveMember"/>
 			<channel id="ungroup" typeId="ungroup"/>
 		</channels>
 	</channel-group-type>
@@ -383,21 +383,20 @@
 		<label>Device</label>
 		<description>Physical device settings</description>
 		<channels>
-			<channel id="ledEnabled" typeId="ledEnabled"/>
-			<channel id="touchKeysEnabled" typeId="touchKeysEnabled"/>
-			<channel id="shutdownTimer" typeId="shutdownTimer"/>
+			<channel id="led-enabled" typeId="ledEnabled"/>
+			<channel id="touch-keys-enabled" typeId="touchKeysEnabled"/>
+			<channel id="shutdown-timer" typeId="shutdownTimer"/>
 			<channel id="reboot" typeId="reboot"/>
-			<channel id="factoryReset" typeId="factoryReset"/>
+			<channel id="factory-reset" typeId="factoryReset"/>
 		</channels>
 	</channel-group-type>
 
 	<channel-group-type id="presets">
-		<label>Presets &amp; Alarms</label>
-		<description>Alarm clock settings and stored presets</description>
+		<label>Presets</label>
+		<description>Stored presets</description>
 		<channels>
-			<channel id="presetCount" typeId="presetCount"/>
-			<channel id="playPreset" typeId="playPreset"/>
-			<channel id="presetName" typeId="presetName"/>
+			<channel id="count" typeId="presetCount"/>
+			<channel id="play" typeId="playPreset"/>
 		</channels>
 	</channel-group-type>
 	<!-- Generic preset group containing details of a single preset -->
@@ -405,12 +404,12 @@
 		<label>Preset</label>
 		<description>Information stored for a single device preset</description>
 		<channels>
-			<channel id="presetName" typeId="presetName"/>
-			<channel id="presetUrl" typeId="presetUrl"/>
-			<channel id="presetSource" typeId="presetSource"/>
-			<channel id="presetPicUrl" typeId="presetPicUrl"/>
-			<channel id="presetPic" typeId="presetPic"/>
-			<channel id="presetPlay" typeId="presetPlay"/>
+			<channel id="name" typeId="presetName"/>
+			<channel id="url" typeId="presetUrl"/>
+			<channel id="source" typeId="presetSource"/>
+			<channel id="pic-url" typeId="presetPicUrl"/>
+			<channel id="pic" typeId="presetPic"/>
+			<channel id="play" typeId="presetPlay"/>
 		</channels>
 	</channel-group-type>
 
@@ -426,7 +425,7 @@
 
 			<channel-group id="input" typeId="input"/>
 
-			<channel-group id="equaliser" typeId="equaliser"/>
+			<channel-group id="equalizer" typeId="equalizer"/>
 
 			<channel-group id="network" typeId="network"/>
 

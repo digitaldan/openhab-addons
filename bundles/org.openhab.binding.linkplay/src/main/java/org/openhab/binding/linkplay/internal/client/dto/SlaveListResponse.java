@@ -28,7 +28,7 @@ public class SlaveListResponse {
     public String wmrmVersion;
     public int surround;
     @SerializedName("slave_list")
-    public List<Slave> slaveList;
+    public List<Slave> slaveList = List.of();
 
     /**
      * Master units will report greater than 0 slaves.
@@ -36,5 +36,11 @@ public class SlaveListResponse {
      */
     public boolean isMaster() {
         return slaves > 0;
+    }
+
+    @Override
+    public String toString() {
+        return "SlaveListResponse [slaves=" + slaves + ", wmrmVersion=" + wmrmVersion + ", surround=" + surround
+                + ", slaveList=" + slaveList + "]";
     }
 }

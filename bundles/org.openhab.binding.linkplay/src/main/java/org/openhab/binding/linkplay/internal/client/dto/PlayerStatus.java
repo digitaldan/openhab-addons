@@ -26,11 +26,11 @@ public class PlayerStatus {
      */
     public enum PlaybackStatus {
         @SerializedName("play")
-        PLAY,
+        PLAYING,
         @SerializedName("pause")
-        PAUSE,
+        PAUSED,
         @SerializedName("stop")
-        STOP,
+        STOPPED,
         @SerializedName("buffering")
         BUFFERING
     }
