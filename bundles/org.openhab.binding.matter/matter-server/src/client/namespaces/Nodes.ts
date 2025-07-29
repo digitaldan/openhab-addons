@@ -60,12 +60,16 @@ export class Nodes {
         for (const nodeId of nodeIds) {
             try {
                 const node = this.controllerNode.getNode(nodeId);
+                if(!node.isConnected) {
+                    continue;
+                }
                 const nodeData = await this.controllerNode.serializePairedNode(node)
                 data.push(nodeData);
             } catch (error) {
                 logger.error(`Error serializing node ${nodeId}: ${error}`);
             }
         }
+        return data;
     }
 
     /**
