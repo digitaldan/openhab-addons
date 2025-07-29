@@ -307,7 +307,7 @@ export class ControllerNode {
     }
 
     /**
-     * Serializes a node and returns the json string
+     * Serializes a node and returns the json object
      * @param node
      * @param endpointId Optional endpointId to serialize. If omitted, the root endpoint will be serialized.
      * @returns

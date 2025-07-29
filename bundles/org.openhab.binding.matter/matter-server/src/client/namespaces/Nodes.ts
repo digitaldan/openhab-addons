@@ -48,6 +48,27 @@ export class Nodes {
     }
 
     /**
+     * Requests all attributes data for all nodes for debugging purposes
+     * @returns
+     */
+    async getAllDataForAllNodes() {
+        const nodeIds = await this.controllerNode.getCommissionedNodes();
+        const data: any[] = [];
+        if (nodeIds === undefined) {
+            return data;
+        }
+        for (const nodeId of nodeIds) {
+            try {
+                const node = this.controllerNode.getNode(nodeId);
+                const nodeData = await this.controllerNode.serializePairedNode(node)
+                data.push(nodeData);
+            } catch (error) {
+                logger.error(`Error serializing node ${nodeId}: ${error}`);
+            }
+        }
+    }
+
+    /**
      * Requests all attributes data for a single endpoint and its children
      * @param nodeId
      * @param endpointId
