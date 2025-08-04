@@ -76,8 +76,7 @@ public class LinkPlayHTTPClient {
      * A request is considered successful if the TCP/SSL handshake succeeds and the server responds
      * with any HTTP status (usually 200). If all endpoints fail, the last exception is propagated.
      */
-    private synchronized <T> CompletableFuture<T> sendGetRequest(String command, Class<T> responseType) {
-
+    private <T> CompletableFuture<T> sendGetRequest(String command, Class<T> responseType) {
         Executor executor = httpClient.getExecutor();
         return CompletableFuture.supplyAsync(() -> {
             Exception lastException = null;
@@ -97,6 +96,9 @@ public class LinkPlayHTTPClient {
                         @SuppressWarnings("unchecked")
                         T casted = (T) payload;
                         return casted;
+                    }
+                    if(payload.equals("Failed")) {
+                        throw new RuntimeException("Response Failed");
                     }
 
                     T result = gson.fromJson(payload, responseType);

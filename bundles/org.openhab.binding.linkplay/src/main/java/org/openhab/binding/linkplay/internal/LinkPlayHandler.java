@@ -216,14 +216,11 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
                     if (command instanceof PercentType percentType) {
                         if (channelUID.getGroupId() instanceof String group) {
                             if (group.equals(LinkPlayBindingConstants.GROUP_MULTIROOM)) {
-                                apiClient.setPlayerCmdSlaveVol(percentType.intValue()).get(COMMAND_TIMEOUT,
-                                        TimeUnit.SECONDS);
+                                apiClient.setPlayerCmdSlaveVol(percentType.intValue()).get();
                             } else {
-                                apiClient.setPlayerCmdVol(percentType.intValue()).get(COMMAND_TIMEOUT,
-                                        TimeUnit.SECONDS);
+                                apiClient.setPlayerCmdVol(percentType.intValue()).get();
                             }
                         }
-                        apiClient.setPlayerCmdVol(percentType.intValue()).get();
                     }
                     break;
                 case LinkPlayBindingConstants.CHANNEL_MUTE:
@@ -236,8 +233,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
                                     apiClient.setPlayerCmdSlaveUnmute().get();
                                 }
                             } else {
-                                apiClient.setPlayerCmdMute(onOffType == OnOffType.ON ? 1 : 0).get(COMMAND_TIMEOUT,
-                                        TimeUnit.SECONDS);
+                                apiClient.setPlayerCmdMute(onOffType == OnOffType.ON ? 1 : 0).get();
                             }
                         }
                     }
@@ -247,8 +243,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
                         if (group.equals(LinkPlayBindingConstants.GROUP_PRESETS)) {
                             if (command instanceof DecimalType decimalType) {
                                 if (decimalType.intValue() > 0) {
-                                    apiClient.mcuKeyShortClick(decimalType.intValue()).get(COMMAND_TIMEOUT,
-                                            TimeUnit.SECONDS);
+                                    apiClient.mcuKeyShortClick(decimalType.intValue()).get();
                                 }
                             }
                         } else {
@@ -343,21 +338,18 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
 
                 case LinkPlayBindingConstants.CHANNEL_SPDIF_DELAY:
                     if (command instanceof DecimalType decimalType) {
-                        apiClient.setSpdifOutSwitchDelayMs(decimalType.intValue()).get(COMMAND_TIMEOUT,
-                                TimeUnit.SECONDS);
+                        apiClient.setSpdifOutSwitchDelayMs(decimalType.intValue()).get();
                     }
                     break;
                 case LinkPlayBindingConstants.CHANNEL_LED_ENABLED:
                     if (command instanceof OnOffType onOffType) {
-                        apiClient.setLedSwitch(onOffType == OnOffType.ON ? 1 : 0).get(COMMAND_TIMEOUT,
-                                TimeUnit.SECONDS);
+                        apiClient.setLedSwitch(onOffType == OnOffType.ON ? 1 : 0).get();
                     }
                     break;
 
                 case LinkPlayBindingConstants.CHANNEL_TOUCH_KEYS_ENABLED:
                     if (command instanceof OnOffType onOffType) {
-                        apiClient.setTouchControls(onOffType == OnOffType.ON ? 1 : 0).get(COMMAND_TIMEOUT,
-                                TimeUnit.SECONDS);
+                        apiClient.setTouchControls(onOffType == OnOffType.ON ? 1 : 0).get();
                     }
                     break;
 

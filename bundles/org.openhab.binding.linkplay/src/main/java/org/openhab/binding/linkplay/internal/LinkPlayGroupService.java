@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -80,54 +78,30 @@ public class LinkPlayGroupService {
         // first remove the member from any existing group, including their own
         LinkPlayGroupParticipant oldLeader = getLeader(member);
         if (oldLeader != null) {
-            try {
-                // if (oldLeader.getIpAddress().equals(leaderIpAddress)) {
-                // oldLeader.getApiClient().multiroomUngroup().get(5, TimeUnit.SECONDS);
-                // } else {
-                // oldLeader.getApiClient().multiroomSlaveKickout(member.getIpAddress()).get(5, TimeUnit.SECONDS);
-                // }
-                member.getApiClient().multiroomUngroup().get();
-            } catch (InterruptedException | ExecutionException e) {
-                logger.error("Error joining group: {}", e.getMessage(), e);
-            }
-
+            unGroup(oldLeader);
         }
         try {
             member.getApiClient().multiroomJoinGroupMaster(leaderIpAddress).get();
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error joining group: {}", e.getMessage(), e);
         }
+        LinkPlayGroupParticipant leader = participants.get(leaderIpAddress);
+        if (leader != null) {
+            refreshMemberSlaveList(leader);
+        }
     }
 
     public void unGroup(LinkPlayGroupParticipant member) {
+        LinkPlayGroupParticipant leader = getLeader(member);
         try {
             member.getApiClient().multiroomUngroup().get();
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error ungrouping: {}", e.getMessage(), e);
         }
+        if (leader != null) {
+            refreshMemberSlaveList(leader);
+        }
     }
-
-    // public void leaveGroup(LinkPlayGroupParticipant member) {
-    // // If the member is a leader, ungroup everyone
-    // logger.debug("Leaving group: {}", member.getIpAddress());
-    // if (groups.containsKey(member.getIpAddress())) {
-    // try {
-    // member.getApiClient().multiroomUngroup().get(5, TimeUnit.SECONDS);
-    // } catch (InterruptedException | ExecutionException | TimeoutException e) {
-    // logger.error("Error ungrouping: {}", e.getMessage(), e);
-    // }
-    // return;
-    // }
-
-    // LinkPlayGroupParticipant leader = getLeader(member);
-    // if (leader != null) {
-    // try {
-    // leader.getApiClient().multiroomSlaveKickout(member.getIpAddress()).get(5, TimeUnit.SECONDS);
-    // } catch (InterruptedException | ExecutionException | TimeoutException e) {
-    // logger.error("Error leaving group: {}", e.getMessage(), e);
-    // }
-    // }
-    // }
 
     public void addRemoveMember(LinkPlayGroupParticipant leader, String memberIpAddress) {
         LinkPlayGroupParticipant member = participants.get(memberIpAddress);
@@ -146,8 +120,8 @@ public class LinkPlayGroupService {
                 return;
             }
             try {
-                participant.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get(5, TimeUnit.SECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                participant.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get();
+            } catch (InterruptedException | ExecutionException e) {
                 logger.error("Error adding member:{} to group:{}", participant.getGroupParticipantLabel(),
                         leader.getGroupParticipantLabel(), e);
             }
@@ -181,7 +155,7 @@ public class LinkPlayGroupService {
     // to be called when we get the UPNP event "Slave"
     public void refreshMemberSlaveList(LinkPlayGroupParticipant member) {
         try {
-            SlaveListResponse slaveList = member.getApiClient().multiroomGetSlaveList().get(30, TimeUnit.SECONDS);
+            SlaveListResponse slaveList = member.getApiClient().multiroomGetSlaveList().get();
             List<Slave> slaves = slaveList.slaveList == null ? List.of() : slaveList.slaveList;
 
             if (slaves.isEmpty()) {
@@ -212,56 +186,10 @@ public class LinkPlayGroupService {
             });
             member.addedToOrUpdatedGroup(member, slaves);
 
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        } catch (InterruptedException | ExecutionException e) {
             logger.error("Error getting slave list: {}", e.getMessage(), e);
         }
     }
-
-    // public void updateSlaveList(LinkPlayGroupParticipant member, SlaveListResponse slaveList) {
-    // logger.debug("{}: Multiroom slave list: {}", member.getGroupParticipantLabel(), slaveList);
-    // boolean isLeader = groups.containsKey(member.getIpAddress());
-    // if (slaveList.isMaster()) {
-    // updateGroupParticipants(member, slaveList.slaveList);
-    // // if (!isLeader) {
-    // // member.addedToGroup(member);
-    // // }
-    // } else if (isLeader) {
-    // unregisterGroup(member);
-    // }
-    // }
-
-    // private void updateGroupParticipants(LinkPlayGroupParticipant member, List<Slave> slaves) {
-    // logger.debug("{}: Updating group participants: {}", member.getGroupParticipantLabel(), slaves);
-    // // if there is an existing group, remove the members that are not in the new list
-    // List<Slave> oldSlaves = groups.get(member.getIpAddress());
-    // if (oldSlaves != null) {
-    // oldSlaves.forEach(slave -> {
-    // if (!slaves.stream().anyMatch(s -> s.ip.equals(slave.ip))) {
-    // LinkPlayGroupParticipant listener = participants.get(slave.ip);
-    // if (listener != null) {
-    // listener.removedFromGroup(member);
-    // }
-    // }
-    // });
-    // }
-
-    // if (slaves.isEmpty() && oldSlaves != null) {
-    // unregisterGroup(member);
-    // } else {
-    // groups.put(member.getIpAddress(), slaves);
-    // slaves.forEach(slave -> {
-    // LinkPlayGroupParticipant listener = participants.get(slave.ip);
-    // if (listener != null) {
-    // listener.addedToOrUpdatedGroup(member, slaves);
-    // }
-    // groupStateCache.computeIfAbsent(member.getIpAddress(), k -> new ConcurrentHashMap<String, State>())
-    // .forEach((channelId, state) -> {
-    // listener.groupProxyUpdateState(channelId, state);
-    // });
-    // });
-    // member.addedToOrUpdatedGroup(member, slaves);
-    // }
-    // }
 
     private void unregisterGroup(LinkPlayGroupParticipant leader) {
         List<Slave> slaves = groups.remove(leader.getIpAddress());
@@ -282,12 +210,12 @@ public class LinkPlayGroupService {
             List<Slave> slaves = groups.get(leader.getIpAddress());
             if (slaves != null) {
                 if (slaves.stream().anyMatch(slave -> slave.ip.equals(member.getIpAddress()))) {
-                    leader.getApiClient().multiroomSlaveKickout(member.getIpAddress()).get(5, TimeUnit.SECONDS);
+                    leader.getApiClient().multiroomSlaveKickout(member.getIpAddress()).get();
                     return;
                 }
             }
-            member.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get(5, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            member.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get();
+        } catch (InterruptedException | ExecutionException e) {
             logger.error("Error adding member: {}", e.getMessage(), e);
         }
         refreshMemberSlaveList(leader);
