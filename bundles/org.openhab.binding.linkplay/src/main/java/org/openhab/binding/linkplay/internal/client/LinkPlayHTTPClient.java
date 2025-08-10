@@ -97,7 +97,7 @@ public class LinkPlayHTTPClient {
                         T casted = (T) payload;
                         return casted;
                     }
-                    if(payload.equals("Failed")) {
+                    if (payload.equals("Failed")) {
                         throw new RuntimeException("Response Failed");
                     }
 
