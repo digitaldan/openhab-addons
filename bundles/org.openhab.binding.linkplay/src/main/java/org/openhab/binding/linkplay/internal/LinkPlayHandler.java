@@ -421,7 +421,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
         logger.debug("{}: multiroomAddedToGroup: {}", deviceName, leader.getIpAddress());
         inGroup = true;
         boolean oldLeader = isLeader;
-        isLeader = leader == this;
+        isLeader = leader.equals(this);
         if (!oldLeader && isLeader) {
             // we are now the leader
             groupStateCache.entrySet().forEach(entry -> {
@@ -866,7 +866,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
                     OnOffType muteState = "1".equals(value) ? OnOffType.ON : OnOffType.OFF;
                     updateState(LinkPlayBindingConstants.GROUP_PLAYBACK, LinkPlayBindingConstants.CHANNEL_MUTE,
                             muteState);
-                } else if (key.equals("Slave")) {
+                } else if ("Slave".equals(key)) {
                     updateMultiroom();
                 }
             } catch (Exception ignored) {
@@ -1007,7 +1007,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
         List<CommandOption> commandOptions = new ArrayList<>();
         // filter out ourself and participants that are in a group
         allParticipants.stream()
-                .filter(participant -> participant != this && linkPlayGroupService.getLeader(participant) == null)
+                .filter(participant -> !participant.equals(this) && linkPlayGroupService.getLeader(participant) == null)
                 .forEach(participant -> commandOptions
                         .add(new CommandOption(participant.getIpAddress(), participant.getGroupParticipantLabel())));
 
@@ -1032,7 +1032,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
         }
         commandOptions.add(new CommandOption("ADD_ALL", "-- Add all players --"));
         for (LinkPlayGroupParticipant participant : allParticipants) {
-            if (participant == this) {
+            if (participant.equals(this)) {
                 continue;
             }
             if (isLeader && slaves.stream().anyMatch(slave -> slave.ip.equals(participant.getIpAddress()))) {

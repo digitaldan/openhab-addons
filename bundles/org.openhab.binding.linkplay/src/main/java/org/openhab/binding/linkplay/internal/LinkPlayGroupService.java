@@ -116,7 +116,7 @@ public class LinkPlayGroupService {
             unGroup(leader);
         }
         participants.values().forEach(participant -> {
-            if (leader == participant) {
+            if (leader.equals(participant)) {
                 return;
             }
             try {
