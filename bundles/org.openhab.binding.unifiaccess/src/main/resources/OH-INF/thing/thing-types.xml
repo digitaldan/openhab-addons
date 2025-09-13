@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="unifiaccess"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://www.openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<!-- ========================= BRIDGE ========================= -->
+	<bridge-type id="bridge">
+		<label>UniFi Access Bridge</label>
+		<description>UniFi Access controller</description>
+		<config-description>
+			<parameter name="baseUrl" type="text" required="true">
+				<label>Base URL</label>
+				<description>e.g., https://ua.local/api/v1/developer</description>
+			</parameter>
+			<parameter name="authToken" type="text" required="true">
+				<label>Auth Token</label>
+				<description>X-Auth-Token or Bearer token</description>
+			</parameter>
+			<parameter name="port" type="integer" required="true">
+				<label>Port</label>
+				<default>12445</default>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="requestTimeout" type="integer" required="false">
+				<label>Request Timeout (s)</label>
+				<default>15</default>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="pollInterval" type="integer" required="false">
+				<label>Poll Interval (s)</label>
+				<default>30</default>
+				<advanced>true</advanced>
+			</parameter>
+		</config-description>
+	</bridge-type>
+
+	<!-- ========================= THINGS ========================= -->
+
+	<!-- DOOR -->
+	<thing-type id="door">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="bridge"/>
+		</supported-bridge-type-refs>
+		<label>UniFi Access Door</label>
+		<description>Door with remote control and status</description>
+		<channels>
+			<!-- status -->
+			<channel id="lock" typeId="lock">
+				<label>Lock</label>
+			</channel>
+			<channel id="position" typeId="door-position">
+				<label>Door Position</label>
+			</channel>
+			<channel id="lastunlock" typeId="last-unlock">
+				<label>Last Unlock</label>
+			</channel>
+			<channel id="lastactor" typeId="last-actor">
+				<label>Last Actor</label>
+			</channel>
+			<channel id="lockrule" typeId="lock-rule">
+				<label>Lock Rule</label>
+			</channel>
+
+			<!-- control -->
+			<channel id="keepunlocked" typeId="keep-unlocked">
+				<label>Keep Unlocked</label>
+			</channel>
+			<channel id="keeplocked" typeId="keep-locked">
+				<label>Keep Locked</label>
+			</channel>
+			<channel id="unlockminutes" typeId="unlock-minutes">
+				<label>Unlock Minutes</label>
+			</channel>
+		</channels>
+		<config-description>
+			<parameter name="doorId" type="text" required="true">
+				<label>Door ID</label>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<!-- DEVICE -->
+	<thing-type id="device">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="bridge"/>
+		</supported-bridge-type-refs>
+		<label>UniFi Access Device</label>
+		<description>Reader / Hub / Camera</description>
+		<config-description>
+			<parameter name="deviceId" type="text" required="true">
+				<label>Device ID</label>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<!-- ========================= CHANNEL TYPES ========================= -->
+
+	<!-- Door status -->
+	<channel-type id="lock">
+		<item-type>Switch</item-type>
+		<label>Lock</label>
+		<category>Lock</category>
+	</channel-type>
+
+	<channel-type id="door-position">
+		<item-type>Contact</item-type>
+		<label>Door Position</label>
+		<category>Door</category>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="lock-rule">
+		<item-type>String</item-type>
+		<label>Lock Rule</label>
+		<state readOnly="true">
+			<options>
+				<option value="schedule">Schedule</option>
+				<option value="custom">Custom</option>
+				<option value="keep_unlock">Keep Unlocked</option>
+				<option value="keep_lock">Keep Locked</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="last-unlock">
+		<item-type>DateTime</item-type>
+		<label>Last Unlock</label>
+		<category>Time</category>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="last-actor">
+		<item-type>String</item-type>
+		<label>Last Actor</label>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="keep-unlocked">
+		<item-type>Switch</item-type>
+		<label>Keep Unlocked</label>
+		<category>Switch</category>
+	</channel-type>
+
+	<channel-type id="keep-locked">
+		<item-type>Switch</item-type>
+		<label>Keep Locked</label>
+		<category>Switch</category>
+	</channel-type>
+
+	<channel-type id="unlock-minutes">
+		<item-type>Number:Time</item-type>
+		<label>Unlock Minutes</label>
+		<category>Time</category>
+		<state pattern="%d min"/>
+	</channel-type>
+
+</thing:thing-descriptions>

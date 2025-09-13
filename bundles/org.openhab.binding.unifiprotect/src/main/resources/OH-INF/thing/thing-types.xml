@@ -1,0 +1,572 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="unifiprotect"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<!-- Bridge: NVR -->
+	<bridge-type id="nvr">
+		<label>UniFi Protect NVR</label>
+		<description>UniFi Protect NVR bridge providing device and event streams</description>
+		<channels>
+			<channel id="status" typeId="status"/>
+		</channels>
+		<properties>
+			<property name="applicationVersion">Protect application version</property>
+		</properties>
+		<config-description>
+			<parameter name="hostname" type="text" required="true">
+				<context>network-address</context>
+				<label>Hostname</label>
+				<description>Hostname or IP address of the NVR</description>
+			</parameter>
+			<parameter name="token" type="text" required="true">
+				<label>Token</label>
+				<description>Bearer token used for API/WebSocket authentication</description>
+			</parameter>
+		</config-description>
+	</bridge-type>
+
+	<!-- Camera Thing -->
+	<thing-type id="camera">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="nvr"/>
+		</supported-bridge-type-refs>
+		<label>UniFi Protect Camera</label>
+		<description>Individual Protect camera</description>
+		<properties>
+			<property name="deviceId">Unique device identifier</property>
+			<property name="hasMic">true if the camera has a microphone</property>
+			<property name="hasLedStatus">true if the camera has a status LED</property>
+			<property name="hasSpeaker">true if the camera supports talkback</property>
+			<property name="supportFullHdSnapshot">true if the camera supports full HD snapshots</property>
+			<property name="smartDetectTypes">Supported smart object detection types</property>
+			<property name="smartDetectAudioTypes">Supported smart audio detection types</property>
+			<property name="videoModes">Supported video modes</property>
+		</properties>
+		<representation-property>deviceId</representation-property>
+		<config-description>
+			<parameter name="deviceId" type="text" required="true">
+				<label>Device ID</label>
+				<description>Unique device identifier</description>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<!-- Floodlight Thing -->
+	<thing-type id="light">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="nvr"/>
+		</supported-bridge-type-refs>
+		<label>UniFi Protect Floodlight</label>
+		<description>Protect floodlight</description>
+		<channels>
+			<channel id="light" typeId="lightSwitch"/>
+			<channel id="isdark" typeId="isDark"/>
+			<channel id="pirmotion" typeId="motion"/>
+			<channel id="lastmotion" typeId="lastmotion"/>
+			<channel id="lightmode" typeId="lightmode"/>
+			<channel id="enableat" typeId="enableAt"/>
+			<channel id="indicatorenabled" typeId="indicatorenabled"/>
+			<channel id="pirduration" typeId="pirduration"/>
+			<channel id="pirsensitivity" typeId="pirSensitivity"/>
+			<channel id="ledlevel" typeId="ledLevel"/>
+		</channels>
+		<properties>
+			<property name="deviceId">Unique device identifier</property>
+		</properties>
+		<representation-property>deviceId</representation-property>
+		<config-description>
+			<parameter name="deviceId" type="text" required="true">
+				<label>Device ID</label>
+				<description>Unique device identifier</description>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<!-- Sensor Thing -->
+	<thing-type id="sensor">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="nvr"/>
+		</supported-bridge-type-refs>
+		<label>UniFi Protect Sensor</label>
+		<description>Protect environmental/contact sensor</description>
+		<channels>
+			<channel id="battery" typeId="battery"/>
+			<channel id="contact" typeId="contact"/>
+			<channel id="temperature" typeId="temperature"/>
+			<channel id="humidity" typeId="humidity"/>
+			<channel id="illuminance" typeId="illuminance"/>
+			<channel id="motion" typeId="motion"/>
+			<channel id="alarmcontact" typeId="alarmcontact"/>
+			<channel id="alarm" typeId="alarm"/>
+			<channel id="waterleakcontact" typeId="waterleakcontact"/>
+			<channel id="waterleak" typeId="waterleak"/>
+			<channel id="tampercontact" typeId="tampercontact"/>
+			<channel id="tamper" typeId="tamper"/>
+			<channel id="opened" typeId="opened"/>
+			<channel id="closed" typeId="closed"/>
+		</channels>
+		<properties>
+			<property name="deviceId">Unique device identifier</property>
+			<property name="mountType">Sensor mounting type</property>
+		</properties>
+		<representation-property>deviceId</representation-property>
+		<config-description>
+			<parameter name="deviceId" type="text" required="true">
+				<label>Device ID</label>
+				<description>Unique device identifier</description>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<!-- NVR channel types -->
+	<channel-type id="doorbelldefaultmessage">
+		<item-type>String</item-type>
+		<label>Doorbell Default Message</label>
+		<description>Default doorbell LCD message text configured on the NVR</description>
+	</channel-type>
+
+	<channel-type id="doorbelldefaultmessageresetms">
+		<item-type>Number</item-type>
+		<label>Doorbell Default Message Reset (ms)</label>
+		<description>Default doorbell LCD message reset timeout (milliseconds)</description>
+	</channel-type>
+
+	<channel-type id="deviceadded" advanced="true">
+		<kind>trigger</kind>
+		<label>Device Added</label>
+		<description>Device was added to Protect</description>
+		<event>
+			<options>
+				<option value="nvr">nvr</option>
+				<option value="camera">camera</option>
+				<option value="chime">chime</option>
+				<option value="light">light</option>
+				<option value="viewer">viewer</option>
+				<option value="speaker">speaker</option>
+				<option value="bridge">bridge</option>
+				<option value="doorlock">doorlock</option>
+				<option value="sensor">sensor</option>
+				<option value="aiprocessor">aiprocessor</option>
+				<option value="aiport">aiport</option>
+				<option value="linkstation">linkstation</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<channel-type id="deviceupdated" advanced="true">
+		<kind>trigger</kind>
+		<label>Device Updated</label>
+		<description>Device was updated in Protect</description>
+		<event>
+			<options>
+				<option value="nvr">nvr</option>
+				<option value="camera">camera</option>
+				<option value="chime">chime</option>
+				<option value="light">light</option>
+				<option value="viewer">viewer</option>
+				<option value="speaker">speaker</option>
+				<option value="bridge">bridge</option>
+				<option value="doorlock">doorlock</option>
+				<option value="sensor">sensor</option>
+				<option value="aiprocessor">aiprocessor</option>
+				<option value="aiport">aiport</option>
+				<option value="linkstation">linkstation</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<channel-type id="deviceremoved" advanced="true">
+		<kind>trigger</kind>
+		<label>Device Removed</label>
+		<description>Device was removed from Protect</description>
+		<event>
+			<options>
+				<option value="nvr">nvr</option>
+				<option value="camera">camera</option>
+				<option value="chime">chime</option>
+				<option value="light">light</option>
+				<option value="viewer">viewer</option>
+				<option value="speaker">speaker</option>
+				<option value="bridge">bridge</option>
+				<option value="doorlock">doorlock</option>
+				<option value="sensor">sensor</option>
+				<option value="aiprocessor">aiprocessor</option>
+				<option value="aiport">aiport</option>
+				<option value="linkstation">linkstation</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<!-- Light channel types -->
+	<channel-type id="lightswitch">
+		<item-type>Switch</item-type>
+		<label>Main Light</label>
+		<description>Enable or disable the main floodlight</description>
+	</channel-type>
+
+	<channel-type id="isdark">
+		<item-type>Switch</item-type>
+		<label>Is Dark</label>
+		<description>Scene is currently dark</description>
+	</channel-type>
+
+	<channel-type id="lastmotion">
+		<item-type>DateTime</item-type>
+		<label>Last Motion</label>
+		<description>Timestamp of last motion detected</description>
+	</channel-type>
+
+	<channel-type id="lightmode">
+		<item-type>String</item-type>
+		<label>Light Mode</label>
+		<description>When will floodlight turn on</description>
+		<state>
+			<options>
+				<option value="always">always</option>
+				<option value="motion">motion</option>
+				<option value="off">off</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="enableat">
+		<item-type>String</item-type>
+		<label>Enable At</label>
+		<description>When the lighting mode is relevant</description>
+		<state>
+			<options>
+				<option value="fulltime">fulltime</option>
+				<option value="dark">dark</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="indicatorenabled">
+		<item-type>Switch</item-type>
+		<label>Status Indicator</label>
+		<description>Enable or disable floodlight status LED indicator</description>
+	</channel-type>
+
+	<channel-type id="pirduration">
+		<item-type>Number</item-type>
+		<label>PIR Duration (ms)</label>
+		<description>How long the light stays on after motion (ms)</description>
+	</channel-type>
+
+	<channel-type id="pirsensitivity">
+		<item-type>Number</item-type>
+		<label>PIR Sensitivity</label>
+		<description>PIR motion sensitivity (0-100)</description>
+	</channel-type>
+
+	<channel-type id="ledlevel">
+		<item-type>Number</item-type>
+		<label>LED Level</label>
+		<description>Brightness level of the main LED (1-6)</description>
+	</channel-type>
+
+	<!-- Sensor channel types -->
+	<channel-type id="battery">
+		<item-type>Number</item-type>
+		<label>Battery</label>
+		<description>Battery charge level (%)</description>
+	</channel-type>
+
+	<channel-type id="contact">
+		<item-type>Contact</item-type>
+		<label>Contact</label>
+		<description>Contact state (open/closed)</description>
+	</channel-type>
+
+	<channel-type id="temperature">
+		<item-type>Number:Temperature</item-type>
+		<label>Temperature</label>
+		<description>Ambient temperature</description>
+	</channel-type>
+
+	<channel-type id="humidity">
+		<item-type>Number</item-type>
+		<label>Humidity</label>
+		<description>Ambient humidity</description>
+	</channel-type>
+
+	<channel-type id="illuminance">
+		<item-type>Number:Illuminance</item-type>
+		<label>Illuminance</label>
+		<description>Ambient light (Lux)</description>
+	</channel-type>
+
+	<channel-type id="alarmcontact">
+		<item-type>Contact</item-type>
+		<label>Alarm</label>
+		<description>Smoke or CO alarm state (OPEN = alarming)</description>
+	</channel-type>
+
+	<channel-type id="alarm" advanced="true">
+		<kind>trigger</kind>
+		<label>Alarm</label>
+		<description>Smoke or CO alarm event</description>
+		<event>
+			<options>
+				<option value="smoke">smoke</option>
+				<option value="CO">CO</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<channel-type id="waterleakcontact">
+		<item-type>Contact</item-type>
+		<label>Water Leak</label>
+		<description>Water leak state (OPEN = leak detected)</description>
+	</channel-type>
+
+	<channel-type id="waterleak" advanced="true">
+		<kind>trigger</kind>
+		<label>Water Leak</label>
+		<description>Water leak detected</description>
+		<event>
+			<options>
+				<option value="door">door</option>
+				<option value="window">window</option>
+				<option value="garage">garage</option>
+				<option value="leak">leak</option>
+				<option value="none">none</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<channel-type id="tampercontact">
+		<item-type>Contact</item-type>
+		<label>Tamper</label>
+		<description>Tamper state (OPEN = tampering)</description>
+	</channel-type>
+
+	<channel-type id="tamper" advanced="true">
+		<kind>trigger</kind>
+		<label>Tamper</label>
+		<description>Tampering detected</description>
+	</channel-type>
+
+	<channel-type id="opened" advanced="true">
+		<kind>trigger</kind>
+		<label>Opened</label>
+		<description>Sensor opened</description>
+		<event>
+			<options>
+				<option value="door">door</option>
+				<option value="window">window</option>
+				<option value="garage">garage</option>
+				<option value="leak">leak</option>
+				<option value="none">none</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<channel-type id="closed" advanced="true">
+		<kind>trigger</kind>
+		<label>Closed</label>
+		<description>Sensor closed</description>
+		<event>
+			<options>
+				<option value="door">door</option>
+				<option value="window">window</option>
+				<option value="garage">garage</option>
+				<option value="leak">leak</option>
+				<option value="none">none</option>
+			</options>
+		</event>
+	</channel-type>
+
+	<!-- Camera channel types -->
+	<channel-type id="ring" advanced="true">
+		<kind>trigger</kind>
+		<label>Doorbell Ring</label>
+		<description>Doorbell ring event</description>
+		<event>
+			<options>
+				<option value="PRESSED">pressed</option>
+				<option value="RELEASED">released</option>
+			</options>
+		</event>
+	</channel-type>
+	<channel-type id="ringcontact">
+		<item-type>Contact</item-type>
+		<label>Doorbell Ring</label>
+		<description>Doorbell ring state (OPEN = doorbell ring detected)</description>
+	</channel-type>
+
+	<channel-type id="snapshot">
+		<item-type>Image</item-type>
+		<label>Snapshot</label>
+		<description>Latest camera snapshot image</description>
+	</channel-type>
+
+	<channel-type id="micvolume">
+		<item-type>Number</item-type>
+		<label>Microphone Volume</label>
+		<description>Microphone volume (0-100)</description>
+	</channel-type>
+
+	<channel-type id="videomode">
+		<item-type>String</item-type>
+		<label>Video Mode</label>
+		<description>Current video mode of the camera</description>
+		<state>
+			<options>
+				<option value="default">Default</option>
+				<option value="highFps">High FPS</option>
+				<option value="sport">Sport</option>
+				<option value="slowShutter">Slow Shutter</option>
+				<option value="lprReflex">LPR Reflex</option>
+				<option value="lprNoneReflex">LPR Non-Reflex</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="hdrtype">
+		<item-type>String</item-type>
+		<label>HDR Mode</label>
+		<description>High Dynamic Range (HDR) mode</description>
+		<state>
+			<options>
+				<option value="auto">Auto</option>
+				<option value="on">On</option>
+				<option value="off">Off</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="osdname">
+		<item-type>Switch</item-type>
+		<label>OSD Name</label>
+		<description>Show the name on the camera OSD</description>
+	</channel-type>
+
+	<channel-type id="osddate">
+		<item-type>Switch</item-type>
+		<label>OSD Date</label>
+		<description>Show the date on the camera OSD</description>
+	</channel-type>
+
+	<channel-type id="osdlogo">
+		<item-type>Switch</item-type>
+		<label>OSD Logo</label>
+		<description>Show the logo on the camera OSD</description>
+	</channel-type>
+
+	<channel-type id="ledenabled">
+		<item-type>Switch</item-type>
+		<label>Status LED</label>
+		<description>Enable or disable the camera status LED</description>
+	</channel-type>
+
+	<channel-type id="activepatrolslot">
+		<item-type>Number</item-type>
+		<label>Active Patrol Slot</label>
+		<description>Currently active PTZ patrol slot</description>
+	</channel-type>
+
+	<!-- Triggers (for rules) -->
+	<channel-type id="motion" advanced="true">
+		<kind>trigger</kind>
+		<label>Motion</label>
+		<description>Camera motion detected</description>
+	</channel-type>
+
+	<channel-type id="motioncontact">
+		<item-type>Contact</item-type>
+		<label>Motion</label>
+		<description>Motion state (OPEN = motion detected)</description>
+	</channel-type>
+
+	<channel-type id="smartaudiodetect" advanced="true">
+		<kind>trigger</kind>
+		<label>Smart Audio Detect</label>
+		<description>Audio-based smart detection event</description>
+		<event>
+			<options>
+				<option value="alrmSmoke">smoke alarm</option>
+				<option value="alrmCmonx">carbon monoxide alarm</option>
+				<option value="alrmSiren">siren</option>
+				<option value="alrmBabyCry">baby cry</option>
+				<option value="alrmSpeak">speech</option>
+				<option value="alrmBark">dog bark</option>
+				<option value="alrmBurglar">burglar alarm</option>
+				<option value="alrmCarHorn">car horn</option>
+				<option value="alrmGlassBreak">glass break</option>
+				<option value="none">none</option>
+			</options>
+		</event>
+	</channel-type>
+	<channel-type id="smartaudiodetectcontact">
+		<item-type>Contact</item-type>
+		<label>Smart Audio Detect</label>
+		<description>Smart audio detect state (OPEN = smart audio detect detected)</description>
+	</channel-type>
+
+	<channel-type id="smartdetectzone" advanced="true">
+		<kind>trigger</kind>
+		<label>Smart Detect Zone</label>
+		<description>Zone-based smart detection event</description>
+		<event>
+			<options>
+				<option value="person">person</option>
+				<option value="vehicle">vehicle</option>
+				<option value="package">package</option>
+				<option value="licensePlate">license plate</option>
+				<option value="face">face</option>
+				<option value="animal">animal</option>
+				<option value="none">none</option>
+			</options>
+		</event>
+	</channel-type>
+	<channel-type id="smartdetectzonecontact">
+		<item-type>Contact</item-type>
+		<label>Smart Detect Zone</label>
+		<description>Smart detect zone state (OPEN = smart detect zone detected)</description>
+	</channel-type>
+	<channel-type id="smartdetectline" advanced="true">
+		<kind>trigger</kind>
+		<label>Smart Detect Line</label>
+		<description>Line-based smart detection event</description>
+		<event>
+			<options>
+				<option value="person">person</option>
+				<option value="vehicle">vehicle</option>
+				<option value="package">package</option>
+				<option value="licensePlate">license plate</option>
+				<option value="face">face</option>
+				<option value="animal">animal</option>
+				<option value="none">none</option>
+			</options>
+		</event>
+	</channel-type>
+	<channel-type id="smartdetectlinecontact">
+		<item-type>Contact</item-type>
+		<label>Smart Detect Line</label>
+		<description>Smart detect line state (OPEN = smart detect line detected)</description>
+	</channel-type>
+	<channel-type id="smartdetectloiter" advanced="true">
+		<kind>trigger</kind>
+		<label>Smart Detect Loiter</label>
+		<description>Loitering smart detection event</description>
+		<event>
+			<options>
+				<option value="person">person</option>
+				<option value="vehicle">vehicle</option>
+				<option value="package">package</option>
+				<option value="licensePlate">license plate</option>
+				<option value="face">face</option>
+				<option value="animal">animal</option>
+				<option value="none">none</option>
+			</options>
+		</event>
+	</channel-type>
+	<channel-type id="smartdetectloitercontact">
+		<item-type>Contact</item-type>
+		<label>Smart Detect Loiter</label>
+		<description>Smart detect loiter state (OPEN = smart detect loiter detected)</description>
+	</channel-type>
+</thing:thing-descriptions>
