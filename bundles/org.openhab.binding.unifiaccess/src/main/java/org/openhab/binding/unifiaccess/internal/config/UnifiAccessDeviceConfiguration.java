@@ -15,12 +15,11 @@ package org.openhab.binding.unifiaccess.internal.config;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
- * The {@link UnifiAccessBridgeConfiguration} class contains fields mapping thing configuration parameters.
+ * The {@link UnifiAccessDeviceConfiguration} class contains fields mapping thing configuration parameters.
  *
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public class UnifiAccessBridgeConfiguration {
-    public String host = "";
-    public String authToken = "";
+public class UnifiAccessDeviceConfiguration {
+    public String deviceId = "";
 }

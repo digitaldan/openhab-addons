@@ -16,7 +16,6 @@ import java.io.Closeable;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -45,6 +44,7 @@ import org.openhab.binding.unifiaccess.internal.dto.Door;
 import org.openhab.binding.unifiaccess.internal.dto.DoorEmergencySettings;
 import org.openhab.binding.unifiaccess.internal.dto.DoorLockRule;
 import org.openhab.binding.unifiaccess.internal.dto.DoorUnlockRequest;
+import org.openhab.binding.unifiaccess.internal.dto.Image;
 import org.openhab.binding.unifiaccess.internal.dto.NfcEnrollSession;
 import org.openhab.binding.unifiaccess.internal.dto.NfcEnrollStatus;
 import org.openhab.binding.unifiaccess.internal.dto.Notification;
@@ -64,26 +64,8 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 /**
- * Minimal UniFi Access API client for openHAB bindings using Jetty.
+ * UniFi Access API client
  *
- * <p>
- * Design goals:
- * <ul>
- * <li>Reuse an existing {@link HttpClient} (managed by the
- * binding/lifecycle).</li>
- * <li>Wire-compatibility with the PDF API, using your Gson DTOs.</li>
- * <li>Handle both wrapped ({@code {code,data,msg}}) and raw JSON
- * responses.</li>
- * <li>Small, focused surface for the most common flows.</li>
- * </ul>
- *
- * <p>
- * Auth: By default we send {@code X-Auth-Token: <token>}. You can override or
- * add headers
- * via the builder. If your deployment uses Bearer tokens, call
- * {@link Builder#defaultHeader(String, String)} with
- * {@code Authorization, Bearer ...}.
- * </p>
  *
  * @author Dan Cunningham - Initial contribution
  */
@@ -91,31 +73,28 @@ public final class UniFiAccessApiClient implements Closeable {
 
     private Logger logger = LoggerFactory.getLogger(UniFiAccessApiClient.class);
 
-    /* ============================== State ================================ */
-
+    private static final String STATIC_BASE = "//api/v1/developer/system/static";
     private final HttpClient httpClient;
     private final URI base;
     private final Gson gson;
-    private final Duration timeout;
     private final Map<String, String> defaultHeaders;
     private final WebSocketClient wsClient;
-    private  Session wsSession;
-    private  long lastHeartbeatEpochMs;
-    private  ScheduledExecutorService wsMonitorExecutor;
-    private  ScheduledFuture<?> wsMonitorFuture;
+    private Session wsSession;
+    private long lastHeartbeatEpochMs;
+    private ScheduledExecutorService wsMonitorExecutor;
+    private ScheduledFuture<?> wsMonitorFuture;
 
-    public UniFiAccessApiClient(HttpClient httpClient, URI base, Gson gson, Duration timeout, String token) {
+    public UniFiAccessApiClient(HttpClient httpClient, URI base, Gson gson, String token) {
         this.httpClient = httpClient;
         this.base = ensureTrailingSlash(base);
         this.gson = gson;
-        this.timeout = timeout;
         this.defaultHeaders = Map.of("Authorization", "Bearer " + token, "Accept", "application/json");
-        wsClient = new WebSocketClient(httpClient);
-                try {
-                    wsClient.start();
-                } catch (Exception e) {
-                    throw new IllegalStateException("Failed to start Jetty ws client", e);
-                }
+        this.wsClient = new WebSocketClient(httpClient);
+        try {
+            wsClient.start();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to start Jetty ws client", e);
+        }
     }
 
     @Override
@@ -133,14 +112,7 @@ public final class UniFiAccessApiClient implements Closeable {
             logger.debug("Error closing notifications WebSocket: {}", e.getMessage());
         }
         try {
-            WebSocketClient c = wsClient;
-            if (c != null) {
-                try {
-                    c.stop();
-                } finally {
-                    wsClient = null;
-                }
-            }
+            wsClient.stop();
         } catch (Exception e) {
             logger.debug("Error stopping WebSocket client: {}", e.getMessage());
         }
@@ -334,8 +306,9 @@ public final class UniFiAccessApiClient implements Closeable {
     }
 
     public List<Door> getDoors() {
-        var wrapped = com.google.gson.reflect.TypeToken.getParameterized(ApiResponse.class,
-                TypeToken.getParameterized(List.class, Door.class).getType()).getType();
+        var wrapped = com.google.gson.reflect.TypeToken
+                .getParameterized(ApiResponse.class, TypeToken.getParameterized(List.class, Door.class).getType())
+                .getType();
         var raw = TypeToken.getParameterized(List.class, Door.class).getType();
         var resp = execGet("/doors");
         ensure2xx(resp, "getDoors");
@@ -402,16 +375,21 @@ public final class UniFiAccessApiClient implements Closeable {
         return setDoorLockRule(doorId, DoorLockRule.lockEarly());
     }
 
+    public Image getDoorThumbnail(String path) {
+        var resp = execGet(STATIC_BASE + path);
+        ensure2xx(resp, "getDoorThumbnail");
+        Image image = new Image();
+        image.mediaType = resp.getMediaType();
+        image.data = resp.getContent();
+        return image;
+    }
+
     public synchronized void openNotifications(Runnable onOpen, Consumer<Notification> onMessage,
             Consumer<Throwable> onError, BiConsumer<Integer, String> onClosed) {
         if (wsSession != null && wsSession.isOpen()) {
             return;
         }
         try {
-            if (wsClient == null) {
-                wsClient = new WebSocketClient(httpClient);
-                wsClient.start();
-            }
             URI wsUri = toWebSocketUri("devices/notifications");
             ClientUpgradeRequest req = new ClientUpgradeRequest();
             defaultHeaders.forEach(req::setHeader);
@@ -487,17 +465,21 @@ public final class UniFiAccessApiClient implements Closeable {
     }
 
     private Request newRequest(HttpMethod method, String path, Consumer<Request> customizer) {
-        URI uri = base.resolve(path.startsWith("/") ? path.substring(1) : path);
+        URI uri;
+        if (path.startsWith("//")) {
+            uri = base.resolve(path.substring(1));
+        } else {
+            uri = base.resolve(path.startsWith("/") ? path.substring(1) : path);
+        }
         Request req = httpClient.newRequest(uri).method(method).header(HttpHeader.ACCEPT, "application/json");
         // Default headers
         defaultHeaders.forEach(req::header);
         logger.debug("path: {} base: {} uri: {}", path, base, uri);
         req.getHeaders().forEach(header -> logger.debug("header {}: {}", header.getName(), header.getValue()));
         // Allow caller customizations (body, additional headers, etc.)
-        if (customizer != null)
+        if (customizer != null) {
             customizer.accept(req);
-        // Timeout
-        req.timeout(timeout.toSeconds(), TimeUnit.SECONDS);
+        }
         return req;
     }
 
@@ -508,7 +490,11 @@ public final class UniFiAccessApiClient implements Closeable {
 
     private void ensure2xx(ContentResponse resp, String action) {
         if (logger.isTraceEnabled()) {
-            logger.trace("ensure2xx status: {} resp: {}", resp.getStatus(), resp.getContentAsString());
+            if (resp.getMediaType().equals("image/jpeg") || resp.getMediaType().equals("image/png")) {
+                logger.trace("ensure2xx status: {} resp: image data", resp.getStatus());
+            } else {
+                logger.trace("ensure2xx status: {} resp: {}", resp.getStatus(), resp.getContentAsString());
+            }
         }
         int sc = resp.getStatus();
         if (sc < 200 || sc >= 300) {
@@ -563,7 +549,7 @@ public final class UniFiAccessApiClient implements Closeable {
             return Collections.emptyList();
         }
 
-        // 1) Try standard wrapped format
+        // Try standard wrapped format
         try {
             ApiResponse<List<E>> wrapped = gson.fromJson(json, wrappedListType);
             if (wrapped != null && wrapped.data != null && !wrapped.data.isEmpty()) {
@@ -576,7 +562,7 @@ public final class UniFiAccessApiClient implements Closeable {
         } catch (Exception ignored) {
         }
 
-        // 2) If it's already a raw array (possibly nested arrays)
+        // If it's already a raw array (possibly nested arrays)
         try {
             JsonElement root = JsonParser.parseString(json);
             if (root.isJsonArray()) {
@@ -587,11 +573,10 @@ public final class UniFiAccessApiClient implements Closeable {
             if (root.isJsonObject()) {
                 JsonObject obj = root.getAsJsonObject();
 
-                Function<JsonElement, List<E>> parseArray = je -> gson.fromJson(je,
-                        rawListType);
+                Function<JsonElement, List<E>> parseArray = je -> gson.fromJson(je, rawListType);
                 String[] arrayKeys = new String[] { "list", "items", "records", "rows" };
 
-                // 3) Containers such as data/result/payload
+                // Containers such as data/result/payload
                 for (String container : new String[] { "data", "result", "payload" }) {
                     if (!obj.has(container)) {
                         continue;
@@ -642,7 +627,7 @@ public final class UniFiAccessApiClient implements Closeable {
                     }
                 }
 
-                // 4) { altArrayKey: [ ... ] } at root
+                // { altArrayKey: [ ... ] } at root
                 if (altArrayKeys != null) {
                     for (String key : altArrayKeys) {
                         if (!obj.has(key)) {
@@ -671,7 +656,7 @@ public final class UniFiAccessApiClient implements Closeable {
                     }
                 }
 
-                // 5) any direct array at root
+                // any direct array at root
                 for (var entry : obj.entrySet()) {
                     if (entry.getValue().isJsonArray()) {
                         JsonElement flat = flattenArrayIfNeeded(entry.getValue().getAsJsonArray());

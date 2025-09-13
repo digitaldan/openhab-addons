@@ -1,4 +1,5 @@
 # UniFi Protect Binding
+![logo](doc/logo.png)
 
 This binding integrates Ubiquiti UniFi Protect into openHAB.
 It connects to your Protect NVR/CloudKey/UNVR and provides live events and configurable settings for Cameras, Floodlights, and Sensors.
@@ -36,8 +37,12 @@ All configuration is on the NVR bridge and on individual things.
 | token | text | Bearer token used for API/WebSocket authentication | N/A | yes | no |
 
 How to get the Token:
-- In the UniFi Protect UI, go to Settings → Advanced → API Access (Integration) and create an API token.
+- In the UniFi Protect UI, go to Settings → Control Plane → Integrations and create an API token.
 - Copy the token and paste it into the NVR bridge configuration in openHAB.
+
+![Protect API key creation](doc/keys.png)
+
+
 
 ### Camera `unifiprotect:camera`
 

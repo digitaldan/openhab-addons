@@ -31,7 +31,7 @@ public class UnifiAccessBindingConstants {
     public static final ThingTypeUID DOOR_THING_TYPE = new ThingTypeUID(BINDING_ID, "door");
 
     // Thing configuration keys
-    public static final String CONFIG_DOOR_ID = "doorId";
+    public static final String CONFIG_DEVICE_ID = "deviceId";
 
     // Door channel ids (match thing-types.xml)
     public static final String CHANNEL_LOCK = "lock";
@@ -46,4 +46,5 @@ public class UnifiAccessBindingConstants {
     public static final String CHANNEL_KEEP_LOCKED = "keeplocked";
     public static final String CHANNEL_UNLOCK_MINUTES = "unlockminutes";
     public static final String CHANNEL_LOCK_EARLY = "lockearly";
+    public static final String CHANNEL_DOOR_THUMBNAIL = "doorthumbnail";
 }

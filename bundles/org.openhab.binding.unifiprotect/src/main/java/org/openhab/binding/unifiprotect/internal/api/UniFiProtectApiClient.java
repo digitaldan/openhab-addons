@@ -402,9 +402,6 @@ public class UniFiProtectApiClient implements Closeable {
     }
 
     private void ensure2xx(ContentResponse resp) throws IOException {
-        if (logger.isTraceEnabled()) {
-            logger.trace("ensure2xx status: {} resp: {}", resp.getStatus(), resp.getContentAsString());
-        }
         int sc = resp.getStatus();
         if (sc < 200 || sc >= 300) {
             String body = resp.getContentAsString();
@@ -435,6 +432,7 @@ public class UniFiProtectApiClient implements Closeable {
     private <T> T parseJson(ContentResponse resp, Class<T> clazz) throws IOException {
         try {
             String json = resp.getContentAsString();
+            logger.trace("Parsing JSON {}", json);
             return gson.fromJson(json, clazz);
         } catch (Exception e) {
             throw new IOException("Failed to parse JSON to " + clazz.getSimpleName(), e);
@@ -444,6 +442,7 @@ public class UniFiProtectApiClient implements Closeable {
     private <T> T parseJson(ContentResponse resp, Type type) throws IOException {
         try {
             String json = resp.getContentAsString();
+            logger.trace("Parsing JSON {}", json);
             return gson.fromJson(json, type);
         } catch (Exception e) {
             throw new IOException("Failed to parse JSON", e);

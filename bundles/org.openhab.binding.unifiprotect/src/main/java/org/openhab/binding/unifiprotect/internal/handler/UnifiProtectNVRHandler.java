@@ -118,12 +118,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
-        // if (CHANNEL_1.equals(channelUID.getId())) {
-        // if (command instanceof RefreshType) {
-        // // TODO: handle data refresh
-        // }
-        // // TODO: handle command
-        // }
     }
 
     @Override
@@ -343,7 +337,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         }
     }
 
-    private void doInitialSync() {
+    private void syncDevices() {
         UniFiProtectApiClient apiClient = this.apiClient;
         if (apiClient == null) {
             return;

@@ -312,6 +312,32 @@ public class Notification {
         }
     }
 
+    public static class LocationState {
+        public String locationId;
+        public DoorState.LockState lock;
+        public DoorState.DoorPosition dps;
+        public Boolean dpsConnected;
+        public RemainUnlock remainUnlock;
+        public List<Alarm> alarms;
+        public Emergency emergency;
+        public Boolean isUnavailable;
+    }
+
+    public static class Alarm {
+        public String type;
+    }
+
+    public static class Emergency {
+        public String software;
+        public String hardware;
+    }
+
+    public static class RemainUnlock {
+        public DoorState.LockState state;
+        public Long until;
+        public DoorState.DoorLockRuleType type;
+    }
+
     /** access.data.v2.device.update payload (partial). */
     public static class DeviceUpdateV2Data {
         public String name;
@@ -334,32 +360,6 @@ public class Notification {
         public List<LocationState> locationStates;
         public List<String> category;
 
-        public static class LocationState {
-            public String locationId;
-            public DoorState.LockState lock;
-            public DoorState.DoorPosition dps;
-            public Boolean dpsConnected;
-            public RemainUnlock remainUnlock;
-            public List<Alarm> alarms;
-            public Emergency emergency;
-            public Boolean isUnavailable;
-        }
-
-        public static class Alarm {
-            public String type;
-        }
-
-        public static class Emergency {
-            public String software;
-            public String hardware;
-        }
-
-        public static class RemainUnlock {
-            public DoorState.LockState state;
-            public Long until;
-            public DoorState.DoorLockRuleType type;
-        }
-
         /* Lock and door position enums moved to DoorState for reuse */
     }
 
@@ -371,7 +371,7 @@ public class Notification {
         public String upId;
         public JsonElement extras;
         public List<String> deviceIds;
-        public JsonElement state;
+        public LocationState state;
         public Thumbnail thumbnail;
         public Long lastActivity;
 

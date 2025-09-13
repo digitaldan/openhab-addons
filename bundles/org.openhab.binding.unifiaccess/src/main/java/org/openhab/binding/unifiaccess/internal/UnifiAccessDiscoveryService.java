@@ -24,8 +24,11 @@ import org.openhab.core.config.discovery.AbstractThingHandlerDiscoveryService;
 import org.openhab.core.config.discovery.DiscoveryResult;
 import org.openhab.core.config.discovery.DiscoveryResultBuilder;
 import org.openhab.core.thing.ThingUID;
+import org.openhab.core.thing.binding.ThingHandler;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.ServiceScope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Discovery service for UniFi Access Door things.
@@ -36,8 +39,18 @@ import org.osgi.service.component.annotations.ServiceScope;
 @NonNullByDefault
 public class UnifiAccessDiscoveryService extends AbstractThingHandlerDiscoveryService<UnifiAccessBridgeHandler> {
 
+    private final Logger logger = LoggerFactory.getLogger(UnifiAccessDiscoveryService.class);
+
     public UnifiAccessDiscoveryService() {
         super(UnifiAccessBridgeHandler.class, Set.of(UnifiAccessBindingConstants.DOOR_THING_TYPE), 30, false);
+    }
+
+    @Override
+    public void setThingHandler(ThingHandler handler) {
+        if (handler instanceof UnifiAccessBridgeHandler childDiscoveryHandler) {
+            childDiscoveryHandler.setDiscoveryService(this);
+            this.thingHandler = childDiscoveryHandler;
+        }
     }
 
     @Override
@@ -52,21 +65,25 @@ public class UnifiAccessDiscoveryService extends AbstractThingHandlerDiscoverySe
             if (doors == null) {
                 return;
             }
-            for (Door d : doors) {
-                if (d == null || d.id == null) {
-                    continue;
-                }
-                ThingUID uid = new ThingUID(UnifiAccessBindingConstants.DOOR_THING_TYPE,
-                        thingHandler.getThing().getUID(), d.id);
-                Map<String, Object> props = Map.of(UnifiAccessBindingConstants.CONFIG_DOOR_ID, d.id);
-                DiscoveryResult result = DiscoveryResultBuilder.create(uid).withBridge(thingHandler.getThing().getUID())
-                        .withThingType(UnifiAccessBindingConstants.DOOR_THING_TYPE).withProperties(props)
-                        .withRepresentationProperty(UnifiAccessBindingConstants.CONFIG_DOOR_ID)
-                        .withLabel("Door: " + d.name).build();
-                thingDiscovered(result);
-            }
+            discoverDoors(doors);
         } catch (Exception e) {
-            // ignore discovery errors; scan is best-effort
+            logger.debug("Error discovering doors: {}", e.getMessage());
+        }
+    }
+
+    public void discoverDoors(List<Door> doors) {
+        for (Door d : doors) {
+            if (d == null || d.id == null) {
+                continue;
+            }
+            ThingUID uid = new ThingUID(UnifiAccessBindingConstants.DOOR_THING_TYPE, thingHandler.getThing().getUID(),
+                    d.id);
+            Map<String, Object> props = Map.of(UnifiAccessBindingConstants.CONFIG_DEVICE_ID, d.id);
+            DiscoveryResult result = DiscoveryResultBuilder.create(uid).withBridge(thingHandler.getThing().getUID())
+                    .withThingType(UnifiAccessBindingConstants.DOOR_THING_TYPE).withProperties(props)
+                    .withRepresentationProperty(UnifiAccessBindingConstants.CONFIG_DEVICE_ID)
+                    .withLabel("UniFi Access Door: " + d.name).build();
+            thingDiscovered(result);
         }
     }
 }

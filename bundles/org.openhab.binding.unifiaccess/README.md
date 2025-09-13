@@ -1,95 +1,114 @@
-# UnifiAccess Binding
+# UniFi Access Binding
 
-_Give some details about what this binding is meant for - a protocol, system, specific device._
+![logo](doc/logo.png)
 
-_If possible, provide some resources like pictures (only PNG is supported currently), a video, etc. to give an impression of what can be done with this binding._
-_You can place such resources into a `doc` folder next to this README.md._
-
-_Put each sentence in a separate line to improve readability of diffs._
+This binding integrates Ubiquiti UniFi Access with openHAB.
+It connects to your UniFi Access controller over HTTPS and listens for live door events while exposing channels to monitor and control door locks.
 
 ## Supported Things
 
-_Please describe the different supported things / devices including their ThingTypeUID within this section._
-_Which different types are supported, which models were tested etc.?_
-_Note that it is planned to generate some part of this based on the XML files within ```src/main/resources/OH-INF/thing``` of your binding._
-
-- `bridge`: Short description of the Bridge, if any
-- `sample`: Short description of the Thing with the ThingTypeUID `sample`
+- `unifiaccess:bridge` (Bridge): The UniFi Access controller instance.
+  Required to discover and manage door things.
+- `unifiaccess:door`: A UniFi Access door with status and control channels.
 
 ## Discovery
 
-_Describe the available auto-discovery features here._
-_Mention for what it works and what needs to be kept in mind when using it._
+- Add the `Bridge` by entering the controller Hostname or IP and an API Token.
+- Once the Bridge is ONLINE, Doors are discovered automatically and appear in the Inbox.
+- Approve discovered doors to add them to your system, or create them manually using `deviceId`.
 
 ## Binding Configuration
 
-_If your binding requires or supports general configuration settings, please create a folder ```cfg``` and place the configuration file ```<bindingId>.cfg``` inside it._
-_In this section, you should link to this file and provide some information about the options._
-_The file could e.g. look like:_
-
-```
-# Configuration for the UnifiAccess Binding
-#
-# Default secret key for the pairing of the UnifiAccess Thing.
-# It has to be between 10-40 (alphanumeric) characters.
-# This may be changed by the user for security reasons.
-secret=openHABSecret
-```
-
-_Note that it is planned to generate some part of this based on the information that is available within ```src/main/resources/OH-INF/binding``` of your binding._
-
-_If your binding does not offer any generic configurations, you can remove this section completely._
+There are no global binding settings.
+All configuration is on the Bridge and on individual Door things.
 
 ## Thing Configuration
 
-_Describe what is needed to manually configure a thing, either through the UI or via a thing-file._
-_This should be mainly about its mandatory and optional configuration parameters._
+### Bridge `unifiaccess:bridge`
 
-_Note that it is planned to generate some part of this based on the XML files within ```src/main/resources/OH-INF/thing``` of your binding._
+| Name | Type | Description | Default | Required | Advanced |
+|------|------|-------------|---------|----------|----------|
+| host | text | Hostname or IP address of the UniFi Access controller. | N/A | yes | no |
+| authToken | text | API token used for HTTPS and WebSocket authentication. | N/A | yes | no |
 
-### `sample` Thing Configuration
+How to get the API Token.
+Open the UniFi Access controller and create an API token with permissions suitable for reading doors and remote unlocking.
+Then paste the token into the Bridge configuration.
 
-| Name            | Type    | Description                           | Default | Required | Advanced |
-|-----------------|---------|---------------------------------------|---------|----------|----------|
-| hostname        | text    | Hostname or IP address of the device  | N/A     | yes      | no       |
-| password        | text    | Password to access the device         | N/A     | yes      | no       |
-| refreshInterval | integer | Interval the device is polled in sec. | 600     | no       | yes      |
+![Create API token](doc/token.png)
+
+![Recommended permissions](doc/permissions.png)
+
+### Door `unifiaccess:door`
+
+| Name | Type | Description | Default | Required | Advanced |
+|------|------|-------------|---------|----------|----------|
+| deviceId | text | Unique door identifier from the UniFi Access controller. | N/A | yes | no |
 
 ## Channels
 
-_Here you should provide information about available channel types, what their meaning is and how they can be used._
+The channels below are provided by the `unifiaccess:door` thing.
+Some channels are write-only actions and do not keep a state.
 
-_Note that it is planned to generate some part of this based on the XML files within ```src/main/resources/OH-INF/thing``` of your binding._
+| Channel ID | Item Type | RW | Description |
+|------------|-----------|----|-------------|
+| lock | Switch | RW | Lock state. ON locks the door, OFF unlocks immediately. |
+| position | Contact | R | Door position sensor. OPEN when the door is open, CLOSED otherwise. |
+| lastunlock | DateTime | R | Timestamp of the last unlock event. |
+| lastactor | String | R | Name of the user who last unlocked the door. |
+| lockrule | String | R | Current lock rule. One of `schedule`, `custom`, `keep_unlock`, `keep_lock`. |
+| keepunlocked | Switch | W | Keep the door unlocked until changed. Send ON to apply. |
+| keeplocked | Switch | W | Keep the door locked until changed. Send ON to apply. |
+| unlockminutes | Number:Time | W | Unlock for a number of minutes. Send a value in minutes. |
+| doorthumbnail | Image | R | Door thumbnail. |
 
-| Channel | Type   | Read/Write | Description                 |
-|---------|--------|------------|-----------------------------|
-| control | Switch | RW         | This is the control channel |
+## Full Examples (Textual Configuration)
 
-## Full Example
+Replace the IDs with your own thing and item names.
+Examples assume a Bridge UID of `ua` and a Door UID of `frontdoor`.
 
-_Provide a full usage example based on textual configuration files._
-_*.things, *.items examples are mandatory as textual configuration is well used by many users._
-_*.sitemap examples are optional._
+### Things (`.things`)
 
-### Thing Configuration
-
-```java
-Example thing configuration goes here.
+```
+Bridge unifiaccess:bridge:ua "UniFi Access" [ host="192.168.1.20", authToken="YOUR_LONG_TOKEN" ] {
+    Thing unifiaccess:door:frontdoor [ deviceId="60546f80e4b0abcd12345678" ]
+}
 ```
 
-### Item Configuration
+### Items (`.items`)
 
-```java
-Example item configuration goes here.
+```
+// Door status
+Switch   UA_FrontDoor_Lock          "Front Door Locked"                   { channel="unifiaccess:door:ua:frontdoor:lock" }
+Contact  UA_FrontDoor_Position      "Front Door Position [%s]"            { channel="unifiaccess:door:ua:frontdoor:position" }
+DateTime UA_FrontDoor_LastUnlock    "Last Unlock [%1$ta %1$tF %1$tR]"     { channel="unifiaccess:door:ua:frontdoor:lastunlock" }
+String   UA_FrontDoor_LastActor     "Last Actor [%s]"                     { channel="unifiaccess:door:ua:frontdoor:lastactor" }
+String   UA_FrontDoor_LockRule      "Lock Rule [%s]"                      { channel="unifiaccess:door:ua:frontdoor:lockrule" }
+
+// Door controls
+Switch   UA_FrontDoor_KeepUnlocked  "Keep Unlocked"                       { channel="unifiaccess:door:ua:frontdoor:keepunlocked" }
+Switch   UA_FrontDoor_KeepLocked    "Keep Locked"                         { channel="unifiaccess:door:ua:frontdoor:keeplocked" }
+Number:Time UA_FrontDoor_UnlockMins "Unlock Minutes [%.0f min]"           { channel="unifiaccess:door:ua:frontdoor:unlockminutes" }
 ```
 
-### Sitemap Configuration
+### Sitemap (`.sitemap`)
 
-```perl
-Optional Sitemap configuration goes here.
-Remove this section, if not needed.
+```
+sitemap home label="Home" {
+    Frame label="Front Door" {
+        Switch   item=UA_FrontDoor_Lock
+        Text     item=UA_FrontDoor_Position
+        Text     item=UA_FrontDoor_LastActor
+        Text     item=UA_FrontDoor_LastUnlock
+        Text     item=UA_FrontDoor_LockRule
+        Switch   item=UA_FrontDoor_KeepUnlocked
+        Switch   item=UA_FrontDoor_KeepLocked
+        Setpoint item=UA_FrontDoor_UnlockMins minValue=1 maxValue=120 step=1
+    }
+}
 ```
 
-## Any custom content here!
+## Notes
 
-_Feel free to add additional sections for whatever you think should also be mentioned about your binding!_
+The `Bridge` has no channels and only holds connection settings.
+Door discovery and state updates are near real time via a persistent connection to the controller.

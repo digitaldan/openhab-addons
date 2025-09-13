@@ -14,17 +14,26 @@ package org.openhab.binding.unifiaccess.internal.handler;
 
 import static org.openhab.binding.unifiaccess.internal.UnifiAccessBindingConstants.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiaccess.internal.UnifiAccessBindingConstants;
 import org.openhab.binding.unifiaccess.internal.api.UniFiAccessApiClient;
-import org.openhab.binding.unifiaccess.internal.config.UnifiAccessDoorConfiguration;
+import org.openhab.binding.unifiaccess.internal.config.UnifiAccessDeviceConfiguration;
 import org.openhab.binding.unifiaccess.internal.dto.Door;
 import org.openhab.binding.unifiaccess.internal.dto.DoorState;
-import org.openhab.binding.unifiaccess.internal.dto.UniFiAccessHttpException;
+import org.openhab.binding.unifiaccess.internal.dto.Image;
+import org.openhab.binding.unifiaccess.internal.dto.Notification;
+import org.openhab.binding.unifiaccess.internal.dto.Notification.LocationState;
+import org.openhab.binding.unifiaccess.internal.dto.Notification.LocationUpdateV2Data;
 import org.openhab.core.library.types.DateTimeType;
+import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.OpenClosedType;
+import org.openhab.core.library.types.RawType;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
@@ -43,11 +52,11 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class UnifiAccessDoorHandler extends BaseThingHandler {
 
-    public static final String CONFIG_DOOR_ID = UnifiAccessBindingConstants.CONFIG_DOOR_ID;
+    public static final String CONFIG_DOOR_ID = UnifiAccessBindingConstants.CONFIG_DEVICE_ID;
 
     private final Logger logger = LoggerFactory.getLogger(UnifiAccessDoorHandler.class);
-
-    private String doorId = "";
+    private @Nullable Door door;
+    private String deviceId = "";
 
     public UnifiAccessDoorHandler(Thing thing) {
         super(thing);
@@ -55,14 +64,14 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
 
     @Override
     public void initialize() {
-        doorId = getConfigAs(UnifiAccessDoorConfiguration.class).doorId;
+        deviceId = getConfigAs(UnifiAccessDeviceConfiguration.class).deviceId;
         updateStatus(ThingStatus.UNKNOWN);
     }
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
         if (command instanceof RefreshType) {
-            scheduler.execute(this::refreshState);
+            scheduler.execute(this::refreshAll);
             return;
         }
         String channelId = channelUID.getId();
@@ -76,59 +85,173 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
                 case UnifiAccessBindingConstants.CHANNEL_LOCK:
                     if (command instanceof OnOffType onOff) {
                         if (onOff == OnOffType.ON) {
-                            api.lockEarly(doorId);
+                            api.lockEarly(deviceId);
                         } else {
-                            api.unlockDoor(doorId, null, null, null);
+                            api.unlockDoor(deviceId, null, null, null);
                         }
                     }
                     break;
                 case UnifiAccessBindingConstants.CHANNEL_UNLOCK_NOW:
-                    api.unlockDoor(doorId, null, null, null);
+                    if (command instanceof OnOffType onOff) {
+                        if (onOff == OnOffType.ON) {
+                            api.unlockDoor(deviceId, null, null, null);
+                        } else {
+                            api.resetDoorLockRule(deviceId);
+                        }
+                    }
                     break;
                 case UnifiAccessBindingConstants.CHANNEL_KEEP_UNLOCKED:
-                    api.keepDoorUnlocked(doorId);
+                    if (command instanceof OnOffType onOff) {
+                        if (onOff == OnOffType.ON) {
+                            api.keepDoorUnlocked(deviceId);
+                        } else {
+                            api.resetDoorLockRule(deviceId);
+                        }
+                    }
                     break;
                 case UnifiAccessBindingConstants.CHANNEL_KEEP_LOCKED:
-                    api.keepDoorLocked(doorId);
+                    if (command instanceof OnOffType onOff) {
+                        if (onOff == OnOffType.ON) {
+                            api.keepDoorLocked(deviceId);
+                        } else {
+                            api.resetDoorLockRule(deviceId);
+                        }
+                    }
                     break;
                 case UnifiAccessBindingConstants.CHANNEL_UNLOCK_MINUTES:
                     int minutes = Integer.parseInt(command.toString());
-                    api.unlockForMinutes(doorId, minutes);
+                    if (minutes > 0) {
+                        api.unlockForMinutes(deviceId, minutes);
+                    } else {
+                        api.resetDoorLockRule(deviceId);
+                    }
                     break;
                 case UnifiAccessBindingConstants.CHANNEL_LOCK_EARLY:
-                    api.lockEarly(doorId);
+                    if (command instanceof OnOffType onOff) {
+                        if (onOff == OnOffType.ON) {
+                            api.lockEarly(deviceId);
+                        } else {
+                            api.resetDoorLockRule(deviceId);
+                        }
+                    }
                     break;
                 default:
                     break;
             }
         } catch (Exception e) {
-            logger.debug("Command failed for door {}: {}", doorId, e.getMessage());
+            logger.debug("Command failed for door {}: {}", deviceId, e.getMessage());
         }
     }
 
     public void updateFromDoor(Door door) {
         logger.debug("Updating door state from door: {}", door);
-        if (door.doorLockRelayStatus != null) {
-            updateLock(door.doorLockRelayStatus);
+        this.door = door;
+        if (getThing().getStatus() != ThingStatus.ONLINE) {
+            updateStatus(ThingStatus.ONLINE);
         }
-        if (door.doorPositionStatus != null) {
-            updatePosition(door.doorPositionStatus);
+        refreshAll();
+    }
+
+    public void handleLocationState(LocationState locationState) {
+        Door door = this.door;
+        if (door == null) {
+            return;
+        }
+        if (locationState.lock != null) {
+            door.doorLockRelayStatus = locationState.lock;
+            updateLock(locationState.lock);
+        }
+        if (locationState.dps != null) {
+            door.doorPositionStatus = locationState.dps;
+            updatePosition(locationState.dps);
+        }
+        if (locationState.remainUnlock != null) {
+            DoorState.DoorLockRuleType rule = locationState.remainUnlock.type;
+            List<String> lockChannels = new ArrayList<>(Arrays.asList(UnifiAccessBindingConstants.CHANNEL_KEEP_UNLOCKED,
+                    UnifiAccessBindingConstants.CHANNEL_KEEP_LOCKED, UnifiAccessBindingConstants.CHANNEL_UNLOCK_MINUTES,
+                    UnifiAccessBindingConstants.CHANNEL_LOCK_EARLY, UnifiAccessBindingConstants.CHANNEL_UNLOCK_NOW));
+            switch (rule) {
+                case KEEP_UNLOCK:
+                    updateState(UnifiAccessBindingConstants.CHANNEL_KEEP_UNLOCKED, OnOffType.ON);
+                    lockChannels.remove(UnifiAccessBindingConstants.CHANNEL_KEEP_UNLOCKED);
+                    break;
+                case KEEP_LOCK:
+                    updateState(UnifiAccessBindingConstants.CHANNEL_KEEP_LOCKED, OnOffType.ON);
+                    lockChannels.remove(UnifiAccessBindingConstants.CHANNEL_KEEP_LOCKED);
+                    break;
+                case CUSTOM:
+                    updateState(UnifiAccessBindingConstants.CHANNEL_UNLOCK_MINUTES,
+                            new DecimalType(locationState.remainUnlock.until));
+                    lockChannels.remove(UnifiAccessBindingConstants.CHANNEL_UNLOCK_MINUTES);
+                    break;
+                case LOCK_EARLY:
+                    updateState(UnifiAccessBindingConstants.CHANNEL_LOCK_EARLY, OnOffType.ON);
+                    lockChannels.remove(UnifiAccessBindingConstants.CHANNEL_LOCK_EARLY);
+                    break;
+                case LOCK_NOW:
+                    updateState(UnifiAccessBindingConstants.CHANNEL_UNLOCK_NOW, OnOffType.ON);
+                    lockChannels.remove(UnifiAccessBindingConstants.CHANNEL_UNLOCK_NOW);
+                    break;
+                default:
+                    break;
+            }
+            lockChannels.forEach(channel -> {
+                if (UnifiAccessBindingConstants.CHANNEL_UNLOCK_MINUTES.equals(channel)) {
+                    updateState(channel, new DecimalType(0));
+                } else {
+                    updateState(channel, OnOffType.OFF);
+                }
+            });
         }
     }
 
-    public void updateLock(DoorState.LockState lock) {
+    public void handleLocationUpdateV2(LocationUpdateV2Data locationUpdate) {
+        Door door = this.door;
+        if (door == null) {
+            return;
+        }
+        if (locationUpdate.state != null) {
+            door.doorLockRelayStatus = locationUpdate.state.lock;
+            updateLock(locationUpdate.state.lock);
+            door.doorPositionStatus = locationUpdate.state.dps;
+            updatePosition(locationUpdate.state.dps);
+            if (locationUpdate.thumbnail != null) {
+                UnifiAccessBridgeHandler bridge = getBridgeHandler();
+                UniFiAccessApiClient api = bridge != null ? bridge.getApiClient() : null;
+                if (api == null) {
+                    return;
+                }
+                try {
+                    Image thumbnail = api.getDoorThumbnail(locationUpdate.thumbnail.url);
+                    updateState(UnifiAccessBindingConstants.CHANNEL_DOOR_THUMBNAIL,
+                            new RawType(thumbnail.data, thumbnail.mediaType));
+                } catch (Exception e) {
+                    logger.debug("Failed to get door thumbnail for door {}: {}", door.id, e.getMessage());
+                }
+            }
+        }
+    }
+
+    public void handleRemoteUnlock(Notification.RemoteUnlockData remoteUnlock) {
+        Door door = this.door;
+        if (door == null) {
+            return;
+        }
+        setLastUnlock(remoteUnlock.fullName, System.currentTimeMillis());
+        door.doorLockRelayStatus = DoorState.LockState.UNLOCKED;
+    }
+
+    private void updateLock(DoorState.LockState lock) {
         updateState(UnifiAccessBindingConstants.CHANNEL_LOCK,
                 lock == DoorState.LockState.LOCKED ? OnOffType.ON : OnOffType.OFF);
-        updateStatus(ThingStatus.ONLINE);
     }
 
-    public void updatePosition(DoorState.DoorPosition position) {
+    private void updatePosition(DoorState.DoorPosition position) {
         updateState(UnifiAccessBindingConstants.CHANNEL_POSITION,
                 position == DoorState.DoorPosition.OPEN ? OpenClosedType.OPEN : OpenClosedType.CLOSED);
-        updateStatus(ThingStatus.ONLINE);
     }
 
-    public void setLastUnlock(@Nullable String actorName, long whenEpochMs) {
+    private void setLastUnlock(@Nullable String actorName, long whenEpochMs) {
         if (actorName != null) {
             updateState(UnifiAccessBindingConstants.CHANNEL_LAST_ACTOR, StringType.valueOf(actorName));
         }
@@ -138,20 +261,17 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
         }
     }
 
-    protected void refreshState() {
-        logger.debug("Refreshing door state for {}", doorId);
-        UnifiAccessBridgeHandler bridge = getBridgeHandler();
-        UniFiAccessApiClient api = bridge != null ? bridge.getApiClient() : null;
-        if (api == null) {
+    private void refreshAll() {
+        Door door = this.door;
+        if (door == null) {
             return;
         }
-        try {
-            Door door = api.getDoor(doorId);
-            if (door != null) {
-                updateFromDoor(door);
-            }
-        } catch (UniFiAccessHttpException e) {
-            logger.debug("Refresh failed for door {}: {}", doorId, e.getMessage(), e);
+        logger.debug("Updating door state from door: {}", door);
+        if (door.doorLockRelayStatus != null) {
+            updateLock(door.doorLockRelayStatus);
+        }
+        if (door.doorPositionStatus != null) {
+            updatePosition(door.doorPositionStatus);
         }
     }
 

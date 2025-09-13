@@ -10,16 +10,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.unifiaccess.internal.config;
-
-import org.eclipse.jdt.annotation.NonNullByDefault;
+package org.openhab.binding.unifiaccess.internal.dto;
 
 /**
- * The {@link UnifiAccessDoorConfiguration} class contains fields mapping thing configuration parameters.
- *
+ * Hold images for door thumbnails.
+ * 
  * @author Dan Cunningham - Initial contribution
  */
-@NonNullByDefault
-public class UnifiAccessDoorConfiguration {
-    public String doorId = "";
+public class Image {
+    public String mediaType;
+    public byte[] data;
 }

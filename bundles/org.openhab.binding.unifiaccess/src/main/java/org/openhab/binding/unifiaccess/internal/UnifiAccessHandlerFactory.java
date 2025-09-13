@@ -21,7 +21,6 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiaccess.internal.handler.UnifiAccessBridgeHandler;
 import org.openhab.binding.unifiaccess.internal.handler.UnifiAccessDoorHandler;
 import org.openhab.core.io.net.http.HttpClientFactory;
-import org.openhab.core.net.NetworkAddressService;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
@@ -30,7 +29,6 @@ import org.openhab.core.thing.binding.ThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerFactory;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.http.HttpService;
 
 /**
  * The {@link UnifiAccessHandlerFactory} is responsible for creating things and thing

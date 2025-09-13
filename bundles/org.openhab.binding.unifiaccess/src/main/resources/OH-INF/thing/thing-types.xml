@@ -9,28 +9,13 @@
 		<label>UniFi Access Bridge</label>
 		<description>UniFi Access controller</description>
 		<config-description>
-			<parameter name="baseUrl" type="text" required="true">
-				<label>Base URL</label>
-				<description>e.g., https://ua.local/api/v1/developer</description>
+			<parameter name="host" type="text" required="true">
+				<label>Host</label>
+				<description>Host or IP address of the UniFi Access controller</description>
 			</parameter>
 			<parameter name="authToken" type="text" required="true">
 				<label>Auth Token</label>
-				<description>X-Auth-Token or Bearer token</description>
-			</parameter>
-			<parameter name="port" type="integer" required="true">
-				<label>Port</label>
-				<default>12445</default>
-				<advanced>true</advanced>
-			</parameter>
-			<parameter name="requestTimeout" type="integer" required="false">
-				<label>Request Timeout (s)</label>
-				<default>15</default>
-				<advanced>true</advanced>
-			</parameter>
-			<parameter name="pollInterval" type="integer" required="false">
-				<label>Poll Interval (s)</label>
-				<default>30</default>
-				<advanced>true</advanced>
+				<description>API token from the UniFi Access controller</description>
 			</parameter>
 		</config-description>
 	</bridge-type>
@@ -49,32 +34,33 @@
 			<channel id="lock" typeId="lock">
 				<label>Lock</label>
 			</channel>
-			<channel id="position" typeId="door-position">
+			<channel id="position" typeId="doorposition">
 				<label>Door Position</label>
 			</channel>
-			<channel id="lastunlock" typeId="last-unlock">
+			<channel id="lastunlock" typeId="lastunlock">
 				<label>Last Unlock</label>
 			</channel>
-			<channel id="lastactor" typeId="last-actor">
+			<channel id="lastactor" typeId="lastactor">
 				<label>Last Actor</label>
 			</channel>
-			<channel id="lockrule" typeId="lock-rule">
+			<channel id="lockrule" typeId="lockrule">
 				<label>Lock Rule</label>
 			</channel>
-
-			<!-- control -->
-			<channel id="keepunlocked" typeId="keep-unlocked">
+			<channel id="keepunlocked" typeId="keepunlocked">
 				<label>Keep Unlocked</label>
 			</channel>
-			<channel id="keeplocked" typeId="keep-locked">
+			<channel id="keeplocked" typeId="keeplocked">
 				<label>Keep Locked</label>
 			</channel>
-			<channel id="unlockminutes" typeId="unlock-minutes">
+			<channel id="unlockminutes" typeId="unlockminutes">
 				<label>Unlock Minutes</label>
+			</channel>
+			<channel id="doorthumbnail" typeId="doorthumbnail">
+				<label>Door Thumbnail</label>
 			</channel>
 		</channels>
 		<config-description>
-			<parameter name="doorId" type="text" required="true">
+			<parameter name="deviceId" type="text" required="true">
 				<label>Door ID</label>
 			</parameter>
 		</config-description>
@@ -103,14 +89,14 @@
 		<category>Lock</category>
 	</channel-type>
 
-	<channel-type id="door-position">
+	<channel-type id="doorposition">
 		<item-type>Contact</item-type>
 		<label>Door Position</label>
 		<category>Door</category>
 		<state readOnly="true"/>
 	</channel-type>
 
-	<channel-type id="lock-rule">
+	<channel-type id="lockrule">
 		<item-type>String</item-type>
 		<label>Lock Rule</label>
 		<state readOnly="true">
@@ -123,36 +109,41 @@
 		</state>
 	</channel-type>
 
-	<channel-type id="last-unlock">
+	<channel-type id="lastunlock">
 		<item-type>DateTime</item-type>
 		<label>Last Unlock</label>
 		<category>Time</category>
 		<state readOnly="true"/>
 	</channel-type>
 
-	<channel-type id="last-actor">
+	<channel-type id="lastactor">
 		<item-type>String</item-type>
 		<label>Last Actor</label>
 		<state readOnly="true"/>
 	</channel-type>
 
-	<channel-type id="keep-unlocked">
+	<channel-type id="keepunlocked">
 		<item-type>Switch</item-type>
 		<label>Keep Unlocked</label>
 		<category>Switch</category>
 	</channel-type>
 
-	<channel-type id="keep-locked">
+	<channel-type id="keeplocked">
 		<item-type>Switch</item-type>
 		<label>Keep Locked</label>
 		<category>Switch</category>
 	</channel-type>
 
-	<channel-type id="unlock-minutes">
+	<channel-type id="unlockminutes">
 		<item-type>Number:Time</item-type>
 		<label>Unlock Minutes</label>
 		<category>Time</category>
 		<state pattern="%d min"/>
 	</channel-type>
 
+	<channel-type id="doorthumbnail">
+		<item-type>Image</item-type>
+		<label>Door Thumbnail</label>
+		<category>Door</category>
+	</channel-type>
 </thing:thing-descriptions>
