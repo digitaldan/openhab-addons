@@ -16,7 +16,11 @@ import java.io.Closeable;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -25,6 +29,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.api.Request;
@@ -69,6 +75,7 @@ import com.google.gson.reflect.TypeToken;
  *
  * @author Dan Cunningham - Initial contribution
  */
+@NonNullByDefault
 public final class UniFiAccessApiClient implements Closeable {
 
     private Logger logger = LoggerFactory.getLogger(UniFiAccessApiClient.class);
@@ -79,10 +86,10 @@ public final class UniFiAccessApiClient implements Closeable {
     private final Gson gson;
     private final Map<String, String> defaultHeaders;
     private final WebSocketClient wsClient;
-    private Session wsSession;
+    private @Nullable Session wsSession;
     private long lastHeartbeatEpochMs;
-    private ScheduledExecutorService wsMonitorExecutor;
-    private ScheduledFuture<?> wsMonitorFuture;
+    private @Nullable ScheduledExecutorService wsMonitorExecutor;
+    private @Nullable ScheduledFuture<?> wsMonitorFuture;
 
     public UniFiAccessApiClient(HttpClient httpClient, URI base, Gson gson, String token) {
         this.httpClient = httpClient;
@@ -95,6 +102,11 @@ public final class UniFiAccessApiClient implements Closeable {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to start Jetty ws client", e);
         }
+        wsMonitorExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "UA-WebSocket-Monitor");
+            t.setDaemon(true);
+            return t;
+        });
     }
 
     @Override
@@ -119,42 +131,42 @@ public final class UniFiAccessApiClient implements Closeable {
         stopWsMonitor();
     }
 
-    public List<User> getUsers() {
+    public List<User> getUsers() throws UniFiAccessParseException {
         Type wrapped = TypeToken
                 .getParameterized(ApiResponse.class, TypeToken.getParameterized(List.class, User.class).getType())
                 .getType();
         Type raw = TypeToken.getParameterized(List.class, User.class).getType();
         ContentResponse resp = execGet("/users");
         ensure2xx(resp, "getUsers");
-        return parseMaybeWrapped(resp.getContentAsString(), wrapped, raw, "getUsers");
+        return requireData(parseMaybeWrapped(resp.getContentAsString(), wrapped, raw, "getUsers"), "getUsers");
     }
 
-    public User getUser(String userId) {
+    public User getUser(String userId) throws UniFiAccessParseException {
         Objects.requireNonNull(userId, "userId");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, User.class).getType();
         ContentResponse resp = execGet("/users/" + userId);
         ensure2xx(resp, "getUser");
         ApiResponse<User> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "getUser");
     }
 
-    public Visitor createVisitor(Visitor payload) {
+    public Visitor createVisitor(Visitor payload) throws UniFiAccessParseException {
         Objects.requireNonNull(payload, "payload");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, Visitor.class).getType();
         ContentResponse resp = execPost("/visitors", payload);
         ensure2xx(resp, "createVisitor");
         ApiResponse<Visitor> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "createVisitor");
     }
 
-    public Visitor updateVisitor(String visitorId, Visitor payload) {
+    public Visitor updateVisitor(String visitorId, Visitor payload) throws UniFiAccessParseException {
         Objects.requireNonNull(visitorId, "visitorId");
         Objects.requireNonNull(payload, "payload");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, Visitor.class).getType();
         ContentResponse resp = execPut("/visitors/" + visitorId, payload);
         ensure2xx(resp, "updateVisitor");
         ApiResponse<Visitor> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "updateVisitor");
     }
 
     public void deleteVisitor(String visitorId) {
@@ -163,63 +175,65 @@ public final class UniFiAccessApiClient implements Closeable {
         ensure2xx(resp, "deleteVisitor");
     }
 
-    public List<AccessPolicy> getAccessPolicies() {
+    public List<AccessPolicy> getAccessPolicies() throws UniFiAccessParseException {
         Type wrapped = TypeToken.getParameterized(ApiResponse.class,
                 TypeToken.getParameterized(List.class, AccessPolicy.class).getType()).getType();
         Type raw = TypeToken.getParameterized(List.class, AccessPolicy.class).getType();
         ContentResponse resp = execGet("/access-policies");
         ensure2xx(resp, "getAccessPolicies");
-        return parseMaybeWrapped(resp.getContentAsString(), wrapped, raw, "getAccessPolicies");
+        return requireData(parseMaybeWrapped(resp.getContentAsString(), wrapped, raw, "getAccessPolicies"),
+                "getAccessPolicies");
     }
 
-    public AccessPolicy createAccessPolicy(AccessPolicy policy) {
+    public AccessPolicy createAccessPolicy(AccessPolicy policy) throws UniFiAccessParseException {
         Objects.requireNonNull(policy, "policy");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, AccessPolicy.class).getType();
         ContentResponse resp = execPost("/access-policies", policy);
         ensure2xx(resp, "createAccessPolicy");
         ApiResponse<AccessPolicy> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "createAccessPolicy");
     }
 
-    public AccessPolicy updateAccessPolicy(String policyId, AccessPolicy policy) {
+    public AccessPolicy updateAccessPolicy(String policyId, AccessPolicy policy) throws UniFiAccessParseException {
         Objects.requireNonNull(policyId, "policyId");
         Objects.requireNonNull(policy, "policy");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, AccessPolicy.class).getType();
         ContentResponse resp = execPut("/access-policies/" + policyId, policy);
         ensure2xx(resp, "updateAccessPolicy");
         ApiResponse<AccessPolicy> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "updateAccessPolicy");
     }
 
-    public AccessPolicySchedule createSchedule(AccessPolicySchedule schedule) {
+    public AccessPolicySchedule createSchedule(AccessPolicySchedule schedule) throws UniFiAccessParseException {
         Objects.requireNonNull(schedule, "schedule");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, AccessPolicySchedule.class).getType();
         ContentResponse resp = execPost("/schedules", schedule);
         ensure2xx(resp, "createSchedule");
         ApiResponse<AccessPolicySchedule> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "createSchedule");
     }
 
-    public AccessPolicySchedule updateSchedule(String scheduleId, AccessPolicySchedule schedule) {
+    public AccessPolicySchedule updateSchedule(String scheduleId, AccessPolicySchedule schedule)
+            throws UniFiAccessParseException {
         Objects.requireNonNull(scheduleId, "scheduleId");
         Objects.requireNonNull(schedule, "schedule");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, AccessPolicySchedule.class).getType();
         ContentResponse resp = execPut("/schedules/" + scheduleId, schedule);
         ensure2xx(resp, "updateSchedule");
         ApiResponse<AccessPolicySchedule> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "updateSchedule");
     }
 
-    public AccessPolicyHolidayGroup createHolidayGroup(AccessPolicyHolidayGroup hg) {
+    public AccessPolicyHolidayGroup createHolidayGroup(AccessPolicyHolidayGroup hg) throws UniFiAccessParseException {
         Objects.requireNonNull(hg, "holidayGroup");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, AccessPolicyHolidayGroup.class).getType();
         ContentResponse resp = execPost("/holiday-groups", hg);
         ensure2xx(resp, "createHolidayGroup");
         ApiResponse<AccessPolicyHolidayGroup> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "createHolidayGroup");
     }
 
-    public List<Device> getDevices() {
+    public List<Device> getDevices() throws UniFiAccessParseException {
         Type wrapped = TypeToken
                 .getParameterized(ApiResponse.class, TypeToken.getParameterized(List.class, Device.class).getType())
                 .getType();
@@ -230,22 +244,22 @@ public final class UniFiAccessApiClient implements Closeable {
         return parseListMaybeWrappedWithKeys(json, wrapped, raw, "getDevices", "devices");
     }
 
-    public DeviceAccessMethodSettings getDeviceAccessMethodSettings(String deviceId) {
+    public DeviceAccessMethodSettings getDeviceAccessMethodSettings(String deviceId) throws UniFiAccessParseException {
         Objects.requireNonNull(deviceId, "deviceId");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, DeviceAccessMethodSettings.class).getType();
         ContentResponse resp = execGet("/devices/" + deviceId + "/settings");
         ensure2xx(resp, "getDeviceAccessMethodSettings");
         ApiResponse<DeviceAccessMethodSettings> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "getDeviceAccessMethodSettings");
     }
 
-    public DoorEmergencySettings getDoorEmergencySettings(String doorId) {
+    public DoorEmergencySettings getDoorEmergencySettings(String doorId) throws UniFiAccessParseException {
         Objects.requireNonNull(doorId, "doorId");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, DoorEmergencySettings.class).getType();
         ContentResponse resp = execGet("/doors/" + doorId + "/settings/emergency");
         ensure2xx(resp, "getDoorEmergencySettings");
         ApiResponse<DoorEmergencySettings> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "getDoorEmergencySettings");
     }
 
     public void setDoorEmergencySettings(String doorId, DoorEmergencySettings settings) {
@@ -258,21 +272,21 @@ public final class UniFiAccessApiClient implements Closeable {
     /**
      * Starts a card enrollment session; returns session id/metadata.
      */
-    public NfcEnrollSession createNfcEnrollSession() {
+    public NfcEnrollSession createNfcEnrollSession() throws UniFiAccessParseException {
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, NfcEnrollSession.class).getType();
         ContentResponse resp = execPost("/nfc/enroll/session", Map.of());
         ensure2xx(resp, "createNfcEnrollSession");
         ApiResponse<NfcEnrollSession> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "createNfcEnrollSession");
     }
 
-    public NfcEnrollStatus getNfcEnrollStatus(String sessionId) {
+    public NfcEnrollStatus getNfcEnrollStatus(String sessionId) throws UniFiAccessParseException {
         Objects.requireNonNull(sessionId, "sessionId");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, NfcEnrollStatus.class).getType();
         ContentResponse resp = execGet("/nfc/enroll/session/" + sessionId);
         ensure2xx(resp, "getNfcEnrollStatus");
         ApiResponse<NfcEnrollStatus> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "getNfcEnrollStatus");
     }
 
     public void deleteNfcEnrollSession(String sessionId) {
@@ -281,22 +295,22 @@ public final class UniFiAccessApiClient implements Closeable {
         ensure2xx(resp, "deleteNfcEnrollSession");
     }
 
-    public List<WebhookEndpoint> listWebhooks() {
+    public List<WebhookEndpoint> listWebhooks() throws UniFiAccessParseException {
         Type wrapped = TypeToken.getParameterized(ApiResponse.class,
                 TypeToken.getParameterized(List.class, WebhookEndpoint.class).getType()).getType();
         Type raw = TypeToken.getParameterized(List.class, WebhookEndpoint.class).getType();
         ContentResponse resp = execGet("/webhooks");
         ensure2xx(resp, "listWebhooks");
-        return parseMaybeWrapped(resp.getContentAsString(), wrapped, raw, "listWebhooks");
+        return requireData(parseMaybeWrapped(resp.getContentAsString(), wrapped, raw, "listWebhooks"), "listWebhooks");
     }
 
-    public WebhookEndpoint createWebhook(WebhookEndpoint endpoint) {
+    public WebhookEndpoint createWebhook(WebhookEndpoint endpoint) throws UniFiAccessParseException {
         Objects.requireNonNull(endpoint, "endpoint");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, WebhookEndpoint.class).getType();
         ContentResponse resp = execPost("/webhooks", endpoint);
         ensure2xx(resp, "createWebhook");
         ApiResponse<WebhookEndpoint> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "createWebhook");
     }
 
     public void deleteWebhook(String webhookId) {
@@ -305,7 +319,7 @@ public final class UniFiAccessApiClient implements Closeable {
         ensure2xx(resp, "deleteWebhook");
     }
 
-    public List<Door> getDoors() {
+    public List<Door> getDoors() throws UniFiAccessParseException {
         var wrapped = com.google.gson.reflect.TypeToken
                 .getParameterized(ApiResponse.class, TypeToken.getParameterized(List.class, Door.class).getType())
                 .getType();
@@ -316,62 +330,69 @@ public final class UniFiAccessApiClient implements Closeable {
         return parseListMaybeWrappedWithKeys(json, wrapped, raw, "getDoors", "doors");
     }
 
-    public Door getDoor(String doorId) {
+    public Door getDoor(String doorId) throws UniFiAccessParseException {
         Objects.requireNonNull(doorId, "doorId");
         var wrapped = TypeToken.getParameterized(ApiResponse.class, Door.class).getType();
         var resp = execGet("/doors/" + doorId);
         ensure2xx(resp, "getDoor");
         ApiResponse<Door> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar != null ? ar.data : null;
+        return requireData(ar == null ? null : ar.data, "getDoor");
     }
 
     /**
      * Remote unlock: optionally provide actor id/name and arbitrary passthrough
      * "extra".
      */
-    public boolean unlockDoor(String doorId, DoorUnlockRequest body) {
+    public boolean unlockDoor(String doorId, DoorUnlockRequest body) throws UniFiAccessParseException {
         Objects.requireNonNull(doorId, "doorId");
         var resp = execPut("/doors/" + doorId + "/unlock", body == null ? new HashMap<>() : body);
         ensure2xx(resp, "unlockDoor");
         var wrapped = TypeToken.getParameterized(ApiResponse.class, Object.class).getType();
         ApiResponse<?> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar == null || ar.isSuccess();
+        if (ar == null) {
+            throw new UniFiAccessParseException("Missing or null response data for unlockDoor", null);
+        }
+        return ar.isSuccess();
     }
 
-    public boolean unlockDoor(String doorId, String actorId, String actorName, Map<String, Object> extra) {
+    public boolean unlockDoor(String doorId, @Nullable String actorId, @Nullable String actorName,
+            @Nullable Map<String, Object> extra) throws UniFiAccessParseException {
         return unlockDoor(doorId, new DoorUnlockRequest(actorId, actorName, extra));
     }
 
-    public boolean setDoorLockRule(String doorId, DoorLockRule rule) {
+    public boolean setDoorLockRule(String doorId, DoorLockRule rule) throws UniFiAccessParseException {
         Objects.requireNonNull(doorId, "doorId");
         Objects.requireNonNull(rule, "rule");
         var resp = execPut("/doors/" + doorId + "/lock_rule", rule);
         ensure2xx(resp, "setDoorLockRule");
         var wrapped = TypeToken.getParameterized(ApiResponse.class, Object.class).getType();
         ApiResponse<?> ar = gson.fromJson(resp.getContentAsString(), wrapped);
-        return ar == null || ar.isSuccess();
+        if (ar == null) {
+            throw new UniFiAccessParseException("Missing or null response data for setDoorLockRule", null);
+        }
+        return ar.isSuccess();
     }
 
-    public boolean keepDoorUnlocked(String doorId) {
+    public boolean keepDoorUnlocked(String doorId) throws UniFiAccessParseException {
         return setDoorLockRule(doorId, DoorLockRule.keepUnlock());
     }
 
-    public boolean keepDoorLocked(String doorId) {
+    public boolean keepDoorLocked(String doorId) throws UniFiAccessParseException {
         return setDoorLockRule(doorId, DoorLockRule.keepLock());
     }
 
-    public boolean unlockForMinutes(String doorId, int minutes) {
+    public boolean unlockForMinutes(String doorId, int minutes) throws UniFiAccessParseException {
         if (minutes <= 0)
             throw new IllegalArgumentException("minutes must be > 0");
         return setDoorLockRule(doorId, DoorLockRule.customMinutes(minutes));
     }
 
-    public boolean resetDoorLockRule(String doorId) {
+    public boolean resetDoorLockRule(String doorId) throws UniFiAccessParseException {
         return setDoorLockRule(doorId, DoorLockRule.reset());
     }
 
     /** End an active keep-unlock/custom early (lock immediately). */
-    public boolean lockEarly(String doorId) {
+    public boolean lockEarly(String doorId) throws UniFiAccessParseException {
         return setDoorLockRule(doorId, DoorLockRule.lockEarly());
     }
 
@@ -398,6 +419,7 @@ public final class UniFiAccessApiClient implements Closeable {
 
             WebSocketAdapter socket = new WebSocketAdapter() {
                 @Override
+                @NonNullByDefault({})
                 public void onWebSocketConnect(Session sess) {
                     super.onWebSocketConnect(sess);
                     logger.info("Notifications WebSocket connected: {}", wsUri);
@@ -410,6 +432,7 @@ public final class UniFiAccessApiClient implements Closeable {
                 }
 
                 @Override
+                @NonNullByDefault({})
                 public void onWebSocketText(String message) {
                     try {
                         if (message != null && !message.isEmpty()) {
@@ -435,6 +458,7 @@ public final class UniFiAccessApiClient implements Closeable {
                 }
 
                 @Override
+                @NonNullByDefault({})
                 public void onWebSocketError(Throwable cause) {
                     logger.warn("Notifications WebSocket error: {}", cause.getMessage(), cause);
                     try {
@@ -444,14 +468,11 @@ public final class UniFiAccessApiClient implements Closeable {
                 }
 
                 @Override
+                @NonNullByDefault({})
                 public void onWebSocketClose(int statusCode, String reason) {
                     logger.info("Notifications WebSocket closed: {} - {}", statusCode, reason);
                     try {
                         onClosed.accept(statusCode, reason);
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        wsSession = null;
                     } catch (Exception ignored) {
                     }
                 }
@@ -464,7 +485,7 @@ public final class UniFiAccessApiClient implements Closeable {
         }
     }
 
-    private Request newRequest(HttpMethod method, String path, Consumer<Request> customizer) {
+    private Request newRequest(HttpMethod method, String path, @Nullable Consumer<Request> customizer) {
         URI uri;
         if (path.startsWith("//")) {
             uri = base.resolve(path.substring(1));
@@ -512,12 +533,13 @@ public final class UniFiAccessApiClient implements Closeable {
      */
     private <T> T parseMaybeWrapped(String json, Type wrappedType, Type rawType, String action) {
         if (json == null || json.isBlank()) {
-            return null;
+            throw new UniFiAccessParseException("Failed to parse response for " + action + ": null or blank JSON",
+                    null);
         }
         try {
             // Try wrapped first
             ApiResponse<T> wrapped = gson.fromJson(json, wrappedType);
-            if (wrapped != null && (wrapped.data != null || wrapped.msg != null || wrapped.code != null)) {
+            if (wrapped != null && (wrapped.data != null)) {
                 return wrapped.data;
             }
         } catch (Exception ignored) {
@@ -532,6 +554,16 @@ public final class UniFiAccessApiClient implements Closeable {
 
     private String toJson(Object body) {
         return (body == null) ? "" : gson.toJson(body);
+    }
+
+    /**
+     * Ensure parsed response data is non-null or throw a parse exception.
+     */
+    private <T> T requireData(@Nullable T data, String action) {
+        if (data == null) {
+            throw new UniFiAccessParseException("Missing or null response data for " + action, null);
+        }
+        return data;
     }
 
     /**
@@ -553,7 +585,7 @@ public final class UniFiAccessApiClient implements Closeable {
         try {
             ApiResponse<List<E>> wrapped = gson.fromJson(json, wrappedListType);
             if (wrapped != null && wrapped.data != null && !wrapped.data.isEmpty()) {
-                return wrapped.data;
+                return Objects.requireNonNull(wrapped.data);
             }
             // If code/msg present but empty data, still accept empty list
             if (wrapped != null && (wrapped.msg != null || wrapped.code != null) && wrapped.data == null) {
@@ -567,13 +599,13 @@ public final class UniFiAccessApiClient implements Closeable {
             JsonElement root = JsonParser.parseString(json);
             if (root.isJsonArray()) {
                 JsonElement flat = flattenArrayIfNeeded(root.getAsJsonArray());
-                return gson.fromJson(flat, rawListType);
+                return nullToEmptyList(gson.fromJson(flat, rawListType));
             }
 
             if (root.isJsonObject()) {
                 JsonObject obj = root.getAsJsonObject();
 
-                Function<JsonElement, List<E>> parseArray = je -> gson.fromJson(je, rawListType);
+                Function<JsonElement, @Nullable List<E>> parseArray = je -> gson.fromJson(je, rawListType);
                 String[] arrayKeys = new String[] { "list", "items", "records", "rows" };
 
                 // Containers such as data/result/payload
@@ -584,7 +616,7 @@ public final class UniFiAccessApiClient implements Closeable {
                     JsonElement data = obj.get(container);
                     if (data.isJsonArray()) {
                         JsonElement flat = flattenArrayIfNeeded(data.getAsJsonArray());
-                        return parseArray.apply(flat);
+                        return nullToEmptyList(parseArray.apply(flat));
                     }
                     if (data.isJsonObject()) {
                         JsonObject dObj = data.getAsJsonObject();
@@ -592,7 +624,7 @@ public final class UniFiAccessApiClient implements Closeable {
                         for (String k : arrayKeys) {
                             if (dObj.has(k) && dObj.get(k).isJsonArray()) {
                                 JsonElement flat = flattenArrayIfNeeded(dObj.get(k).getAsJsonArray());
-                                return parseArray.apply(flat);
+                                return nullToEmptyList(parseArray.apply(flat));
                             }
                         }
                         // altArrayKeys under container (e.g., devices)
@@ -604,14 +636,14 @@ public final class UniFiAccessApiClient implements Closeable {
                                 JsonElement alt = dObj.get(key);
                                 if (alt.isJsonArray()) {
                                     JsonElement flat = flattenArrayIfNeeded(alt.getAsJsonArray());
-                                    return parseArray.apply(flat);
+                                    return nullToEmptyList(parseArray.apply(flat));
                                 }
                                 if (alt.isJsonObject()) {
                                     JsonObject aObj = alt.getAsJsonObject();
                                     for (String k : arrayKeys) {
                                         if (aObj.has(k) && aObj.get(k).isJsonArray()) {
                                             JsonElement flat = flattenArrayIfNeeded(aObj.get(k).getAsJsonArray());
-                                            return parseArray.apply(flat);
+                                            return nullToEmptyList(parseArray.apply(flat));
                                         }
                                     }
                                 }
@@ -621,7 +653,7 @@ public final class UniFiAccessApiClient implements Closeable {
                         for (var entry : dObj.entrySet()) {
                             if (entry.getValue().isJsonArray()) {
                                 JsonElement flat = flattenArrayIfNeeded(entry.getValue().getAsJsonArray());
-                                return parseArray.apply(flat);
+                                return nullToEmptyList(parseArray.apply(flat));
                             }
                         }
                     }
@@ -636,20 +668,20 @@ public final class UniFiAccessApiClient implements Closeable {
                         JsonElement alt = obj.get(key);
                         if (alt.isJsonArray()) {
                             JsonElement flat = flattenArrayIfNeeded(alt.getAsJsonArray());
-                            return parseArray.apply(flat);
+                            return nullToEmptyList(parseArray.apply(flat));
                         }
                         if (alt.isJsonObject()) {
                             JsonObject aObj = alt.getAsJsonObject();
                             for (String k : arrayKeys) {
                                 if (aObj.has(k) && aObj.get(k).isJsonArray()) {
                                     JsonElement flat = flattenArrayIfNeeded(aObj.get(k).getAsJsonArray());
-                                    return parseArray.apply(flat);
+                                    return nullToEmptyList(parseArray.apply(flat));
                                 }
                             }
                             for (var entry : aObj.entrySet()) {
                                 if (entry.getValue().isJsonArray()) {
                                     JsonElement flat = flattenArrayIfNeeded(entry.getValue().getAsJsonArray());
-                                    return parseArray.apply(flat);
+                                    return nullToEmptyList(parseArray.apply(flat));
                                 }
                             }
                         }
@@ -660,7 +692,7 @@ public final class UniFiAccessApiClient implements Closeable {
                 for (var entry : obj.entrySet()) {
                     if (entry.getValue().isJsonArray()) {
                         JsonElement flat = flattenArrayIfNeeded(entry.getValue().getAsJsonArray());
-                        return parseArray.apply(flat);
+                        return nullToEmptyList(parseArray.apply(flat));
                     }
                 }
             }
@@ -700,6 +732,10 @@ public final class UniFiAccessApiClient implements Closeable {
             }
         }
         return flat;
+    }
+
+    private static <E> List<E> nullToEmptyList(@Nullable List<E> list) {
+        return list == null ? Collections.emptyList() : list;
     }
 
     private ContentResponse execGet(String path) {
@@ -760,15 +796,17 @@ public final class UniFiAccessApiClient implements Closeable {
     }
 
     private synchronized void startWsMonitor() {
-        if (wsMonitorExecutor == null) {
-            wsMonitorExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-                Thread t = new Thread(r, "UA-WebSocket-Monitor");
-                t.setDaemon(true);
-                return t;
-            });
-        }
-        if (wsMonitorFuture == null || wsMonitorFuture.isCancelled()) {
-            wsMonitorFuture = wsMonitorExecutor.scheduleAtFixedRate(() -> {
+        if (wsMonitorFuture == null || (wsMonitorFuture != null && wsMonitorFuture.isCancelled())) {
+            ScheduledExecutorService ex = wsMonitorExecutor;
+            if (ex == null) {
+                ex = Executors.newSingleThreadScheduledExecutor(r -> {
+                    Thread t = new Thread(r, "UA-WebSocket-Monitor");
+                    t.setDaemon(true);
+                    return t;
+                });
+                wsMonitorExecutor = ex;
+            }
+            wsMonitorFuture = ex.scheduleAtFixedRate(() -> {
                 try {
                     Session s = wsSession;
                     if (s != null && s.isOpen()) {
@@ -800,11 +838,12 @@ public final class UniFiAccessApiClient implements Closeable {
         } catch (Exception ignored) {
         }
         try {
+            @Nullable
             ScheduledExecutorService ex = wsMonitorExecutor;
             if (ex != null) {
                 ex.shutdownNow();
-                wsMonitorExecutor = null;
             }
+            wsMonitorExecutor = null;
         } catch (Exception ignored) {
         }
     }

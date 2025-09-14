@@ -32,7 +32,6 @@ public class ApiResponse<T> {
         return code == ApiResponseCode.SUCCESS;
     }
 
-    /** Non-empty, human-friendly message (falls back to an empty string). */
     public String messageOrEmpty() {
         return msg == null ? "" : msg;
     }

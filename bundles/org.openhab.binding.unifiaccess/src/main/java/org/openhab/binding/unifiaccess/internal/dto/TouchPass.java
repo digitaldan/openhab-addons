@@ -50,7 +50,6 @@ public class TouchPass {
     @SerializedName("user_status")
     public UserStatus userStatus;
     public List<Bundle> bundles;
-    /* ----------------- Enums ----------------- */
 
     public enum Status {
         @SerializedName("ACTIVE")
@@ -102,14 +101,10 @@ public class TouchPass {
         APPLE
     }
 
-    /* ----------------- Helpers ----------------- */
-
-    /** Parse {@code last_activity} to an Instant (null if absent/unparseable). */
     public Instant lastActivityInstant() {
         return UaTime.parseInstant(lastActivity);
     }
 
-    /** True if the Touch Pass is currently linked to a user. */
     public boolean isLinked() {
         return userStatus != null && userStatus != UserStatus.UNLINK;
     }

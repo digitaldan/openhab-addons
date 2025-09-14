@@ -13,11 +13,8 @@
 package org.openhab.binding.unifiaccess.internal.dto;
 
 /**
- * NFC Card model (Section 6.6 "NFC Card Schemas").
- *
- * <p>
+ * NFC Card model.
  * Represents a single NFC card and its assignment to a user.
- * </p>
  *
  * @author Dan Cunningham - Initial contribution
  */
@@ -32,7 +29,6 @@ public class NfcCard {
     public String userId;
     public String userType;
 
-    /** Lightweight user view embedded in NFC card fetch responses. */
     public static class UserSummary {
         public String firstName;
         public String id;

@@ -12,8 +12,6 @@
  */
 package org.openhab.binding.unifiaccess.internal.handler;
 
-import static org.openhab.binding.unifiaccess.internal.UnifiAccessBindingConstants.*;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

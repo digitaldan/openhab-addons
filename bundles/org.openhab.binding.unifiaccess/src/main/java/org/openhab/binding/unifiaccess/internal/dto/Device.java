@@ -13,12 +13,7 @@
 package org.openhab.binding.unifiaccess.internal.dto;
 
 /**
- * Device (Section 8 "Device"): basic identity for Access devices.
- *
- * <p>
- * Returned by <code>/api/v1/developer/devices</code> with
- * <code>alias</code>, <code>id</code>, <code>name</code>, and <code>type</code>.
- * </p>
+ * Device details
  *
  * @author Dan Cunningham - Initial contribution
  */

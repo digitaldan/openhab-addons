@@ -19,15 +19,6 @@ import org.eclipse.jdt.annotation.Nullable;
 /**
  * Generic Webhook event envelope with typed {@code data}.
  *
- * <p>
- * Use as WebhookEvent&lt;YourEventData&gt;. For example:
- * {@code WebhookEvent<WebhookEvent.DoorUnlockEventData>}.
- * </p>
- *
- * <p>
- * Event names commonly look like "access.door.unlock", etc.
- * </p>
- *
  * @author Dan Cunningham - Initial contribution
  */
 public class WebhookEvent<T> {
@@ -52,22 +43,10 @@ public class WebhookEvent<T> {
      */
     public String createdAt;
 
-    /** Null-safe Instant conversion for {@code created_at} if provided. */
     public Instant eventInstant() {
         return UaTime.parseInstant(createdAt);
     }
 
-    /** True if the backend indicates this was persisted. */
-    public boolean isPersisted() {
-        return Boolean.TRUE.equals(saveToHistory);
-    }
-
-    /* ===================== Common Event Data Shapes ===================== */
-
-    /**
-     * Example payload for door unlock events.
-     * Use as {@code WebhookEvent<WebhookEvent.DoorUnlockEventData>}.
-     */
     public static class DoorUnlockEventData {
         public Location location;
         public Device device;
@@ -75,14 +54,12 @@ public class WebhookEvent<T> {
         public String startTime;
         public String time;
 
-        /** Instant view of the event time (tries start_time, then time). */
         public Instant startInstant() {
             Instant i = UaTime.parseInstant(startTime);
             return (i != null) ? i : UaTime.parseInstant(time);
         }
     }
 
-    /** Minimal location summary included in some events. */
     public static class Location {
         public String id;
         public String locationType; // e.g., "door"
@@ -91,12 +68,10 @@ public class WebhookEvent<T> {
         public Extras extras;
     }
 
-    /** Optional extras bag (fields vary by event). */
     public static class Extras {
         public String doorThumbnail;
     }
 
-    /** Minimal device summary commonly sent with events. */
     public static class Device {
         public String id;
         public String name;
@@ -107,7 +82,6 @@ public class WebhookEvent<T> {
         public String version;
         public String startTime;
 
-        /** Convert device boot/start time to Instant when available. */
         public Instant startInstant() {
             return UaTime.parseInstant(startTime);
         }

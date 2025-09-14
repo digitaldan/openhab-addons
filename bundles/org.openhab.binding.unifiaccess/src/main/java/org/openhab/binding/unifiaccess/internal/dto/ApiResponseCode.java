@@ -91,7 +91,7 @@ public enum ApiResponseCode {
     // Others / migration related
     CODE_OTHERS_UID_ADOPTED_NOT_SUPPORTED("The API is not available after upgrading to Identity Enterprise."),
 
-    /** Unknown/Unrecognized code (keeps forward compatibility). */
+    /** Unknown/Unrecognized code */
     UNKNOWN("Unknown");
 
     private final String description;
@@ -100,17 +100,14 @@ public enum ApiResponseCode {
         this.description = description;
     }
 
-    /** Returns the exact API code string (same as enum name). */
     public String code() {
         return name();
     }
 
-    /** Returns the stable, human-readable description. */
     public String description() {
         return description;
     }
 
-    /** Gson adapter to serialize/deserialize codes by exact API string, with UNKNOWN fallback. */
     public static final class Adapter implements JsonDeserializer<ApiResponseCode>, JsonSerializer<ApiResponseCode> {
         @Override
         public ApiResponseCode deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)

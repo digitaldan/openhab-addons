@@ -32,11 +32,6 @@ import com.google.gson.annotations.SerializedName;
 
 /**
  * Notification envelope for UniFi Access WebSocket stream.
- *
- * <p>
- * The {@code data} payload varies by {@code event}. Helpers are provided to
- * convert
- * the raw {@link #data} to typed records for known events.
  * 
  * @author Dan Cunningham - Initial contribution
  */
@@ -114,7 +109,6 @@ public class Notification {
                 return UNKNOWN;
             }
 
-            /** Gson adapter to map numeric reason codes to enum and back. */
             public static final class Adapter implements JsonDeserializer<Reason>, JsonSerializer<Reason> {
                 @Override
                 public Reason deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
@@ -153,7 +147,6 @@ public class Notification {
         public Map<String, Object> extras;
     }
 
-    /** Generic converter for {@code data} to a specific type. */
     public <T> @Nullable T dataAs(Gson gson, Class<T> type) {
         if (data == null || !data.isJsonObject()) {
             return null;
@@ -359,8 +352,6 @@ public class Notification {
         public JsonElement cap;
         public List<LocationState> locationStates;
         public List<String> category;
-
-        /* Lock and door position enums moved to DoorState for reuse */
     }
 
     /** access.data.v2.location.update payload (partial). */

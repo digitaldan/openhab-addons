@@ -49,7 +49,6 @@ public class AccessPolicySchedule {
             }
             return false;
         }
-        // Weekly schedule
         final WeekSchedule ws = weekly;
         if (ws == null)
             return false;

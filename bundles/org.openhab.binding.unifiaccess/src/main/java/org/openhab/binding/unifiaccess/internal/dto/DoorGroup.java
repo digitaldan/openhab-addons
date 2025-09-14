@@ -32,10 +32,8 @@ public class DoorGroup {
      */
     public String type;
 
-    /** Doors assigned to this group. */
     public List<Resource> resources;
 
-    /** A door resource referenced by a group. */
     public static class Resource {
         public String id;
         public String name;
@@ -43,7 +41,6 @@ public class DoorGroup {
         public String type;
     }
 
-    /** Convenience: true if the group has at least one door. */
     public boolean hasDoors() {
         return resources != null && !resources.isEmpty();
     }

@@ -13,8 +13,8 @@
 package org.openhab.binding.unifiaccess.internal.dto;
 
 /**
- * Door detail (from /api/v1/developer/doors/:id).
- *
+ * Door detail
+ * 
  * @author Dan Cunningham - Initial contribution
  */
 public class Door {

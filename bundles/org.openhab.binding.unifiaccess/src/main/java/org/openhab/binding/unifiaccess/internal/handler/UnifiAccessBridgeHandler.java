@@ -57,8 +57,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 /**
- * Bridge handler that manages the UniFi Access API client, background polling,
- * and webhook servlet registration.
+ * Bridge handler that manages the UniFi Access API client
  * 
  * @author Dan Cunningham - Initial contribution
  */
@@ -69,7 +68,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
     private static final int DEFAULT_PORT = 12445;
     private static final String DEFAULT_PATH = "/api/v1/developer";
     private final Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-    .create();
+            .create();
     private final HttpClient httpClient;
     private @Nullable UniFiAccessApiClient apiClient;
     private UnifiAccessBridgeConfiguration config = new UnifiAccessBridgeConfiguration();
@@ -112,7 +111,6 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
 
     @Override
     public void dispose() {
-        // Close notifications WebSocket
         try {
             UniFiAccessApiClient client = this.apiClient;
             if (client != null) {
@@ -121,8 +119,6 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         } catch (Exception e) {
             logger.debug("Failed to close notifications WebSocket: {}", e.getMessage());
         }
-
-        // Cancel any pending reconnect task
         cancelReconnect();
         if (httpClient != null) {
             try {
@@ -152,7 +148,6 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
     }
 
     private void connect() {
-        // Start WebSocket notifications (best-effort)
         UniFiAccessApiClient client = this.apiClient;
         if (client != null) {
             try {
@@ -163,7 +158,6 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                 }, notification -> {
 
                     logger.debug("Notification event: {} data: {}", notification.event, notification.data);
-                    // Basic typed parsing for known events
                     try {
                         switch (notification.event) {
                             // When a doorbell rings
@@ -187,7 +181,6 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                                 break;
                             case "access.data.v2.device.update":
                                 DeviceUpdateV2Data du2 = notification.dataAsDeviceUpdateV2(gson);
-
                                 try {
                                     handleDeviceUpdateV2(du2);
                                 } catch (Exception ex) {
@@ -241,12 +234,14 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         this.discoveryService = discoveryService;
     }
 
-    private void setOfflineAndReconnect(String message) {
+    private void setOfflineAndReconnect(@Nullable String message) {
+        ScheduledFuture<?> reconnectFuture = this.reconnectFuture;
         if (reconnectFuture != null && !reconnectFuture.isDone()) {
             return;
         }
-        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, message);
-        reconnectFuture = scheduler.schedule(() -> {
+        String msg = message != null ? message : "Unknown error";
+        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, msg);
+        this.reconnectFuture = scheduler.schedule(() -> {
             try {
                 connect();
             } catch (Exception ex) {
@@ -279,7 +274,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                 discoveryService.discoverDoors(doors);
             }
             logger.trace("Polled UniFi Access: {} doors", doors != null ? doors.size() : 0);
-            if (doors != null && !doors.isEmpty()) {
+            if (doors.isEmpty()) {
                 for (Thing t : getThing().getThings()) {
                     if (UnifiAccessBindingConstants.DOOR_THING_TYPE.equals(t.getThingTypeUID())) {
                         if (t.getHandler() instanceof UnifiAccessDoorHandler dh) {
@@ -319,10 +314,6 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
     }
 
     private void handleDeviceUpdateV2(Notification.DeviceUpdateV2Data updateData) {
-        if (updateData == null || updateData.locationStates == null || updateData.locationStates.isEmpty()) {
-            return;
-        }
-        // du2.name is device name; ls.locationId corresponds to door id
         LocationState ls = updateData.locationStates.getFirst();
         UnifiAccessDoorHandler dh = getDoorHandler(ls.locationId);
         if (dh != null) {

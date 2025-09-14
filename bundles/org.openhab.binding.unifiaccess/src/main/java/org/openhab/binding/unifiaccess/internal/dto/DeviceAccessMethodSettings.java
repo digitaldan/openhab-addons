@@ -15,12 +15,6 @@ package org.openhab.binding.unifiaccess.internal.dto;
 /**
  * Device access-method settings (Section 8.2).
  *
- * <p>
- * Fetched from <code>/api/v1/developer/devices/:device_id/settings</code>.
- * The API returns booleans as strings ("true"/"false"), so helpers expose
- * null-safe boolean views.
- * </p>
- *
  * @author Dan Cunningham - Initial contribution
  */
 public class DeviceAccessMethodSettings {
@@ -32,42 +26,23 @@ public class DeviceAccessMethodSettings {
     public PinCode pinCode;
     public Face face;
 
-    /** Common base for methods with a single enabled field. */
     public static abstract class EnabledFlag {
-        public String enabled;
-
-        public boolean isEnabled() {
-            return toBool(enabled);
-        }
+        public Boolean enabled;
     }
 
-    /** NFC access method. */
     public static class Nfc extends EnabledFlag {
     }
 
-    /** Generic Bluetooth-based methods (Tap / Button / Shake). */
     public static class Bt extends EnabledFlag {
     }
 
-    /** Mobile Wave method. */
     public static class MobileWave extends EnabledFlag {
     }
 
-    /** PIN settings (enable + shuffle). */
     public static class PinCode extends EnabledFlag {
-        public String pinCodeShuffle;
-
-        public boolean isShuffleEnabled() {
-            return toBool(pinCodeShuffle);
-        }
+        public Boolean pinCodeShuffle;
     }
 
-    /** Face Unlock. */
     public static class Face extends EnabledFlag {
-    }
-
-    /* ---------- helpers ---------- */
-    private static boolean toBool(String s) {
-        return "true".equalsIgnoreCase(s);
     }
 }

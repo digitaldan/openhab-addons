@@ -15,25 +15,9 @@ package org.openhab.binding.unifiaccess.internal.dto;
 /**
  * Door emergency settings payload for get/set endpoints.
  *
- * <p>
- * Booleans are represented as strings ("true"/"false") in some responses,
- * so helpers expose null-safe boolean views.
- * </p>
- *
  * @author Dan Cunningham - Initial contribution
  */
 public class DoorEmergencySettings {
-    /** Building-wide evacuation mode flag ("true"/"false"). */
-    public String evacuation;
-
-    /** Lockdown mode flag ("true"/"false"). */
-    public String lockdown;
-
-    public boolean isEvacuationEnabled() {
-        return "true".equalsIgnoreCase(evacuation);
-    }
-
-    public boolean isLockdownEnabled() {
-        return "true".equalsIgnoreCase(lockdown);
-    }
+    public Boolean evacuation;
+    public Boolean lockdown;
 }

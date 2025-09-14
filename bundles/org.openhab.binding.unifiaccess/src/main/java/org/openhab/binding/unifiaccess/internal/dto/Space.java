@@ -15,13 +15,8 @@ package org.openhab.binding.unifiaccess.internal.dto;
 import java.util.List;
 
 /**
- * Space topology (Section 7 "Space"): buildings → floors → doors.
+ * Space topology (Section 7 "Space"): buildings, floors, doors.
  *
- * <p>
- * Models the response of <code>/api/v1/developer/door_groups/topology</code>:
- * top-level groups (e.g., a “building”) each contain <code>resource_topologies</code>
- * (floors) and each floor has <code>resources</code> (doors).
- * </p>
  *
  * @author Dan Cunningham - Initial contribution
  */

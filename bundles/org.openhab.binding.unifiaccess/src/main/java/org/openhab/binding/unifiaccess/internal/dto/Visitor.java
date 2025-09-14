@@ -51,12 +51,10 @@ public class Visitor {
     @SerializedName("license_plates")
     public List<LicensePlate> licensePlates;
 
-    /** Epoch-seconds → Instant (null-safe). */
     public Instant startInstant() {
         return UaTime.fromEpochSeconds(startTime);
     }
 
-    /** Epoch-seconds → Instant (null-safe). */
     public Instant endInstant() {
         return UaTime.fromEpochSeconds(endTime);
     }

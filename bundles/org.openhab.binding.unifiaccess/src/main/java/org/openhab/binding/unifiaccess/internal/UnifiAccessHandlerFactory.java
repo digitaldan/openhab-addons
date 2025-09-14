@@ -55,8 +55,6 @@ public class UnifiAccessHandlerFactory extends BaseThingHandlerFactory {
         }
     }
 
-    // Webhook removed; keep references inactive for compatibility
-
     @Override
     public boolean supportsThingType(ThingTypeUID thingTypeUID) {
         return SUPPORTED_THING_TYPES_UIDS.contains(thingTypeUID);

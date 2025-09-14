@@ -20,11 +20,6 @@ import com.google.gson.annotations.SerializedName;
 /**
  * UniFi Access User DTO.
  *
- * <p>
- * Fields map 1:1 to the REST schema for Users, including nested objects like
- * NFC cards, license plates, access policies, and Touch Pass data.
- * </p>
- *
  * @author Dan Cunningham - Initial contribution
  */
 public class User {
@@ -46,10 +41,6 @@ public class User {
     public Status status;
     public TouchPass touchPass;
 
-    /**
-     * Null-safe conversion of {@code onboard_time} (epoch seconds) to
-     * {@link Instant}.
-     */
     public Instant onboardInstant() {
         return UaTime.fromEpochSeconds(onboardTime);
     }
