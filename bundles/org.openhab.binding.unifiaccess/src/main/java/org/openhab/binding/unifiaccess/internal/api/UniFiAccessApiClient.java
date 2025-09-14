@@ -253,6 +253,20 @@ public final class UniFiAccessApiClient implements Closeable {
         return requireData(ar == null ? null : ar.data, "getDeviceAccessMethodSettings");
     }
 
+    /**
+     * Update Access Device's Access Method Settings.
+     */
+    public DeviceAccessMethodSettings updateDeviceAccessMethodSettings(String deviceId,
+            DeviceAccessMethodSettings settings) throws UniFiAccessParseException {
+        Objects.requireNonNull(deviceId, "deviceId");
+        Objects.requireNonNull(settings, "settings");
+        Type wrapped = TypeToken.getParameterized(ApiResponse.class, DeviceAccessMethodSettings.class).getType();
+        ContentResponse resp = execPut("/devices/" + deviceId + "/settings", settings);
+        ensure2xx(resp, "updateDeviceAccessMethodSettings");
+        ApiResponse<DeviceAccessMethodSettings> ar = gson.fromJson(resp.getContentAsString(), wrapped);
+        return requireData(ar == null ? null : ar.data, "updateDeviceAccessMethodSettings");
+    }
+
     public DoorEmergencySettings getDoorEmergencySettings(String doorId) throws UniFiAccessParseException {
         Objects.requireNonNull(doorId, "doorId");
         Type wrapped = TypeToken.getParameterized(ApiResponse.class, DoorEmergencySettings.class).getType();
@@ -806,7 +820,7 @@ public final class UniFiAccessApiClient implements Closeable {
                 });
                 wsMonitorExecutor = ex;
             }
-            wsMonitorFuture = ex.scheduleAtFixedRate(() -> {
+            wsMonitorFuture = ex.scheduleWithFixedDelay(() -> {
                 try {
                     Session s = wsSession;
                     if (s != null && s.isOpen()) {

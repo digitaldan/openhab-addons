@@ -12,6 +12,8 @@
  */
 package org.openhab.binding.unifiaccess.internal.dto;
 
+import java.util.List;
+
 /**
  * Device details
  *
@@ -22,4 +24,10 @@ public class Device {
     public String id;
     public String name;
     public String type; // e.g., "UAH", "UDA-LITE", "UA-G2-PRO"
+    public String locationId; // associated door/location id (for filtering)
+    public Boolean isAdopted;
+    public Boolean isConnected;
+    public Boolean isManaged;
+    public Boolean isOnline;
+    public List<String> capabilities;
 }

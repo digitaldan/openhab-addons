@@ -18,6 +18,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.unifiaccess.internal.api.UniFiAccessApiClient;
+import org.openhab.binding.unifiaccess.internal.dto.Device;
 import org.openhab.binding.unifiaccess.internal.dto.Door;
 import org.openhab.binding.unifiaccess.internal.handler.UnifiAccessBridgeHandler;
 import org.openhab.core.config.discovery.AbstractThingHandlerDiscoveryService;
@@ -42,7 +43,9 @@ public class UnifiAccessDiscoveryService extends AbstractThingHandlerDiscoverySe
     private final Logger logger = LoggerFactory.getLogger(UnifiAccessDiscoveryService.class);
 
     public UnifiAccessDiscoveryService() {
-        super(UnifiAccessBridgeHandler.class, Set.of(UnifiAccessBindingConstants.DOOR_THING_TYPE), 30, false);
+        super(UnifiAccessBridgeHandler.class,
+                Set.of(UnifiAccessBindingConstants.DOOR_THING_TYPE, UnifiAccessBindingConstants.DEVICE_THING_TYPE), 30,
+                false);
     }
 
     @Override
@@ -62,10 +65,9 @@ public class UnifiAccessDiscoveryService extends AbstractThingHandlerDiscoverySe
         }
         try {
             List<Door> doors = client.getDoors();
-            if (doors == null) {
-                return;
-            }
             discoverDoors(doors);
+            List<Device> devices = client.getDevices();
+            discoverDevices(devices);
         } catch (Exception e) {
             logger.debug("Error discovering doors: {}", e.getMessage());
         }
@@ -73,9 +75,6 @@ public class UnifiAccessDiscoveryService extends AbstractThingHandlerDiscoverySe
 
     public void discoverDoors(List<Door> doors) {
         for (Door d : doors) {
-            if (d == null || d.id == null) {
-                continue;
-            }
             ThingUID uid = new ThingUID(UnifiAccessBindingConstants.DOOR_THING_TYPE, thingHandler.getThing().getUID(),
                     d.id);
             Map<String, Object> props = Map.of(UnifiAccessBindingConstants.CONFIG_DEVICE_ID, d.id);
@@ -83,6 +82,19 @@ public class UnifiAccessDiscoveryService extends AbstractThingHandlerDiscoverySe
                     .withThingType(UnifiAccessBindingConstants.DOOR_THING_TYPE).withProperties(props)
                     .withRepresentationProperty(UnifiAccessBindingConstants.CONFIG_DEVICE_ID)
                     .withLabel("UniFi Access Door: " + d.name).build();
+            thingDiscovered(result);
+        }
+    }
+
+    public void discoverDevices(List<Device> devices) {
+        for (Device d : devices) {
+            ThingUID uid = new ThingUID(UnifiAccessBindingConstants.DEVICE_THING_TYPE, thingHandler.getThing().getUID(),
+                    d.id);
+            Map<String, Object> props = Map.of(UnifiAccessBindingConstants.CONFIG_DEVICE_ID, d.id);
+            DiscoveryResult result = DiscoveryResultBuilder.create(uid).withBridge(thingHandler.getThing().getUID())
+                    .withThingType(UnifiAccessBindingConstants.DEVICE_THING_TYPE).withProperties(props)
+                    .withRepresentationProperty(UnifiAccessBindingConstants.CONFIG_DEVICE_ID)
+                    .withLabel("UniFi Access Device: " + (d.alias != null ? d.alias : d.name)).build();
             thingDiscovered(result);
         }
     }

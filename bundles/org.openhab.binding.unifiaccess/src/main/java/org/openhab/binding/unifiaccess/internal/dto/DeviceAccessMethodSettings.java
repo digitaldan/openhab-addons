@@ -13,7 +13,7 @@
 package org.openhab.binding.unifiaccess.internal.dto;
 
 /**
- * Device access-method settings (Section 8.2).
+ * Device access-method settings.
  *
  * @author Dan Cunningham - Initial contribution
  */
@@ -23,8 +23,11 @@ public class DeviceAccessMethodSettings {
     public Bt btButton;
     public Bt btShake;
     public MobileWave mobileWave;
+    public Wave wave;
     public PinCode pinCode;
     public Face face;
+    public QrCode qrCode;
+    public TouchPass touchPass;
 
     public static abstract class EnabledFlag {
         public Boolean enabled;
@@ -39,10 +42,21 @@ public class DeviceAccessMethodSettings {
     public static class MobileWave extends EnabledFlag {
     }
 
+    public static class Wave extends EnabledFlag {
+    }
+
     public static class PinCode extends EnabledFlag {
         public Boolean pinCodeShuffle;
     }
 
     public static class Face extends EnabledFlag {
+        public String antiSpoofingLevel; // high, medium, no
+        public String detectDistance; // near, medium, far
+    }
+
+    public static class QrCode extends EnabledFlag {
+    }
+
+    public static class TouchPass extends EnabledFlag {
     }
 }

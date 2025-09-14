@@ -54,7 +54,7 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
 
     private final Logger logger = LoggerFactory.getLogger(UnifiAccessDoorHandler.class);
     private @Nullable Door door;
-    private String deviceId = "";
+    public String deviceId = "";
 
     public UnifiAccessDoorHandler(Thing thing) {
         super(thing);
@@ -89,15 +89,6 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
                         }
                     }
                     break;
-                case UnifiAccessBindingConstants.CHANNEL_UNLOCK_NOW:
-                    if (command instanceof OnOffType onOff) {
-                        if (onOff == OnOffType.ON) {
-                            api.unlockDoor(deviceId, null, null, null);
-                        } else {
-                            api.resetDoorLockRule(deviceId);
-                        }
-                    }
-                    break;
                 case UnifiAccessBindingConstants.CHANNEL_KEEP_UNLOCKED:
                     if (command instanceof OnOffType onOff) {
                         if (onOff == OnOffType.ON) {
@@ -122,15 +113,6 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
                         api.unlockForMinutes(deviceId, minutes);
                     } else {
                         api.resetDoorLockRule(deviceId);
-                    }
-                    break;
-                case UnifiAccessBindingConstants.CHANNEL_LOCK_EARLY:
-                    if (command instanceof OnOffType onOff) {
-                        if (onOff == OnOffType.ON) {
-                            api.lockEarly(deviceId);
-                        } else {
-                            api.resetDoorLockRule(deviceId);
-                        }
                     }
                     break;
                 default:
@@ -166,8 +148,8 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
         if (locationState.remainUnlock != null) {
             DoorState.DoorLockRuleType rule = locationState.remainUnlock.type;
             List<String> lockChannels = new ArrayList<>(Arrays.asList(UnifiAccessBindingConstants.CHANNEL_KEEP_UNLOCKED,
-                    UnifiAccessBindingConstants.CHANNEL_KEEP_LOCKED, UnifiAccessBindingConstants.CHANNEL_UNLOCK_MINUTES,
-                    UnifiAccessBindingConstants.CHANNEL_LOCK_EARLY, UnifiAccessBindingConstants.CHANNEL_UNLOCK_NOW));
+                    UnifiAccessBindingConstants.CHANNEL_KEEP_LOCKED,
+                    UnifiAccessBindingConstants.CHANNEL_UNLOCK_MINUTES));
             switch (rule) {
                 case KEEP_UNLOCK:
                     updateState(UnifiAccessBindingConstants.CHANNEL_KEEP_UNLOCKED, OnOffType.ON);
@@ -181,14 +163,6 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
                     updateState(UnifiAccessBindingConstants.CHANNEL_UNLOCK_MINUTES,
                             new DecimalType(locationState.remainUnlock.until));
                     lockChannels.remove(UnifiAccessBindingConstants.CHANNEL_UNLOCK_MINUTES);
-                    break;
-                case LOCK_EARLY:
-                    updateState(UnifiAccessBindingConstants.CHANNEL_LOCK_EARLY, OnOffType.ON);
-                    lockChannels.remove(UnifiAccessBindingConstants.CHANNEL_LOCK_EARLY);
-                    break;
-                case LOCK_NOW:
-                    updateState(UnifiAccessBindingConstants.CHANNEL_UNLOCK_NOW, OnOffType.ON);
-                    lockChannels.remove(UnifiAccessBindingConstants.CHANNEL_UNLOCK_NOW);
                     break;
                 default:
                     break;
@@ -245,7 +219,7 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
     }
 
     private void updatePosition(DoorState.DoorPosition position) {
-        updateState(UnifiAccessBindingConstants.CHANNEL_POSITION,
+        updateState(UnifiAccessBindingConstants.CHANNEL_DOOR_POSITION,
                 position == DoorState.DoorPosition.OPEN ? OpenClosedType.OPEN : OpenClosedType.CLOSED);
     }
 

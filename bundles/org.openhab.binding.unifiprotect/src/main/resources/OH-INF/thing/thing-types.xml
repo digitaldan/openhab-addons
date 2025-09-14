@@ -58,16 +58,16 @@
 		<label>UniFi Protect Floodlight</label>
 		<description>Protect floodlight</description>
 		<channels>
-			<channel id="light" typeId="lightSwitch"/>
-			<channel id="isdark" typeId="isDark"/>
-			<channel id="pirmotion" typeId="motion"/>
-			<channel id="lastmotion" typeId="lastmotion"/>
-			<channel id="lightmode" typeId="lightmode"/>
-			<channel id="enableat" typeId="enableAt"/>
-			<channel id="indicatorenabled" typeId="indicatorenabled"/>
-			<channel id="pirduration" typeId="pirduration"/>
-			<channel id="pirsensitivity" typeId="pirSensitivity"/>
-			<channel id="ledlevel" typeId="ledLevel"/>
+			<channel id="light" typeId="light-switch"/>
+			<channel id="is-dark" typeId="is-dark"/>
+			<channel id="pir-motion" typeId="motion"/>
+			<channel id="last-motion" typeId="last-motion"/>
+			<channel id="light-mode" typeId="light-mode"/>
+			<channel id="enable-at" typeId="enable-at"/>
+			<channel id="indicator-enabled" typeId="indicator-enabled"/>
+			<channel id="pir-duration" typeId="pir-duration"/>
+			<channel id="pir-sensitivity" typeId="pir-sensitivity"/>
+			<channel id="led-level" typeId="led-level"/>
 		</channels>
 		<properties>
 			<property name="deviceId">Unique device identifier</property>
@@ -95,11 +95,11 @@
 			<channel id="humidity" typeId="humidity"/>
 			<channel id="illuminance" typeId="illuminance"/>
 			<channel id="motion" typeId="motion"/>
-			<channel id="alarmcontact" typeId="alarmcontact"/>
+			<channel id="alarm-contact" typeId="alarm-contact"/>
 			<channel id="alarm" typeId="alarm"/>
-			<channel id="waterleakcontact" typeId="waterleakcontact"/>
-			<channel id="waterleak" typeId="waterleak"/>
-			<channel id="tampercontact" typeId="tampercontact"/>
+			<channel id="water-leak-contact" typeId="water-leak-contact"/>
+			<channel id="water-leak" typeId="water-leak"/>
+			<channel id="tamper-contact" typeId="tamper-contact"/>
 			<channel id="tamper" typeId="tamper"/>
 			<channel id="opened" typeId="opened"/>
 			<channel id="closed" typeId="closed"/>
@@ -118,19 +118,19 @@
 	</thing-type>
 
 	<!-- NVR channel types -->
-	<channel-type id="doorbelldefaultmessage">
+	<channel-type id="doorbell-default-message">
 		<item-type>String</item-type>
 		<label>Doorbell Default Message</label>
 		<description>Default doorbell LCD message text configured on the NVR</description>
 	</channel-type>
 
-	<channel-type id="doorbelldefaultmessageresetms">
+	<channel-type id="doorbell-default-message-reset-ms">
 		<item-type>Number</item-type>
 		<label>Doorbell Default Message Reset (ms)</label>
 		<description>Default doorbell LCD message reset timeout (milliseconds)</description>
 	</channel-type>
 
-	<channel-type id="deviceadded" advanced="true">
+	<channel-type id="device-added" advanced="true">
 		<kind>trigger</kind>
 		<label>Device Added</label>
 		<description>Device was added to Protect</description>
@@ -152,7 +152,7 @@
 		</event>
 	</channel-type>
 
-	<channel-type id="deviceupdated" advanced="true">
+	<channel-type id="device-updated" advanced="true">
 		<kind>trigger</kind>
 		<label>Device Updated</label>
 		<description>Device was updated in Protect</description>
@@ -174,7 +174,7 @@
 		</event>
 	</channel-type>
 
-	<channel-type id="deviceremoved" advanced="true">
+	<channel-type id="device-removed" advanced="true">
 		<kind>trigger</kind>
 		<label>Device Removed</label>
 		<description>Device was removed from Protect</description>
@@ -197,25 +197,25 @@
 	</channel-type>
 
 	<!-- Light channel types -->
-	<channel-type id="lightswitch">
+	<channel-type id="light-switch">
 		<item-type>Switch</item-type>
 		<label>Main Light</label>
 		<description>Enable or disable the main floodlight</description>
 	</channel-type>
 
-	<channel-type id="isdark">
+	<channel-type id="is-dark">
 		<item-type>Switch</item-type>
 		<label>Is Dark</label>
 		<description>Scene is currently dark</description>
 	</channel-type>
 
-	<channel-type id="lastmotion">
+	<channel-type id="last-motion">
 		<item-type>DateTime</item-type>
 		<label>Last Motion</label>
 		<description>Timestamp of last motion detected</description>
 	</channel-type>
 
-	<channel-type id="lightmode">
+	<channel-type id="light-mode">
 		<item-type>String</item-type>
 		<label>Light Mode</label>
 		<description>When will floodlight turn on</description>
@@ -228,7 +228,7 @@
 		</state>
 	</channel-type>
 
-	<channel-type id="enableat">
+	<channel-type id="enable-at">
 		<item-type>String</item-type>
 		<label>Enable At</label>
 		<description>When the lighting mode is relevant</description>
@@ -240,25 +240,25 @@
 		</state>
 	</channel-type>
 
-	<channel-type id="indicatorenabled">
+	<channel-type id="indicator-enabled">
 		<item-type>Switch</item-type>
 		<label>Status Indicator</label>
 		<description>Enable or disable floodlight status LED indicator</description>
 	</channel-type>
 
-	<channel-type id="pirduration">
+	<channel-type id="pir-duration">
 		<item-type>Number</item-type>
 		<label>PIR Duration (ms)</label>
 		<description>How long the light stays on after motion (ms)</description>
 	</channel-type>
 
-	<channel-type id="pirsensitivity">
+	<channel-type id="pir-sensitivity">
 		<item-type>Number</item-type>
 		<label>PIR Sensitivity</label>
 		<description>PIR motion sensitivity (0-100)</description>
 	</channel-type>
 
-	<channel-type id="ledlevel">
+	<channel-type id="led-level">
 		<item-type>Number</item-type>
 		<label>LED Level</label>
 		<description>Brightness level of the main LED (1-6)</description>
@@ -295,7 +295,7 @@
 		<description>Ambient light (Lux)</description>
 	</channel-type>
 
-	<channel-type id="alarmcontact">
+	<channel-type id="alarm-contact">
 		<item-type>Contact</item-type>
 		<label>Alarm</label>
 		<description>Smoke or CO alarm state (OPEN = alarming)</description>
@@ -313,13 +313,13 @@
 		</event>
 	</channel-type>
 
-	<channel-type id="waterleakcontact">
+	<channel-type id="water-leak-contact">
 		<item-type>Contact</item-type>
 		<label>Water Leak</label>
 		<description>Water leak state (OPEN = leak detected)</description>
 	</channel-type>
 
-	<channel-type id="waterleak" advanced="true">
+	<channel-type id="water-leak" advanced="true">
 		<kind>trigger</kind>
 		<label>Water Leak</label>
 		<description>Water leak detected</description>
@@ -334,7 +334,7 @@
 		</event>
 	</channel-type>
 
-	<channel-type id="tampercontact">
+	<channel-type id="tamper-contact">
 		<item-type>Contact</item-type>
 		<label>Tamper</label>
 		<description>Tamper state (OPEN = tampering)</description>
@@ -388,7 +388,7 @@
 			</options>
 		</event>
 	</channel-type>
-	<channel-type id="ringcontact">
+	<channel-type id="ring-contact">
 		<item-type>Contact</item-type>
 		<label>Doorbell Ring</label>
 		<description>Doorbell ring state (OPEN = doorbell ring detected)</description>
@@ -400,13 +400,13 @@
 		<description>Latest camera snapshot image</description>
 	</channel-type>
 
-	<channel-type id="micvolume">
+	<channel-type id="mic-volume">
 		<item-type>Number</item-type>
 		<label>Microphone Volume</label>
 		<description>Microphone volume (0-100)</description>
 	</channel-type>
 
-	<channel-type id="videomode">
+	<channel-type id="video-mode">
 		<item-type>String</item-type>
 		<label>Video Mode</label>
 		<description>Current video mode of the camera</description>
@@ -422,7 +422,7 @@
 		</state>
 	</channel-type>
 
-	<channel-type id="hdrtype">
+	<channel-type id="hdr-type">
 		<item-type>String</item-type>
 		<label>HDR Mode</label>
 		<description>High Dynamic Range (HDR) mode</description>
@@ -435,31 +435,31 @@
 		</state>
 	</channel-type>
 
-	<channel-type id="osdname">
+	<channel-type id="osd-name">
 		<item-type>Switch</item-type>
 		<label>OSD Name</label>
 		<description>Show the name on the camera OSD</description>
 	</channel-type>
 
-	<channel-type id="osddate">
+	<channel-type id="osd-date">
 		<item-type>Switch</item-type>
 		<label>OSD Date</label>
 		<description>Show the date on the camera OSD</description>
 	</channel-type>
 
-	<channel-type id="osdlogo">
+	<channel-type id="osd-logo">
 		<item-type>Switch</item-type>
 		<label>OSD Logo</label>
 		<description>Show the logo on the camera OSD</description>
 	</channel-type>
 
-	<channel-type id="ledenabled">
+	<channel-type id="led-enabled">
 		<item-type>Switch</item-type>
 		<label>Status LED</label>
 		<description>Enable or disable the camera status LED</description>
 	</channel-type>
 
-	<channel-type id="activepatrolslot">
+	<channel-type id="active-patrol-slot">
 		<item-type>Number</item-type>
 		<label>Active Patrol Slot</label>
 		<description>Currently active PTZ patrol slot</description>
@@ -472,13 +472,13 @@
 		<description>Camera motion detected</description>
 	</channel-type>
 
-	<channel-type id="motioncontact">
+	<channel-type id="motion-contact">
 		<item-type>Contact</item-type>
 		<label>Motion</label>
 		<description>Motion state (OPEN = motion detected)</description>
 	</channel-type>
 
-	<channel-type id="smartaudiodetect" advanced="true">
+	<channel-type id="smart-audio-detect" advanced="true">
 		<kind>trigger</kind>
 		<label>Smart Audio Detect</label>
 		<description>Audio-based smart detection event</description>
@@ -497,13 +497,13 @@
 			</options>
 		</event>
 	</channel-type>
-	<channel-type id="smartaudiodetectcontact">
+	<channel-type id="smart-audio-detect-contact">
 		<item-type>Contact</item-type>
 		<label>Smart Audio Detect</label>
 		<description>Smart audio detect state (OPEN = smart audio detect detected)</description>
 	</channel-type>
 
-	<channel-type id="smartdetectzone" advanced="true">
+	<channel-type id="smart-detect-zone" advanced="true">
 		<kind>trigger</kind>
 		<label>Smart Detect Zone</label>
 		<description>Zone-based smart detection event</description>
@@ -519,12 +519,12 @@
 			</options>
 		</event>
 	</channel-type>
-	<channel-type id="smartdetectzonecontact">
+	<channel-type id="smart-detect-zone-contact">
 		<item-type>Contact</item-type>
 		<label>Smart Detect Zone</label>
 		<description>Smart detect zone state (OPEN = smart detect zone detected)</description>
 	</channel-type>
-	<channel-type id="smartdetectline" advanced="true">
+	<channel-type id="smart-detect-line" advanced="true">
 		<kind>trigger</kind>
 		<label>Smart Detect Line</label>
 		<description>Line-based smart detection event</description>
@@ -540,12 +540,12 @@
 			</options>
 		</event>
 	</channel-type>
-	<channel-type id="smartdetectlinecontact">
+	<channel-type id="smart-detect-line-contact">
 		<item-type>Contact</item-type>
 		<label>Smart Detect Line</label>
 		<description>Smart detect line state (OPEN = smart detect line detected)</description>
 	</channel-type>
-	<channel-type id="smartdetectloiter" advanced="true">
+	<channel-type id="smart-detect-loiter" advanced="true">
 		<kind>trigger</kind>
 		<label>Smart Detect Loiter</label>
 		<description>Loitering smart detection event</description>
@@ -561,7 +561,7 @@
 			</options>
 		</event>
 	</channel-type>
-	<channel-type id="smartdetectloitercontact">
+	<channel-type id="smart-detect-loiter-contact">
 		<item-type>Contact</item-type>
 		<label>Smart Detect Loiter</label>
 		<description>Smart detect loiter state (OPEN = smart detect loiter detected)</description>

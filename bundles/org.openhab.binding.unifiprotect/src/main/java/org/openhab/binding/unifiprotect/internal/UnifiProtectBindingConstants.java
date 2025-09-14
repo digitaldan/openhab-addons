@@ -40,75 +40,75 @@ public class UnifiProtectBindingConstants {
     public static final String CHANNEL_STATUS = "status";
 
     // NVR
-    public static final String CHANNEL_DOORBELL_DEFAULT_MESSAGE = "doorbelldefaultmessage";
-    public static final String CHANNEL_DOORBELL_DEFAULT_MESSAGE_RESET_MS = "doorbelldefaultmessageresetms";
-    public static final String CHANNEL_DEVICE_ADDED = "deviceadded";
-    public static final String CHANNEL_DEVICE_UPDATED = "deviceupdated";
-    public static final String CHANNEL_DEVICE_REMOVED = "deviceremoved";
+    public static final String CHANNEL_DOORBELL_DEFAULT_MESSAGE = "doorbell-default-message";
+    public static final String CHANNEL_DOORBELL_DEFAULT_MESSAGE_RESET_MS = "doorbell-default-message-reset-ms";
+    public static final String CHANNEL_DEVICE_ADDED = "device-added";
+    public static final String CHANNEL_DEVICE_UPDATED = "device-updated";
+    public static final String CHANNEL_DEVICE_REMOVED = "device-removed";
 
     // Camera
     public static final String CHANNEL_SNAPSHOT = "snapshot";
-    public static final String CHANNEL_MIC_VOLUME = "micvolume";
-    public static final String CHANNEL_VIDEO_MODE = "videomode";
-    public static final String CHANNEL_HDR_TYPE = "hdrtype";
-    public static final String CHANNEL_OSD_NAME = "osdname";
-    public static final String CHANNEL_OSD_DATE = "osddate";
-    public static final String CHANNEL_OSD_LOGO = "osdlogo";
-    public static final String CHANNEL_LED_ENABLED = "ledenabled";
-    public static final String CHANNEL_ACTIVE_PATROL_SLOT = "activepatrolslot";
+    public static final String CHANNEL_MIC_VOLUME = "mic-volume";
+    public static final String CHANNEL_VIDEO_MODE = "video-mode";
+    public static final String CHANNEL_HDR_TYPE = "hdr-type";
+    public static final String CHANNEL_OSD_NAME = "osd-name";
+    public static final String CHANNEL_OSD_DATE = "osd-date";
+    public static final String CHANNEL_OSD_LOGO = "osd-logo";
+    public static final String CHANNEL_LED_ENABLED = "led-enabled";
+    public static final String CHANNEL_ACTIVE_PATROL_SLOT = "active-patrol-slot";
     // Triggers and Contacts
     public static final String CHANNEL_MOTION = "motion";
-    public static final String CHANNEL_MOTION_START = "motionstart";
-    public static final String CHANNEL_MOTION_END = "motionend";
-    public static final String CHANNEL_MOTION_CONTACT = "motioncontact";
-    public static final String CHANNEL_MOTION_SNAPSHOT = "motionsnapshot";
+    public static final String CHANNEL_MOTION_START = "motion-start";
+    public static final String CHANNEL_MOTION_UPDATE = "motion-update";
+    public static final String CHANNEL_MOTION_CONTACT = "motion-contact";
+    public static final String CHANNEL_MOTION_SNAPSHOT = "motion-snapshot";
     public static final String CHANNEL_MOTION_SNAPSHOT_LABEL = "Motion Snapshot";
 
-    public static final String CHANNEL_SMART_AUDIO_DETECT = "smartaudiodetect";
-    public static final String CHANNEL_SMART_AUDIO_DETECT_START = "smartaudiodetectstart";
-    public static final String CHANNEL_SMART_AUDIO_DETECT_END = "smartaudiodetectend";
-    public static final String CHANNEL_SMART_AUDIO_DETECT_CONTACT = "smartaudiodetectcontact";
-    public static final String CHANNEL_SMART_AUDIO_DETECT_SNAPSHOT = "smartaudiodetectsnapshot";
+    public static final String CHANNEL_SMART_AUDIO_DETECT = "smart-audio-detect";
+    public static final String CHANNEL_SMART_AUDIO_DETECT_START = "smart-audio-detect-start";
+    public static final String CHANNEL_SMART_AUDIO_DETECT_UPDATE = "smart-audio-detect-update";
+    public static final String CHANNEL_SMART_AUDIO_DETECT_CONTACT = "smart-audio-detect-contact";
+    public static final String CHANNEL_SMART_AUDIO_DETECT_SNAPSHOT = "smart-audio-detect-snapshot";
     public static final String CHANNEL_SMART_AUDIO_DETECT_SNAPSHOT_LABEL = "Smart Audio Detect Snapshot";
 
-    public static final String CHANNEL_SMART_DETECT_ZONE = "smartdetectzone";
-    public static final String CHANNEL_SMART_DETECT_ZONE_START = "smartdetectzonestart";
-    public static final String CHANNEL_SMART_DETECT_ZONE_END = "smartdetectzoneend";
-    public static final String CHANNEL_SMART_DETECT_ZONE_CONTACT = "smartdetectzonecontact";
-    public static final String CHANNEL_SMART_DETECT_ZONE_SNAPSHOT = "smartdetectzonesnapshot";
+    public static final String CHANNEL_SMART_DETECT_ZONE = "smart-detect-zone";
+    public static final String CHANNEL_SMART_DETECT_ZONE_START = "smart-detect-zone-start";
+    public static final String CHANNEL_SMART_DETECT_ZONE_UPDATE = "smart-detect-zone-update";
+    public static final String CHANNEL_SMART_DETECT_ZONE_CONTACT = "smart-detect-zone-contact";
+    public static final String CHANNEL_SMART_DETECT_ZONE_SNAPSHOT = "smart-detect-zone-snapshot";
     public static final String CHANNEL_SMART_DETECT_ZONE_SNAPSHOT_LABEL = "Smart Detect Zone Snapshot";
 
-    public static final String CHANNEL_SMART_DETECT_LINE = "smartdetectline";
-    public static final String CHANNEL_SMART_DETECT_LINE_START = "smartdetectlinestart";
-    public static final String CHANNEL_SMART_DETECT_LINE_END = "smartdetectlineend";
-    public static final String CHANNEL_SMART_DETECT_LINE_CONTACT = "smartdetectlinecontact";
-    public static final String CHANNEL_SMART_DETECT_LINE_SNAPSHOT = "smartdetectlinesnapshot";
+    public static final String CHANNEL_SMART_DETECT_LINE = "smart-detect-line";
+    public static final String CHANNEL_SMART_DETECT_LINE_START = "smart-detect-line-start";
+    public static final String CHANNEL_SMART_DETECT_LINE_UPDATE = "smart-detect-line-update";
+    public static final String CHANNEL_SMART_DETECT_LINE_CONTACT = "smart-detect-line-contact";
+    public static final String CHANNEL_SMART_DETECT_LINE_SNAPSHOT = "smart-detect-line-snapshot";
     public static final String CHANNEL_SMART_DETECT_LINE_SNAPSHOT_LABEL = "Smart Detect Line Snapshot";
 
-    public static final String CHANNEL_SMART_DETECT_LOITER = "smartdetectloiter";
-    public static final String CHANNEL_SMART_DETECT_LOITER_START = "smartdetectloiterstart";
-    public static final String CHANNEL_SMART_DETECT_LOITER_END = "smartdetectloiterend";
-    public static final String CHANNEL_SMART_DETECT_LOITER_CONTACT = "smartdetectloitercontact";
-    public static final String CHANNEL_SMART_DETECT_LOITER_SNAPSHOT = "smartdetectloitersnapshot";
+    public static final String CHANNEL_SMART_DETECT_LOITER = "smart-detect-loiter";
+    public static final String CHANNEL_SMART_DETECT_LOITER_START = "smart-detect-loiter-start";
+    public static final String CHANNEL_SMART_DETECT_LOITER_UPDATE = "smart-detect-loiter-update";
+    public static final String CHANNEL_SMART_DETECT_LOITER_CONTACT = "smart-detect-loiter-contact";
+    public static final String CHANNEL_SMART_DETECT_LOITER_SNAPSHOT = "smart-detect-loiter-snapshot";
     public static final String CHANNEL_SMART_DETECT_LOITER_SNAPSHOT_LABEL = "Smart Detect Loiter Snapshot";
 
     public static final String CHANNEL_RING = "ring";
-    public static final String CHANNEL_RING_START = "ringstart";
-    public static final String CHANNEL_RING_END = "ringend";
-    public static final String CHANNEL_RING_CONTACT = "ringcontact";
-    public static final String CHANNEL_RING_SNAPSHOT = "ringsnapshot";
+    public static final String CHANNEL_RING_START = "ring-start";
+    public static final String CHANNEL_RING_END = "ring-end";
+    public static final String CHANNEL_RING_CONTACT = "ring-contact";
+    public static final String CHANNEL_RING_SNAPSHOT = "ring-snapshot";
 
     // Light (floodlight)
     public static final String CHANNEL_LIGHT = "light";
-    public static final String CHANNEL_IS_DARK = "isdark";
-    public static final String CHANNEL_PIR_MOTION = "pirmotion";
-    public static final String CHANNEL_LAST_MOTION = "lastmotion";
-    public static final String CHANNEL_LIGHT_MODE = "lightmode";
-    public static final String CHANNEL_ENABLE_AT = "enableat";
-    public static final String CHANNEL_INDICATOR_ENABLED = "indicatorenabled";
-    public static final String CHANNEL_PIR_DURATION = "pirduration";
-    public static final String CHANNEL_PIR_SENSITIVITY = "pirsensitivity";
-    public static final String CHANNEL_LED_LEVEL = "ledlevel";
+    public static final String CHANNEL_IS_DARK = "is-dark";
+    public static final String CHANNEL_PIR_MOTION = "pir-motion";
+    public static final String CHANNEL_LAST_MOTION = "last-motion";
+    public static final String CHANNEL_LIGHT_MODE = "light-mode";
+    public static final String CHANNEL_ENABLE_AT = "enable-at";
+    public static final String CHANNEL_INDICATOR_ENABLED = "indicator-enabled";
+    public static final String CHANNEL_PIR_DURATION = "pir-duration";
+    public static final String CHANNEL_PIR_SENSITIVITY = "pir-sensitivity";
+    public static final String CHANNEL_LED_LEVEL = "led-level";
 
     // Sensor
     public static final String CHANNEL_BATTERY = "battery";
@@ -117,11 +117,11 @@ public class UnifiProtectBindingConstants {
     public static final String CHANNEL_HUMIDITY = "humidity";
     public static final String CHANNEL_ILLUMINANCE = "illuminance";
     public static final String CHANNEL_SENSOR_MOTION = "motion";
-    public static final String CHANNEL_ALARM_CONTACT = "alarmcontact";
+    public static final String CHANNEL_ALARM_CONTACT = "alarm-contact";
     public static final String CHANNEL_ALARM = "alarm";
-    public static final String CHANNEL_WATER_LEAK_CONTACT = "waterleakcontact";
-    public static final String CHANNEL_WATER_LEAK = "waterleak";
-    public static final String CHANNEL_TAMPER_CONTACT = "tampercontact";
+    public static final String CHANNEL_WATER_LEAK_CONTACT = "water-leak-contact";
+    public static final String CHANNEL_WATER_LEAK = "water-leak";
+    public static final String CHANNEL_TAMPER_CONTACT = "tamper-contact";
     public static final String CHANNEL_TAMPER = "tamper";
     public static final String CHANNEL_OPENED = "opened";
     public static final String CHANNEL_CLOSED = "closed";

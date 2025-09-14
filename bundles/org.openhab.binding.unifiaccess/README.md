@@ -54,13 +54,13 @@ Some channels are write-only actions and do not keep a state.
 |------------|-----------|----|-------------|
 | lock | Switch | RW | Lock state. ON locks the door, OFF unlocks immediately. |
 | position | Contact | R | Door position sensor. OPEN when the door is open, CLOSED otherwise. |
-| lastunlock | DateTime | R | Timestamp of the last unlock event. |
-| lastactor | String | R | Name of the user who last unlocked the door. |
-| lockrule | String | R | Current lock rule. One of `schedule`, `custom`, `keep_unlock`, `keep_lock`. |
-| keepunlocked | Switch | W | Keep the door unlocked until changed. Send ON to apply. |
-| keeplocked | Switch | W | Keep the door locked until changed. Send ON to apply. |
-| unlockminutes | Number:Time | W | Unlock for a number of minutes. Send a value in minutes. |
-| doorthumbnail | Image | R | Door thumbnail. |
+| last-unlock | DateTime | R | Timestamp of the last unlock event. |
+| last-actor | String | R | Name of the user who last unlocked the door. |
+| lock-rule | String | R | Current lock rule. One of `schedule`, `custom`, `keep_unlock`, `keep_lock`. |
+| keep-unlocked | Switch | W | Keep the door unlocked until changed. Send ON to apply. |
+| keep-locked | Switch | W | Keep the door locked until changed. Send ON to apply. |
+| unlock-minutes | Number:Time | W | Unlock for a number of minutes. Send a value in minutes. |
+| door-thumbnail | Image | R | Door thumbnail. |
 
 ## Full Examples (Textual Configuration)
 
@@ -81,14 +81,14 @@ Bridge unifiaccess:bridge:ua "UniFi Access" [ host="192.168.1.20", authToken="YO
 // Door status
 Switch   UA_FrontDoor_Lock          "Front Door Locked"                   { channel="unifiaccess:door:ua:frontdoor:lock" }
 Contact  UA_FrontDoor_Position      "Front Door Position [%s]"            { channel="unifiaccess:door:ua:frontdoor:position" }
-DateTime UA_FrontDoor_LastUnlock    "Last Unlock [%1$ta %1$tF %1$tR]"     { channel="unifiaccess:door:ua:frontdoor:lastunlock" }
-String   UA_FrontDoor_LastActor     "Last Actor [%s]"                     { channel="unifiaccess:door:ua:frontdoor:lastactor" }
-String   UA_FrontDoor_LockRule      "Lock Rule [%s]"                      { channel="unifiaccess:door:ua:frontdoor:lockrule" }
+DateTime UA_FrontDoor_LastUnlock    "Last Unlock [%1$ta %1$tF %1$tR]"     { channel="unifiaccess:door:ua:frontdoor:last-unlock" }
+String   UA_FrontDoor_LastActor     "Last Actor [%s]"                     { channel="unifiaccess:door:ua:frontdoor:last-actor" }
+String   UA_FrontDoor_LockRule      "Lock Rule [%s]"                      { channel="unifiaccess:door:ua:frontdoor:lock-rule" }
 
 // Door controls
-Switch   UA_FrontDoor_KeepUnlocked  "Keep Unlocked"                       { channel="unifiaccess:door:ua:frontdoor:keepunlocked" }
-Switch   UA_FrontDoor_KeepLocked    "Keep Locked"                         { channel="unifiaccess:door:ua:frontdoor:keeplocked" }
-Number:Time UA_FrontDoor_UnlockMins "Unlock Minutes [%.0f min]"           { channel="unifiaccess:door:ua:frontdoor:unlockminutes" }
+Switch   UA_FrontDoor_KeepUnlocked  "Keep Unlocked"                       { channel="unifiaccess:door:ua:frontdoor:keep-unlocked" }
+Switch   UA_FrontDoor_KeepLocked    "Keep Locked"                         { channel="unifiaccess:door:ua:frontdoor:keep-locked" }
+Number:Time UA_FrontDoor_UnlockMins "Unlock Minutes [%.0f min]"           { channel="unifiaccess:door:ua:frontdoor:unlock-minutes" }
 ```
 
 ### Sitemap (`.sitemap`)

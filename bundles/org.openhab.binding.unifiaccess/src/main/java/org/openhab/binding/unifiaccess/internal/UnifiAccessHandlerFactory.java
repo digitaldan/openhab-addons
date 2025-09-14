@@ -19,6 +19,7 @@ import java.util.Set;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiaccess.internal.handler.UnifiAccessBridgeHandler;
+import org.openhab.binding.unifiaccess.internal.handler.UnifiAccessDeviceHandler;
 import org.openhab.binding.unifiaccess.internal.handler.UnifiAccessDoorHandler;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.thing.Bridge;
@@ -40,7 +41,8 @@ import org.osgi.service.component.annotations.Reference;
 @Component(configurationPid = "binding.unifiaccess", service = ThingHandlerFactory.class)
 public class UnifiAccessHandlerFactory extends BaseThingHandlerFactory {
 
-    private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(BRIDGE_THING_TYPE, DOOR_THING_TYPE);
+    private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(BRIDGE_THING_TYPE, DOOR_THING_TYPE,
+            DEVICE_THING_TYPE);
 
     private @Nullable HttpClientFactory httpClientFactory;
 
@@ -74,6 +76,10 @@ public class UnifiAccessHandlerFactory extends BaseThingHandlerFactory {
 
         if (DOOR_THING_TYPE.equals(thingTypeUID)) {
             return new UnifiAccessDoorHandler(thing);
+        }
+
+        if (DEVICE_THING_TYPE.equals(thingTypeUID)) {
+            return new UnifiAccessDeviceHandler(thing);
         }
 
         return null;

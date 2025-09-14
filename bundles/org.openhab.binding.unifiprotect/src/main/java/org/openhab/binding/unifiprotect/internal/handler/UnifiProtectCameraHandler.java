@@ -247,7 +247,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                 // Trigger motion on start and end if channel exists
                 if (hasChannel(UnifiProtectBindingConstants.CHANNEL_MOTION)) {
                     String channelId = eventType == WSEventType.ADD ? UnifiProtectBindingConstants.CHANNEL_MOTION_START
-                            : UnifiProtectBindingConstants.CHANNEL_MOTION_END;
+                            : UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE;
                     triggerChannel(new ChannelUID(thing.getUID(), channelId));
                     updateState(UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT,
                             eventType == WSEventType.ADD ? OnOffType.OFF : OnOffType.ON);
@@ -261,7 +261,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     }
                     String channelId = eventType == WSEventType.ADD
                             ? UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_START
-                            : UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_END;
+                            : UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_UPDATE;
                     if (hasChannel(channelId)) {
                         triggerChannel(channelId, e.smartDetectTypes);
                         updateState(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_CONTACT,
@@ -277,7 +277,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     }
                     String channelId = eventType == WSEventType.ADD
                             ? UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START
-                            : UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_END;
+                            : UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_UPDATE;
                     if (hasChannel(channelId)) {
                         triggerChannel(channelId, e.smartDetectTypes);
                         updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT,
@@ -293,7 +293,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     }
                     String channelId = eventType == WSEventType.ADD
                             ? UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_START
-                            : UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_END;
+                            : UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_UPDATE;
                     if (hasChannel(channelId)) {
                         triggerChannel(channelId, e.smartDetectTypes);
                         updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT,
@@ -309,7 +309,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     }
                     String channelId = eventType == WSEventType.ADD
                             ? UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_START
-                            : UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_END;
+                            : UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_UPDATE;
                     if (hasChannel(channelId)) {
                         triggerChannel(channelId, e.smartDetectTypes);
                         updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT,
@@ -346,8 +346,8 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
         addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_START,
                 UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds);
-        addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_END, UnifiProtectBindingConstants.CHANNEL_MOTION,
-                channelAdd, desiredIds);
+        addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE,
+                UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds);
         addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, CoreItemFactory.CONTACT,
                 UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, channelAdd, desiredIds);
         addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_SNAPSHOT, CoreItemFactory.IMAGE,
@@ -374,7 +374,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             if (flags.smartDetectTypes != null && !flags.smartDetectTypes.isEmpty()) {
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, desiredIds);
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_END,
+                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_UPDATE,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, desiredIds);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT, CoreItemFactory.CONTACT,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT, channelAdd, desiredIds);
@@ -384,7 +384,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_START,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, desiredIds);
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_END,
+                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_UPDATE,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, desiredIds);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT, CoreItemFactory.CONTACT,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT, channelAdd, desiredIds);
@@ -394,7 +394,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_START,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, desiredIds);
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_END,
+                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_UPDATE,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, desiredIds);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT, CoreItemFactory.CONTACT,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT, channelAdd, desiredIds);
@@ -405,7 +405,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             if (flags.smartDetectAudioTypes != null && !flags.smartDetectAudioTypes.isEmpty()) {
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_START,
                         UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT, channelAdd, desiredIds);
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_END,
+                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_UPDATE,
                         UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT, channelAdd, desiredIds);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_CONTACT, CoreItemFactory.CONTACT,
                         UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_CONTACT, channelAdd, desiredIds);

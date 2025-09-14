@@ -15,11 +15,7 @@ package org.openhab.binding.unifiaccess.internal.dto;
 import org.eclipse.jdt.annotation.Nullable;
 
 /**
- * Generic API response wrapper: { "code": "SUCCESS" | <error_code>, "data": ..., "msg": "ok" }.
- *
- * <p>
- * Use as ApiResponse&lt;YourType&gt; for all endpoints that follow this pattern.
- * </p>
+ * Generic API response wrapper.
  *
  * @author Dan Cunningham - Initial contribution
  */

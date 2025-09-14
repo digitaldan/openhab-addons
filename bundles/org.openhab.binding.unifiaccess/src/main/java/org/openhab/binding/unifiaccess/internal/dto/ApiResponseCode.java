@@ -25,11 +25,6 @@ import com.google.gson.annotations.JsonAdapter;
 
 /**
  * String enum for UniFi Access API response codes.
- *
- * <p>
- * Enum name matches the exact code string provided by the API.
- * Each value carries a stable, human-readable description.
- * </p>
  * 
  * @author Dan Cunningham - Initial contribution
  */

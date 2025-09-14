@@ -350,7 +350,7 @@ public class Notification {
         public String hwType;
         public String revision;
         public JsonElement cap;
-        public List<LocationState> locationStates;
+        public List<LocationState> locationStates; // is this ever present?
         public List<String> category;
     }
 

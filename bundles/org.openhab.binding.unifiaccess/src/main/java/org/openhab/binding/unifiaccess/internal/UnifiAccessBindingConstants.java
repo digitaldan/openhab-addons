@@ -28,19 +28,37 @@ public class UnifiAccessBindingConstants {
 
     public static final ThingTypeUID BRIDGE_THING_TYPE = new ThingTypeUID(BINDING_ID, "bridge");
     public static final ThingTypeUID DOOR_THING_TYPE = new ThingTypeUID(BINDING_ID, "door");
+    public static final ThingTypeUID DEVICE_THING_TYPE = new ThingTypeUID(BINDING_ID, "device");
 
     public static final String CONFIG_DEVICE_ID = "deviceId";
 
     public static final String CHANNEL_LOCK = "lock";
-    public static final String CHANNEL_POSITION = "position";
-    public static final String CHANNEL_LAST_UNLOCK = "lastunlock";
-    public static final String CHANNEL_LAST_ACTOR = "lastactor";
-    public static final String CHANNEL_LOCK_RULE = "lockrule";
+    public static final String CHANNEL_DOOR_POSITION = "position";
+    public static final String CHANNEL_LAST_UNLOCK = "last-unlock";
+    public static final String CHANNEL_LAST_ACTOR = "last-actor";
+    public static final String CHANNEL_LOCK_RULE = "lock-rule";
 
-    public static final String CHANNEL_UNLOCK_NOW = "unlocknow";
-    public static final String CHANNEL_KEEP_UNLOCKED = "keepunlocked";
-    public static final String CHANNEL_KEEP_LOCKED = "keeplocked";
-    public static final String CHANNEL_UNLOCK_MINUTES = "unlockminutes";
-    public static final String CHANNEL_LOCK_EARLY = "lockearly";
-    public static final String CHANNEL_DOOR_THUMBNAIL = "doorthumbnail";
+    public static final String CHANNEL_KEEP_UNLOCKED = "keep-unlocked";
+    public static final String CHANNEL_KEEP_LOCKED = "keep-locked";
+    public static final String CHANNEL_UNLOCK_MINUTES = "unlock-minutes";
+    public static final String CHANNEL_DOOR_THUMBNAIL = "thumbnail";
+
+    // Device channels
+    public static final String CHANNEL_DEVICE_NFC_ENABLED = "nfc-enabled";
+    public static final String CHANNEL_DEVICE_PIN_ENABLED = "pin-enabled";
+    public static final String CHANNEL_DEVICE_PIN_SHUFFLE = "pin-shuffle";
+    public static final String CHANNEL_DEVICE_FACE_ENABLED = "face-enabled";
+    public static final String CHANNEL_DEVICE_MOBILE_TAP_ENABLED = "mobile-tap-enabled";
+    public static final String CHANNEL_DEVICE_MOBILE_BUTTON_ENABLED = "mobile-button-enabled";
+    public static final String CHANNEL_DEVICE_MOBILE_SHAKE_ENABLED = "mobile-shake-enabled";
+    public static final String CHANNEL_DEVICE_MOBILE_WAVE_ENABLED = "mobile-wave-enabled";
+    public static final String CHANNEL_DEVICE_WAVE_ENABLED = "wave-enabled";
+    public static final String CHANNEL_DEVICE_EMERGENCY_STATUS = "emergency-status";
+    public static final String CHANNEL_DEVICE_DOOR_SENSOR = "door-sensor";
+    public static final String CHANNEL_DEVICE_DOORBELL_CONTACT = "doorbell-contact";
+    public static final String CHANNEL_DEVICE_DOORBELL_TRIGGER = "doorbell";
+    public static final String CHANNEL_DEVICE_QR_CODE_ENABLED = "qr-code-enabled";
+    public static final String CHANNEL_DEVICE_TOUCH_PASS_ENABLED = "touch-pass-enabled";
+    public static final String CHANNEL_DEVICE_FACE_ANTI_SPOOFING = "face-anti-spoofing";
+    public static final String CHANNEL_DEVICE_FACE_DETECT_DISTANCE = "face-detect-distance";
 }

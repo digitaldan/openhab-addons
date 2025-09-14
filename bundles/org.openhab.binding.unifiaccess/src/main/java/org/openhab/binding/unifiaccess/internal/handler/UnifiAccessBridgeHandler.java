@@ -15,7 +15,10 @@ package org.openhab.binding.unifiaccess.internal.handler;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
+import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -25,15 +28,11 @@ import org.openhab.binding.unifiaccess.internal.UnifiAccessBindingConstants;
 import org.openhab.binding.unifiaccess.internal.UnifiAccessDiscoveryService;
 import org.openhab.binding.unifiaccess.internal.api.UniFiAccessApiClient;
 import org.openhab.binding.unifiaccess.internal.config.UnifiAccessBridgeConfiguration;
+import org.openhab.binding.unifiaccess.internal.dto.Device;
 import org.openhab.binding.unifiaccess.internal.dto.Door;
 import org.openhab.binding.unifiaccess.internal.dto.Notification;
-import org.openhab.binding.unifiaccess.internal.dto.Notification.BaseInfoData;
-import org.openhab.binding.unifiaccess.internal.dto.Notification.DeviceUpdateData;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.DeviceUpdateV2Data;
-import org.openhab.binding.unifiaccess.internal.dto.Notification.LocationState;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.LocationUpdateV2Data;
-import org.openhab.binding.unifiaccess.internal.dto.Notification.LogsAddData;
-import org.openhab.binding.unifiaccess.internal.dto.Notification.LogsInsightsAddData;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.RemoteUnlockData;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.RemoteViewChangeData;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.RemoteViewData;
@@ -74,6 +73,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
     private UnifiAccessBridgeConfiguration config = new UnifiAccessBridgeConfiguration();
     private @Nullable ScheduledFuture<?> reconnectFuture;
     private @Nullable UnifiAccessDiscoveryService discoveryService;
+    private final Map<String, String> remoteViewRequestToDeviceId = new ConcurrentHashMap<>();
 
     public UnifiAccessBridgeHandler(Bridge bridge, HttpClientFactory httpClientFactory) {
         super(bridge);
@@ -120,11 +120,9 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
             logger.debug("Failed to close notifications WebSocket: {}", e.getMessage());
         }
         cancelReconnect();
-        if (httpClient != null) {
-            try {
-                httpClient.stop();
-            } catch (Exception ignored) {
-            }
+        try {
+            httpClient.stop();
+        } catch (Exception ignored) {
         }
         super.dispose();
     }
@@ -140,7 +138,11 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
     public void childHandlerInitialized(ThingHandler childHandler, Thing childThing) {
         super.childHandlerInitialized(childHandler, childThing);
         logger.debug("Child handler initialized: {}", childHandler);
-        if (childHandler instanceof UnifiAccessDoorHandler handler) {
+        if (childHandler instanceof UnifiAccessDoorHandler) {
+            if (getThing().getStatus() == ThingStatus.ONLINE) {
+                syncDevices();
+            }
+        } else if (childHandler instanceof UnifiAccessDeviceHandler) {
             if (getThing().getStatus() == ThingStatus.ONLINE) {
                 syncDevices();
             }
@@ -163,12 +165,28 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                             // When a doorbell rings
                             case "access.remote_view":
                                 RemoteViewData rv = notification.dataAsRemoteView(gson);
-                                logger.trace("Parsed remote_view: {}", rv);
+                                try {
+                                    if (rv != null) {
+                                        if (rv.requestId != null && rv.deviceId != null) {
+                                            remoteViewRequestToDeviceId.put(rv.requestId, rv.deviceId);
+                                        }
+                                        if (rv.clearRequestId != null && rv.deviceId != null) {
+                                            remoteViewRequestToDeviceId.put(rv.clearRequestId, rv.deviceId);
+                                        }
+                                        handleRemoteView(rv);
+                                    }
+                                } catch (Exception ex) {
+                                    logger.debug("Failed to handle remote_view: {}", ex.getMessage());
+                                }
                                 break;
                             // Doorbell status change
                             case "access.remote_view.change":
                                 RemoteViewChangeData rvc = notification.dataAsRemoteViewChange(gson);
-                                // logger.trace("Parsed remote_view.change: {}", rvc);
+                                try {
+                                    handleRemoteViewChange(rvc);
+                                } catch (Exception ex) {
+                                    logger.debug("Failed to handle remote_view.change: {}", ex.getMessage());
+                                }
                                 break;
                             // Remote door unlock by admin
                             case "access.data.device.remote_unlock":
@@ -177,7 +195,8 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                                 handleRemoteUnlock(ru);
                                 break;
                             case "access.data.device.update":
-                                DeviceUpdateData du = notification.dataAsDeviceUpdate(gson);
+                                // TODO: handle device update which carries Online status
+                                notification.dataAsDeviceUpdate(gson);
                                 break;
                             case "access.data.v2.device.update":
                                 DeviceUpdateV2Data du2 = notification.dataAsDeviceUpdateV2(gson);
@@ -197,16 +216,13 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                                 }
                                 break;
                             case "access.logs.insights.add":
-                                LogsInsightsAddData lia = notification.dataAsLogsInsightsAdd(gson);
-                                // logger.trace("Parsed logs.insights.add: {}", lia);
+                                notification.dataAsLogsInsightsAdd(gson);
                                 break;
                             case "access.logs.add":
-                                LogsAddData la = notification.dataAsLogsAdd(gson);
-                                // logger.trace("Parsed logs.add: {}", la);
+                                notification.dataAsLogsAdd(gson);
                                 break;
                             case "access.base.info":
-                                BaseInfoData bi = notification.dataAsBaseInfo(gson);
-                                // logger.trace("Parsed base.info: {}", bi);
+                                notification.dataAsBaseInfo(gson);
                                 break;
                             default:
                                 // leave as raw
@@ -269,20 +285,50 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         }
         try {
             List<Door> doors = client.getDoors();
+            List<Device> devices = client.getDevices();
+
+            // TODO we need to use the isOnline status of the "device" to update both a
+            // device, and a doors thing status
+
+            // exclude any whose locationId matches a door id
+            List<Device> filteredDevices = devices.stream()
+                    .filter(device -> device.locationId == null
+                            || !doors.stream().anyMatch(door -> door.id.equals(device.locationId)))
+                    .collect(Collectors.toList());
+
             UnifiAccessDiscoveryService discoveryService = this.discoveryService;
             if (discoveryService != null) {
                 discoveryService.discoverDoors(doors);
+                discoveryService.discoverDevices(filteredDevices);
             }
-            logger.trace("Polled UniFi Access: {} doors", doors != null ? doors.size() : 0);
-            if (doors.isEmpty()) {
+            logger.trace("Polled UniFi Access: {} doors", doors.size());
+            if (!doors.isEmpty()) {
                 for (Thing t : getThing().getThings()) {
+                    logger.trace("Checking thing: {} against {}", t.getThingTypeUID(),
+                            UnifiAccessBindingConstants.DOOR_THING_TYPE);
                     if (UnifiAccessBindingConstants.DOOR_THING_TYPE.equals(t.getThingTypeUID())) {
                         if (t.getHandler() instanceof UnifiAccessDoorHandler dh) {
+                            logger.trace("Updating door: {}", dh.deviceId);
                             String did = String
                                     .valueOf(t.getConfiguration().get(UnifiAccessBindingConstants.CONFIG_DEVICE_ID));
+                            logger.trace("Device ID: {}", did);
                             Door match = doors.stream().filter(x -> did.equals(x.id)).findFirst().orElse(null);
                             if (match != null) {
                                 dh.updateFromDoor(match);
+                            }
+                        }
+                    }
+                }
+            }
+            if (!filteredDevices.isEmpty()) {
+                for (Thing t : getThing().getThings()) {
+                    if (UnifiAccessBindingConstants.DEVICE_THING_TYPE.equals(t.getThingTypeUID())) {
+                        if (t.getHandler() instanceof UnifiAccessDeviceHandler dh) {
+                            try {
+                                var settings = client.getDeviceAccessMethodSettings(dh.deviceId);
+                                dh.updateFromSettings(settings);
+                            } catch (UniFiAccessHttpException ex) {
+                                logger.debug("Failed to update device {}: {}", dh.deviceId, ex.getMessage());
                             }
                         }
                     }
@@ -302,30 +348,65 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
     }
 
     private void handleRemoteUnlock(Notification.RemoteUnlockData data) {
-        String doorId = data.uniqueId;
         for (Thing t : getThing().getThings()) {
             if (UnifiAccessBindingConstants.DOOR_THING_TYPE.equals(t.getThingTypeUID())) {
                 String did = String.valueOf(t.getConfiguration().get(UnifiAccessBindingConstants.CONFIG_DEVICE_ID));
-                if (doorId.equals(did) && t.getHandler() instanceof UnifiAccessDoorHandler dh) {
+                if (data.uniqueId.equals(did) && t.getHandler() instanceof UnifiAccessDoorHandler dh) {
                     dh.handleRemoteUnlock(data);
                 }
             }
         }
     }
 
-    private void handleDeviceUpdateV2(Notification.DeviceUpdateV2Data updateData) {
-        LocationState ls = updateData.locationStates.getFirst();
-        UnifiAccessDoorHandler dh = getDoorHandler(ls.locationId);
+    private void handleRemoteView(RemoteViewData rv) {
+        UnifiAccessDeviceHandler dh = getDeviceHandlerByDeviceId(rv.deviceId);
         if (dh != null) {
-            dh.handleLocationState(ls);
+            dh.handleRemoteView(rv);
+        }
+    }
+
+    private void handleRemoteViewChange(RemoteViewChangeData rvc) {
+        // First try to route via remote call request id mapping (if available)
+        String deviceId = null;
+        if (rvc != null && rvc.remoteCallRequestId != null) {
+            deviceId = remoteViewRequestToDeviceId.get(rvc.remoteCallRequestId);
+        }
+        if (deviceId != null) {
+            UnifiAccessDeviceHandler dh = getDeviceHandlerByDeviceId(deviceId);
+            if (dh != null) {
+                dh.handleRemoteViewChange(rvc);
+                return;
+            }
+        }
+    }
+
+    private void handleDeviceUpdateV2(Notification.DeviceUpdateV2Data updateData) {
+        if (updateData.locationStates != null) {
+            updateData.locationStates.forEach(ls -> {
+                UnifiAccessDoorHandler dh = getDoorHandler(ls.locationId);
+                if (dh != null) {
+                    dh.handleLocationState(ls);
+                }
+            });
+        } else {
+            // update for a device ?
+            // TODO this update carries the isOnline status of the device, so we need to update the device thing status
         }
     }
 
     private void handleLocationUpdateV2(LocationUpdateV2Data lu2) {
-        String locationId = lu2.id;
-        UnifiAccessDoorHandler dh = getDoorHandler(locationId);
-        if (dh != null) {
-            dh.handleLocationUpdateV2(lu2);
+        // Forward to matching device handlers by device ids under this location
+        if (lu2.state != null && lu2.deviceIds != null) {
+            for (String deviceId : lu2.deviceIds) {
+                UnifiAccessDoorHandler dh = getDoorHandler(deviceId);
+                if (dh != null) {
+                    dh.handleLocationUpdateV2(lu2);
+                }
+                UnifiAccessDeviceHandler uh = getDeviceHandlerByDeviceId(deviceId);
+                if (uh != null) {
+                    uh.handleLocationState(lu2.state);
+                }
+            }
         }
     }
 
@@ -334,6 +415,18 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
             if (UnifiAccessBindingConstants.DOOR_THING_TYPE.equals(t.getThingTypeUID())) {
                 String did = String.valueOf(t.getConfiguration().get(UnifiAccessBindingConstants.CONFIG_DEVICE_ID));
                 if (doorId.equals(did) && t.getHandler() instanceof UnifiAccessDoorHandler dh) {
+                    return dh;
+                }
+            }
+        }
+        return null;
+    }
+
+    private @Nullable UnifiAccessDeviceHandler getDeviceHandlerByDeviceId(String deviceId) {
+        for (Thing t : getThing().getThings()) {
+            if (UnifiAccessBindingConstants.DEVICE_THING_TYPE.equals(t.getThingTypeUID())) {
+                String did = String.valueOf(t.getConfiguration().get(UnifiAccessBindingConstants.CONFIG_DEVICE_ID));
+                if (deviceId.equals(did) && t.getHandler() instanceof UnifiAccessDeviceHandler dh) {
                     return dh;
                 }
             }

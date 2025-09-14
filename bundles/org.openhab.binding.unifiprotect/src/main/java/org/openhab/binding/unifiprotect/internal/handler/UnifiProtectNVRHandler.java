@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -76,9 +77,18 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
     private Gson gson;
     private boolean shuttingDown = false;
 
-    // Deduplication of WS events (same event id and WS type within a short window)
-    private static final long WS_EVENT_DEDUP_WINDOW_MS = 2000; // 2 seconds
-    private final Map<String, Long> recentEventKeys = new ConcurrentHashMap<>();
+    private static final long WS_UPDATE_DEBOUNCE_MS = 500; // inactivity window
+    private static final long WS_UPDATE_MAX_WAIT_MS = 2000; // max wait per burst
+    private final Map<String, PendingUpdate> pendingEventUpdates = new ConcurrentHashMap<>();
+
+    private static final class PendingUpdate {
+        @Nullable
+        BaseEvent lastEvent;
+        @Nullable
+        ScheduledFuture<?> debounceFuture;
+        @Nullable
+        ScheduledFuture<?> maxFuture;
+    }
 
     public UnifiProtectNVRHandler(Thing thing, HttpClientFactory httpClientFactory) {
         super((Bridge) thing);
@@ -135,13 +145,9 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 this.apiClient = apiClient;
 
                 apiClient.subscribeEvents(add -> {
-                    if (!isDuplicate(add.item, WSEventType.ADD)) {
-                        routeEvent(add.item, WSEventType.ADD);
-                    }
+                    routeEvent(add.item, WSEventType.ADD);
                 }, update -> {
-                    if (!isDuplicate(update.item, WSEventType.UPDATE)) {
-                        routeEvent(update.item, WSEventType.UPDATE);
-                    }
+                    handleUpdateEvent(update.item);
                 }, () -> {
                     updateStatus(ThingStatus.ONLINE);
                     scheduler.execute(() -> syncDevices());
@@ -304,23 +310,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         }
     }
 
-    private boolean isDuplicate(@Nullable BaseEvent event, WSEventType wsType) {
-        if (event == null || event.id == null) {
-            return false;
-        }
-        long now = System.currentTimeMillis();
-        String key = wsType.name() + ":" + event.id;
-        Long last = recentEventKeys.get(key);
-        if (last != null && (now - last) < WS_EVENT_DEDUP_WINDOW_MS) {
-            return true;
-        }
-        recentEventKeys.put(key, now);
-        if (recentEventKeys.size() > 2048) {
-            recentEventKeys.entrySet().removeIf(e -> (now - e.getValue()) >= WS_EVENT_DEDUP_WINDOW_MS);
-        }
-        return false;
-    }
-
     private void markChildGone(ThingTypeUID type, String deviceId) {
         if (UnifiProtectBindingConstants.THING_TYPE_CAMERA.equals(type)) {
             UnifiProtectCameraHandler ch = findChildHandler(type, deviceId, UnifiProtectCameraHandler.class);
@@ -479,6 +468,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
     private void stopTasks() {
         stopPollTask();
         stopReconnectTask();
+        stopPendingUpdateTasks();
     }
 
     private void stopPollTask() {
@@ -494,6 +484,72 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         if (reconnectTask != null) {
             reconnectTask.cancel(true);
             this.reconnectTask = null;
+        }
+    }
+
+    private void stopPendingUpdateTasks() {
+        for (Map.Entry<String, PendingUpdate> e : pendingEventUpdates.entrySet()) {
+            PendingUpdate pu = e.getValue();
+            ScheduledFuture<?> f1 = pu.debounceFuture;
+            if (f1 != null) {
+                f1.cancel(true);
+            }
+            ScheduledFuture<?> f2 = pu.maxFuture;
+            if (f2 != null) {
+                f2.cancel(true);
+            }
+        }
+        pendingEventUpdates.clear();
+    }
+
+    private synchronized void handleUpdateEvent(@Nullable BaseEvent event) {
+        if (event == null || event.id == null) {
+            return;
+        }
+        final String eventId = event.id;
+        PendingUpdate state = Objects
+                .requireNonNull(pendingEventUpdates.computeIfAbsent(eventId, k -> new PendingUpdate()));
+        // Schedule max wait once per burst (only if not already scheduled)
+        if (state.maxFuture == null) {
+            final PendingUpdate stateFinalForMax = state;
+            state.maxFuture = scheduler.schedule(() -> deliverDebouncedUpdate(eventId, stateFinalForMax),
+                    WS_UPDATE_MAX_WAIT_MS, TimeUnit.MILLISECONDS);
+        }
+
+        // Update the latest event
+        state.lastEvent = event;
+
+        // Reschedule the inactivity debounce timer
+        ScheduledFuture<?> existing = state.debounceFuture;
+        if (existing != null) {
+            existing.cancel(false);
+        }
+        final PendingUpdate stateFinal = state;
+        state.debounceFuture = scheduler.schedule(() -> deliverDebouncedUpdate(eventId, stateFinal),
+                WS_UPDATE_DEBOUNCE_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private synchronized void deliverDebouncedUpdate(String eventId, PendingUpdate state) {
+        // Guard against races if another task already delivered and cleared state
+        PendingUpdate current = pendingEventUpdates.get(eventId);
+        if (!state.equals(current)) {
+            return;
+        }
+        // Cancel all update timers
+        ScheduledFuture<?> f1 = state.debounceFuture;
+        if (f1 != null) {
+            f1.cancel(false);
+            state.debounceFuture = null;
+        }
+        ScheduledFuture<?> f2 = state.maxFuture;
+        if (f2 != null) {
+            f2.cancel(false);
+            state.maxFuture = null;
+        }
+        BaseEvent last = state.lastEvent;
+        pendingEventUpdates.remove(eventId);
+        if (last != null) {
+            routeEvent(last, WSEventType.UPDATE);
         }
     }
 }
