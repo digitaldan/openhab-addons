@@ -15,8 +15,6 @@ package org.openhab.binding.unifiprotect.internal.dto;
 /**
  * Base type for device reference DTOs (id + modelKey).
  *
- * Matches schemas like cameraReference, nvrReference, etc.
- *
  * @author Dan Cunningham - Initial contribution
  */
 public class DeviceReference {

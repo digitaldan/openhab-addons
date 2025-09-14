@@ -46,8 +46,27 @@ import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.openhab.binding.unifiprotect.internal.dto.*;
-import org.openhab.binding.unifiprotect.internal.dto.ws.*;
+import org.openhab.binding.unifiprotect.internal.dto.ApiValueEnum;
+import org.openhab.binding.unifiprotect.internal.dto.AssetFileType;
+import org.openhab.binding.unifiprotect.internal.dto.Camera;
+import org.openhab.binding.unifiprotect.internal.dto.ChannelQuality;
+import org.openhab.binding.unifiprotect.internal.dto.Chime;
+import org.openhab.binding.unifiprotect.internal.dto.CreatedRtspsStreams;
+import org.openhab.binding.unifiprotect.internal.dto.ExistingRtspsStreams;
+import org.openhab.binding.unifiprotect.internal.dto.FileSchema;
+import org.openhab.binding.unifiprotect.internal.dto.GenericError;
+import org.openhab.binding.unifiprotect.internal.dto.Light;
+import org.openhab.binding.unifiprotect.internal.dto.Liveview;
+import org.openhab.binding.unifiprotect.internal.dto.Nvr;
+import org.openhab.binding.unifiprotect.internal.dto.ProtectVersionInfo;
+import org.openhab.binding.unifiprotect.internal.dto.Sensor;
+import org.openhab.binding.unifiprotect.internal.dto.TalkbackSession;
+import org.openhab.binding.unifiprotect.internal.dto.Viewer;
+import org.openhab.binding.unifiprotect.internal.dto.ws.DeviceAdd;
+import org.openhab.binding.unifiprotect.internal.dto.ws.DeviceRemove;
+import org.openhab.binding.unifiprotect.internal.dto.ws.DeviceUpdate;
+import org.openhab.binding.unifiprotect.internal.dto.ws.EventAdd;
+import org.openhab.binding.unifiprotect.internal.dto.ws.EventUpdate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -433,7 +452,14 @@ public class UniFiProtectApiClient implements Closeable {
         try {
             String json = resp.getContentAsString();
             logger.trace("Parsing JSON {}", json);
-            return gson.fromJson(json, clazz);
+            @Nullable
+            T parsed = gson.fromJson(json, clazz);
+            if (parsed == null) {
+                throw new IOException("Failed to parse JSON to " + clazz.getSimpleName() + ": null");
+            }
+            return parsed;
+        } catch (IOException e) {
+            throw e;
         } catch (Exception e) {
             throw new IOException("Failed to parse JSON to " + clazz.getSimpleName(), e);
         }
@@ -443,7 +469,14 @@ public class UniFiProtectApiClient implements Closeable {
         try {
             String json = resp.getContentAsString();
             logger.trace("Parsing JSON {}", json);
-            return gson.fromJson(json, type);
+            @Nullable
+            T parsed = gson.fromJson(json, type);
+            if (parsed == null) {
+                throw new IOException("Failed to parse JSON: null");
+            }
+            return parsed;
+        } catch (IOException e) {
+            throw e;
         } catch (Exception e) {
             throw new IOException("Failed to parse JSON", e);
         }
@@ -480,38 +513,27 @@ public class UniFiProtectApiClient implements Closeable {
                 private @Nullable ScheduledFuture<?> heartbeatTask;
 
                 @Override
-                public void onWebSocketConnect(@Nullable Session sess) {
-                    if (sess == null) {
+                public void onWebSocketConnect(@Nullable Session session) {
+                    if (session == null) {
                         future.completeExceptionally(new IOException("WebSocket connection failed"));
                         return;
                     }
-                    super.onWebSocketConnect(sess);
-                    // Schedule periodic ping frames as heartbeat to keep NATs and intermediaries
-                    // happy
-                    try {
-                        heartbeatTask = heartbeatExecutor.scheduleAtFixedRate(() -> {
-                            try {
-                                Session s = getSession();
-                                if (s != null && s.isOpen()) {
-                                    s.getRemote().sendPing(ByteBuffer.allocate(0));
-                                }
-                            } catch (Throwable t) {
-                                logger.trace("WebSocket heartbeat ping failed", t);
-                                sess.close(1000, "WebSocket heartbeat ping failed");
-                            }
-                        }, 30, 30, TimeUnit.SECONDS);
-                    } catch (Throwable t) {
-                        logger.debug("Failed to schedule WebSocket heartbeat", t);
-                    }
-                    logger.debug("WebSocket connected: {}", wsUri);
-                    future.complete(sess);
-                    if (onOpen != null) {
+                    super.onWebSocketConnect(session);
+                    // Schedule periodic ping frames as heartbeat
+                    heartbeatTask = heartbeatExecutor.scheduleWithFixedDelay(() -> {
                         try {
-                            onOpen.run();
-                        } catch (Throwable t) {
-                            onError.accept(t);
+                            Session s = getSession();
+                            if (s != null && s.isOpen()) {
+                                s.getRemote().sendPing(ByteBuffer.allocate(0));
+                            }
+                        } catch (IOException e) {
+                            logger.debug("WebSocket heartbeat ping failed", e);
+                            session.close(1000, "WebSocket heartbeat ping failed");
                         }
-                    }
+                    }, 30, 30, TimeUnit.SECONDS);
+                    logger.debug("WebSocket connected: {}", wsUri);
+                    future.complete(session);
+                    onOpen.run();
                 }
 
                 @Override
@@ -534,20 +556,10 @@ public class UniFiProtectApiClient implements Closeable {
                 public void onWebSocketClose(int statusCode, @Nullable String reason) {
                     ScheduledFuture<?> hb = heartbeatTask;
                     if (hb != null) {
-                        try {
-                            hb.cancel(true);
-                        } catch (Throwable t) {
-                            // ignore
-                        }
+                        hb.cancel(true);
                         heartbeatTask = null;
                     }
-                    if (onClosed != null) {
-                        try {
-                            onClosed.accept(statusCode, reason != null ? reason : "");
-                        } catch (Throwable t) {
-                            onError.accept(t);
-                        }
-                    }
+                    onClosed.accept(statusCode, reason != null ? reason : "");
                     super.onWebSocketClose(statusCode, reason);
                 }
             }, wsUri, upgrade).get());

@@ -20,15 +20,8 @@ package org.openhab.binding.unifiprotect.internal.dto;
  * @author Dan Cunningham - Initial contribution
  */
 public abstract class Device {
-    /** Primary key of the device (string). */
     public String id;
-
-    /** Discriminator for subtype. */
     public ModelKey modelKey;
-
-    /** Connection state (if available). */
     public DeviceState state;
-
-    /** Human-friendly name (nullable for some models). */
     public String name;
 }

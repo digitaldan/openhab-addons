@@ -15,11 +15,8 @@ package org.openhab.binding.unifiprotect.internal.handler;
 import java.io.IOException;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectBindingConstants;
 import org.openhab.binding.unifiprotect.internal.api.UniFiProtectApiClient;
-import org.openhab.binding.unifiprotect.internal.config.UnifiProtectDeviceConfiguration;
-import org.openhab.binding.unifiprotect.internal.dto.Device;
 import org.openhab.binding.unifiprotect.internal.dto.Light;
 import org.openhab.binding.unifiprotect.internal.dto.LightDeviceSettings;
 import org.openhab.binding.unifiprotect.internal.dto.LightModeSettings;
@@ -41,20 +38,12 @@ import org.slf4j.LoggerFactory;
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public class UnifiProtectLightHandler extends UnifiProtectAbstractDeviceHandler {
+public class UnifiProtectLightHandler extends UnifiProtectAbstractDeviceHandler<Light> {
 
     private final Logger logger = LoggerFactory.getLogger(UnifiProtectLightHandler.class);
-    private String deviceId = "";
-    private volatile @Nullable Light light;
 
     public UnifiProtectLightHandler(Thing thing) {
         super(thing);
-    }
-
-    @Override
-    public void initialize() {
-        updateStatus(ThingStatus.UNKNOWN);
-        deviceId = getConfigAs(UnifiProtectDeviceConfiguration.class).deviceId;
     }
 
     @Override
@@ -74,39 +63,28 @@ public class UnifiProtectLightHandler extends UnifiProtectAbstractDeviceHandler 
         }
     }
 
-    public void updateFromDevice(Device device) {
-        if (device instanceof Light light) {
-            this.light = light;
-            this.device = light;
-
-            // Update simple booleans
-            updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_IS_DARK, light.isDark);
-            updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_LIGHT, light.isLightOn);
-
-            // Update last motion if available
-            if (light.lastMotion != null) {
-                updateDateTimeChannel(UnifiProtectBindingConstants.CHANNEL_LAST_MOTION, light.lastMotion);
+    public void updateFromDevice(Light light) {
+        super.updateFromDevice(light);
+        updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_IS_DARK, light.isDark);
+        updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_LIGHT, light.isLightOn);
+        if (light.lastMotion != null) {
+            updateDateTimeChannel(UnifiProtectBindingConstants.CHANNEL_LAST_MOTION, light.lastMotion);
+        }
+        LightModeSettings lms = light.lightModeSettings;
+        if (lms != null) {
+            if (lms.mode != null) {
+                updateStringChannel(UnifiProtectBindingConstants.CHANNEL_LIGHT_MODE, lms.mode.getApiValue());
             }
-
-            // Update mode settings
-            LightModeSettings lms = light.lightModeSettings;
-            if (lms != null) {
-                if (lms.mode != null) {
-                    updateStringChannel(UnifiProtectBindingConstants.CHANNEL_LIGHT_MODE, lms.mode.getApiValue());
-                }
-                if (lms.enableAt != null) {
-                    updateStringChannel(UnifiProtectBindingConstants.CHANNEL_ENABLE_AT, lms.enableAt.getApiValue());
-                }
+            if (lms.enableAt != null) {
+                updateStringChannel(UnifiProtectBindingConstants.CHANNEL_ENABLE_AT, lms.enableAt.getApiValue());
             }
-
-            // Update device settings
-            LightDeviceSettings lds = light.lightDeviceSettings;
-            if (lds != null) {
-                updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_INDICATOR_ENABLED, lds.isIndicatorEnabled);
-                updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_PIR_DURATION, lds.pirDuration);
-                updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_PIR_SENSITIVITY, lds.pirSensitivity);
-                updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_LED_LEVEL, lds.ledLevel);
-            }
+        }
+        LightDeviceSettings lds = light.lightDeviceSettings;
+        if (lds != null) {
+            updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_INDICATOR_ENABLED, lds.isIndicatorEnabled);
+            updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_PIR_DURATION, lds.pirDuration);
+            updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_PIR_SENSITIVITY, lds.pirSensitivity);
+            updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_LED_LEVEL, lds.ledLevel);
         }
         if (getThing().getStatus() != ThingStatus.ONLINE) {
             updateStatus(ThingStatus.ONLINE);
@@ -116,10 +94,8 @@ public class UnifiProtectLightHandler extends UnifiProtectAbstractDeviceHandler 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
         String id = channelUID.getId();
-
-        // RefreshType handling - emit current state
         if (command instanceof RefreshType) {
-            Light l = light;
+            Light l = device;
             if (l == null) {
                 return;
             }

@@ -66,15 +66,14 @@ import com.google.gson.GsonBuilder;
 public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
 
     private final Logger logger = LoggerFactory.getLogger(UnifiAccessBridgeHandler.class);
-
-    private final HttpClient httpClient;
+    private static final int DEFAULT_PORT = 12445;
+    private static final String DEFAULT_PATH = "/api/v1/developer";
     private final Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-            .create();
+    .create();
+    private final HttpClient httpClient;
     private @Nullable UniFiAccessApiClient apiClient;
-
     private UnifiAccessBridgeConfiguration config = new UnifiAccessBridgeConfiguration();
     private @Nullable ScheduledFuture<?> reconnectFuture;
-    private int reconnectAttempts;
     private @Nullable UnifiAccessDiscoveryService discoveryService;
 
     public UnifiAccessBridgeHandler(Bridge bridge, HttpClientFactory httpClientFactory) {
@@ -96,8 +95,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
 
         scheduler.execute(() -> {
             try {
-                URI configuredBase = URI.create("https://" + config.host + ":" + 12445 + "/api/v1/developer");
-
+                URI configuredBase = URI.create("https://" + config.host + ":" + DEFAULT_PORT + DEFAULT_PATH);
                 if (!httpClient.isStarted()) {
                     httpClient.start();
                 }
@@ -161,8 +159,6 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                 client.openNotifications(() -> {
                     logger.info("Notifications WebSocket opened");
                     updateStatus(ThingStatus.ONLINE);
-                    // Reset backoff on successful connection
-                    reconnectAttempts = 0;
                     scheduler.execute(UnifiAccessBridgeHandler.this::syncDevices);
                 }, notification -> {
 
@@ -229,18 +225,14 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                     }
                 }, error -> {
                     logger.warn("Notifications error: {}", error.getMessage());
-                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR,
-                            error.getMessage());
-                    scheduleReconnect();
+                    setOfflineAndReconnect(error.getMessage());
                 }, (statusCode, reason) -> {
                     logger.info("Notifications closed: {} - {}", statusCode, reason);
-                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, reason);
-                    scheduleReconnect();
+                    setOfflineAndReconnect(reason);
                 });
             } catch (Exception e) {
                 logger.warn("Failed to open notifications WebSocket: {}", e.getMessage());
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, e.getMessage());
-                scheduleReconnect();
+                setOfflineAndReconnect(e.getMessage());
             }
         }
     }
@@ -249,21 +241,18 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         this.discoveryService = discoveryService;
     }
 
-    private void scheduleReconnect() {
+    private void setOfflineAndReconnect(String message) {
         if (reconnectFuture != null && !reconnectFuture.isDone()) {
             return;
         }
-        int attempt = Math.min(reconnectAttempts, 5);
-        long delaySeconds = Math.min(60, 2L << attempt); // 2,4,8,16,32,60
-        reconnectAttempts++;
+        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, message);
         reconnectFuture = scheduler.schedule(() -> {
             try {
                 connect();
             } catch (Exception ex) {
                 logger.debug("Reconnect attempt failed to schedule connect: {}", ex.getMessage());
             }
-        }, delaySeconds, java.util.concurrent.TimeUnit.SECONDS);
-        logger.info("Scheduled reconnect in {}s (attempt #{})", delaySeconds, reconnectAttempts);
+        }, 5, java.util.concurrent.TimeUnit.SECONDS);
     }
 
     private void cancelReconnect() {

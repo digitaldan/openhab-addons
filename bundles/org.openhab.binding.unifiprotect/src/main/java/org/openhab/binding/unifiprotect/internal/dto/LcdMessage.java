@@ -23,6 +23,5 @@ public class LcdMessage {
     public LcdMessageType type;
     /** UNIX timestamp when message should reset; null means forever. */
     public Long resetAt;
-    /** For CUSTOM_MESSAGE, the text to display; for IMAGE, the asset id. */
     public String text;
 }

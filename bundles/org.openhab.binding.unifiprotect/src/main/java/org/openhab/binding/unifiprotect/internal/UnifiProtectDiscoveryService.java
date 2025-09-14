@@ -73,9 +73,6 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
     public void discoverCameras(UniFiProtectApiClient client) {
         try {
             for (Camera c : client.listCameras()) {
-                if (c == null || c.id == null) {
-                    continue;
-                }
                 discoverCamera(c);
             }
         } catch (IOException e) {
@@ -86,9 +83,6 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
     public void discoverLights(UniFiProtectApiClient client) {
         try {
             for (Light l : client.listLights()) {
-                if (l == null || l.id == null) {
-                    continue;
-                }
                 discoverLight(l);
             }
         } catch (IOException e) {
@@ -99,9 +93,6 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
     public void discoverSensors(UniFiProtectApiClient client) {
         try {
             for (Sensor s : client.listSensors()) {
-                if (s == null || s.id == null) {
-                    continue;
-                }
                 discoverSensor(s);
             }
         } catch (IOException e) {

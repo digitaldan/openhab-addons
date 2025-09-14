@@ -17,16 +17,15 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectBindingConstants;
 import org.openhab.binding.unifiprotect.internal.api.UniFiProtectApiClient;
-import org.openhab.binding.unifiprotect.internal.config.UnifiProtectDeviceConfiguration;
 import org.openhab.binding.unifiprotect.internal.dto.ApiValueEnum;
 import org.openhab.binding.unifiprotect.internal.dto.Camera;
 import org.openhab.binding.unifiprotect.internal.dto.CameraFeatureFlags;
-import org.openhab.binding.unifiprotect.internal.dto.Device;
 import org.openhab.binding.unifiprotect.internal.dto.HdrType;
 import org.openhab.binding.unifiprotect.internal.dto.LedSettings;
 import org.openhab.binding.unifiprotect.internal.dto.OsdSettings;
@@ -62,27 +61,18 @@ import com.google.gson.JsonObject;
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler {
+public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler<Camera> {
     private final Logger logger = LoggerFactory.getLogger(UnifiProtectCameraHandler.class);
-    private String deviceId = "";
-    private @Nullable Camera camera;
 
     public UnifiProtectCameraHandler(Thing thing) {
         super(thing);
     }
 
     @Override
-    public void initialize() {
-        updateStatus(ThingStatus.UNKNOWN);
-        deviceId = getConfigAs(UnifiProtectDeviceConfiguration.class).deviceId;
-    }
-
-    @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
         String id = channelUID.getId();
         if (command instanceof RefreshType) {
-            // State refresh: re-emit current state where possible
-            Camera cam = camera;
+            Camera cam = device;
             if (cam == null) {
                 return;
             }
@@ -121,7 +111,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         }
 
         UniFiProtectApiClient api = getApiClient();
-        // Camera cam = camera;
         if (api == null) {
             return;
         }
@@ -208,42 +197,40 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
     }
 
     @Override
-    public void updateFromDevice(Device device) {
-        if (device instanceof Camera camera) {
-            this.camera = camera;
-            // Ensure dynamic channels reflect camera capabilities
-            addRemoveChannels(camera);
-            if (getThing().getStatus() != ThingStatus.ONLINE) {
-                updateStatus(ThingStatus.ONLINE);
-            }
-
-            // Update initial states for available channels
-            updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME, camera.micVolume);
-
-            OsdSettings osd = camera.osdSettings;
-            if (osd != null) {
-                updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_OSD_NAME, osd.isNameEnabled);
-                updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_OSD_DATE, osd.isDateEnabled);
-                updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_OSD_LOGO, osd.isLogoEnabled);
-            }
-
-            LedSettings led = camera.ledSettings;
-            if (led != null) {
-                updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_LED_ENABLED, led.isEnabled);
-            }
-
-            HdrType hdr = camera.hdrType;
-            if (hdr != null) {
-                updateApiValueChannel(UnifiProtectBindingConstants.CHANNEL_HDR_TYPE, hdr);
-            }
-
-            VideoMode videoMode = camera.videoMode;
-            if (videoMode != null) {
-                updateApiValueChannel(UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE, videoMode);
-            }
-
-            updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT, camera.activePatrolSlot);
+    public void updateFromDevice(Camera camera) {
+        super.updateFromDevice(camera);
+        // Ensure dynamic channels reflect camera capabilities
+        addRemoveChannels(camera);
+        if (getThing().getStatus() != ThingStatus.ONLINE) {
+            updateStatus(ThingStatus.ONLINE);
         }
+
+        // Update initial states for available channels
+        updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME, camera.micVolume);
+
+        OsdSettings osd = camera.osdSettings;
+        if (osd != null) {
+            updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_OSD_NAME, osd.isNameEnabled);
+            updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_OSD_DATE, osd.isDateEnabled);
+            updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_OSD_LOGO, osd.isLogoEnabled);
+        }
+
+        LedSettings led = camera.ledSettings;
+        if (led != null) {
+            updateBooleanChannel(UnifiProtectBindingConstants.CHANNEL_LED_ENABLED, led.isEnabled);
+        }
+
+        HdrType hdr = camera.hdrType;
+        if (hdr != null) {
+            updateApiValueChannel(UnifiProtectBindingConstants.CHANNEL_HDR_TYPE, hdr);
+        }
+
+        VideoMode videoMode = camera.videoMode;
+        if (videoMode != null) {
+            updateApiValueChannel(UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE, videoMode);
+        }
+
+        updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT, camera.activePatrolSlot);
     }
 
     @Override
@@ -254,7 +241,9 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
         switch (event.type) {
             case CAMERA_MOTION:
-                updateSnapshot(UnifiProtectBindingConstants.CHANNEL_MOTION_SNAPSHOT);
+                if (eventType == WSEventType.ADD) {
+                    updateSnapshot(UnifiProtectBindingConstants.CHANNEL_MOTION_SNAPSHOT);
+                }
                 // Trigger motion on start and end if channel exists
                 if (hasChannel(UnifiProtectBindingConstants.CHANNEL_MOTION)) {
                     String channelId = eventType == WSEventType.ADD ? UnifiProtectBindingConstants.CHANNEL_MOTION_START
@@ -267,18 +256,14 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
             case SMART_AUDIO_DETECT:
                 if (event instanceof CameraSmartDetectAudioEvent e) {
-                    updateSnapshot(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_SNAPSHOT);
+                    if (eventType == WSEventType.ADD) {
+                        updateSnapshot(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_SNAPSHOT);
+                    }
                     String channelId = eventType == WSEventType.ADD
                             ? UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_START
                             : UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_END;
                     if (hasChannel(channelId)) {
-                        if (e.smartDetectTypes == null || e.smartDetectTypes.isEmpty()) {
-                            triggerChannel(new ChannelUID(thing.getUID(), channelId), "none");
-                        } else {
-                            for (ApiValueEnum type : e.smartDetectTypes) {
-                                triggerChannel(new ChannelUID(thing.getUID(), channelId), type.getApiValue());
-                            }
-                        }
+                        triggerChannel(channelId, e.smartDetectTypes);
                         updateState(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_CONTACT,
                                 eventType == WSEventType.ADD ? OnOffType.OFF : OnOffType.ON);
                     }
@@ -287,18 +272,14 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
             case SMART_DETECT_ZONE:
                 if (event instanceof CameraSmartDetectZoneEvent e) {
-                    updateSnapshot(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_SNAPSHOT);
+                    if (eventType == WSEventType.ADD) {
+                        updateSnapshot(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_SNAPSHOT);
+                    }
                     String channelId = eventType == WSEventType.ADD
                             ? UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START
                             : UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_END;
                     if (hasChannel(channelId)) {
-                        if (e.smartDetectTypes == null || e.smartDetectTypes.isEmpty()) {
-                            triggerChannel(new ChannelUID(thing.getUID(), channelId), "none");
-                        } else {
-                            for (ApiValueEnum type : e.smartDetectTypes) {
-                                triggerChannel(new ChannelUID(thing.getUID(), channelId), type.getApiValue());
-                            }
-                        }
+                        triggerChannel(channelId, e.smartDetectTypes);
                         updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT,
                                 eventType == WSEventType.ADD ? OpenClosedType.OPEN : OpenClosedType.CLOSED);
                     }
@@ -307,18 +288,14 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
             case SMART_DETECT_LINE:
                 if (event instanceof CameraSmartDetectLineEvent e) {
-                    updateSnapshot(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_SNAPSHOT);
+                    if (eventType == WSEventType.ADD) {
+                        updateSnapshot(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_SNAPSHOT);
+                    }
                     String channelId = eventType == WSEventType.ADD
                             ? UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_START
                             : UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_END;
                     if (hasChannel(channelId)) {
-                        if (e.smartDetectTypes == null || e.smartDetectTypes.isEmpty()) {
-                            triggerChannel(new ChannelUID(thing.getUID(), channelId), "none");
-                        } else {
-                            for (ApiValueEnum type : e.smartDetectTypes) {
-                                triggerChannel(new ChannelUID(thing.getUID(), channelId), type.getApiValue());
-                            }
-                        }
+                        triggerChannel(channelId, e.smartDetectTypes);
                         updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT,
                                 eventType == WSEventType.ADD ? OpenClosedType.OPEN : OpenClosedType.CLOSED);
                     }
@@ -327,18 +304,14 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
             case SMART_DETECT_LOITER_ZONE:
                 if (event instanceof CameraSmartDetectLoiterEvent e) {
-                    updateSnapshot(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT);
+                    if (eventType == WSEventType.ADD) {
+                        updateSnapshot(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT);
+                    }
                     String channelId = eventType == WSEventType.ADD
                             ? UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_START
                             : UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_END;
                     if (hasChannel(channelId)) {
-                        if (e.smartDetectTypes == null || e.smartDetectTypes.isEmpty()) {
-                            triggerChannel(new ChannelUID(thing.getUID(), channelId), "none");
-                        } else {
-                            for (ApiValueEnum type : e.smartDetectTypes) {
-                                triggerChannel(new ChannelUID(thing.getUID(), channelId), type.getApiValue());
-                            }
-                        }
+                        triggerChannel(channelId, e.smartDetectTypes);
                         updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT,
                                 eventType == WSEventType.ADD ? OpenClosedType.OPEN : OpenClosedType.CLOSED);
                     }
@@ -361,8 +334,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
     }
 
     private void addRemoveChannels(Camera camera) {
-        // List<Channel> channelAdd = new ArrayList<>(thing.getChannels());
-
         List<Channel> channelRemove = new ArrayList<>();
         for (Channel existing : thing.getChannels()) {
             channelRemove.add(existing);
@@ -384,27 +355,22 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
         CameraFeatureFlags flags = camera.featureFlags;
         if (flags != null) {
-            // Mic
             if (flags.hasMic) {
                 addChannel(UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME, CoreItemFactory.NUMBER,
                         UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME, channelAdd, desiredIds);
             }
-            // LED
             if (flags.hasLedStatus) {
                 addChannel(UnifiProtectBindingConstants.CHANNEL_LED_ENABLED, CoreItemFactory.SWITCH,
                         UnifiProtectBindingConstants.CHANNEL_LED_ENABLED, channelAdd, desiredIds);
             }
-            // HDR
             if (flags.hasHdr) {
                 addChannel(UnifiProtectBindingConstants.CHANNEL_HDR_TYPE, CoreItemFactory.STRING,
                         UnifiProtectBindingConstants.CHANNEL_HDR_TYPE, channelAdd, desiredIds);
             }
-            // Video modes
             if (flags.videoModes != null && !flags.videoModes.isEmpty()) {
                 addChannel(UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE, CoreItemFactory.STRING,
                         UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE, channelAdd, desiredIds);
             }
-            // Smart object detection
             if (flags.smartDetectTypes != null && !flags.smartDetectTypes.isEmpty()) {
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, desiredIds);
@@ -436,7 +402,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                         UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, desiredIds,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT_LABEL);
             }
-            // Smart audio detection
             if (flags.smartDetectAudioTypes != null && !flags.smartDetectAudioTypes.isEmpty()) {
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_START,
                         UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT, channelAdd, desiredIds);
@@ -450,7 +415,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             }
         }
 
-        // OSD related if settings present
         if (camera.osdSettings != null) {
             addChannel(UnifiProtectBindingConstants.CHANNEL_OSD_NAME, CoreItemFactory.SWITCH,
                     UnifiProtectBindingConstants.CHANNEL_OSD_NAME, channelAdd, desiredIds);
@@ -460,21 +424,11 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     UnifiProtectBindingConstants.CHANNEL_OSD_LOGO, channelAdd, desiredIds);
         }
 
-        // PTZ patrol slot if present
         if (camera.activePatrolSlot != null) {
             addChannel(UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT, CoreItemFactory.NUMBER,
                     UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT, channelAdd, desiredIds);
         }
 
-        // Compute removals by diffing existing managed channels against desired
-        // for (Channel existing : thing.getChannels()) {
-        // String id = existing.getUID().getId();
-        // if (MANAGED_CHANNEL_IDS.contains(id) && !desiredIds.contains(id)) {
-        // channelRemove.add(existing);
-        // }
-        // }
-
-        // updateThing(editThing().withChannels(channelAdd).withoutChannels(channelRemove).build());
         updateThing(editThing().withChannels(channelAdd).build());
     }
 
@@ -510,18 +464,8 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         }
     }
 
-    private static final Set<String> MANAGED_CHANNEL_IDS = Set.of(UnifiProtectBindingConstants.CHANNEL_SNAPSHOT,
-            UnifiProtectBindingConstants.CHANNEL_MOTION, UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME,
-            UnifiProtectBindingConstants.CHANNEL_LED_ENABLED, UnifiProtectBindingConstants.CHANNEL_HDR_TYPE,
-            UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE, UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE,
-            UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE,
-            UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER,
-            UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT, UnifiProtectBindingConstants.CHANNEL_OSD_NAME,
-            UnifiProtectBindingConstants.CHANNEL_OSD_DATE, UnifiProtectBindingConstants.CHANNEL_OSD_LOGO,
-            UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT);
-
     private void updateSnapshot(String channelId) {
-        if (hasChannel(channelId)) {
+        if (hasChannel(channelId) && isLinked(channelId)) {
             UniFiProtectApiClient client = getApiClient();
             if (client != null) {
                 try {
@@ -532,5 +476,11 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             }
 
         }
+    }
+
+    private void triggerChannel(String channelId, List<? extends ApiValueEnum> smartDetectTypes) {
+        String commaDelimitedTypes = smartDetectTypes.stream().map(ApiValueEnum::getApiValue)
+                .collect(Collectors.joining(","));
+        triggerChannel(new ChannelUID(thing.getUID(), channelId), commaDelimitedTypes);
     }
 }

@@ -22,5 +22,5 @@ import org.openhab.binding.unifiprotect.internal.dto.AudioType;
  * @author Dan Cunningham - Initial contribution
  */
 public class CameraSmartDetectAudioEvent extends BaseEvent {
-    public List<AudioType> smartDetectTypes; // nullable per schema, but represented when present
+    public List<AudioType> smartDetectTypes;
 }

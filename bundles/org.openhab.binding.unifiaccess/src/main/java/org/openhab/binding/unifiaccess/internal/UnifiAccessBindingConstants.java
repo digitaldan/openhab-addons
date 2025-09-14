@@ -26,21 +26,17 @@ public class UnifiAccessBindingConstants {
 
     public static final String BINDING_ID = "unifiaccess";
 
-    // Thing Type UIDs (as defined in thing-types.xml)
     public static final ThingTypeUID BRIDGE_THING_TYPE = new ThingTypeUID(BINDING_ID, "bridge");
     public static final ThingTypeUID DOOR_THING_TYPE = new ThingTypeUID(BINDING_ID, "door");
 
-    // Thing configuration keys
     public static final String CONFIG_DEVICE_ID = "deviceId";
 
-    // Door channel ids (match thing-types.xml)
     public static final String CHANNEL_LOCK = "lock";
     public static final String CHANNEL_POSITION = "position";
     public static final String CHANNEL_LAST_UNLOCK = "lastunlock";
     public static final String CHANNEL_LAST_ACTOR = "lastactor";
     public static final String CHANNEL_LOCK_RULE = "lockrule";
 
-    // Door control channels
     public static final String CHANNEL_UNLOCK_NOW = "unlocknow";
     public static final String CHANNEL_KEEP_UNLOCKED = "keepunlocked";
     public static final String CHANNEL_KEEP_LOCKED = "keeplocked";

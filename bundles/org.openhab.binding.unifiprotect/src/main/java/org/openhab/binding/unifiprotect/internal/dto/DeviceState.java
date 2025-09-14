@@ -17,8 +17,6 @@ import com.google.gson.annotations.SerializedName;
 /**
  * Connection state of a device.
  *
- * Maps to the API enum values CONNECTED, CONNECTING, DISCONNECTED.
- *
  * @author Dan Cunningham - Initial contribution
  */
 public enum DeviceState implements ApiValueEnum {

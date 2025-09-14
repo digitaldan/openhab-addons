@@ -25,6 +25,5 @@ public class Light extends Device {
     public Boolean isLightForceEnabled;
     public Long lastMotion; // epoch millis or null
     public Boolean isPirMotionDetected;
-    /** Paired camera id, nullable. */
-    public String camera;
+    public String camera; // nullable
 }

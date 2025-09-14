@@ -125,13 +125,13 @@
 	<channel-type id="keepunlocked">
 		<item-type>Switch</item-type>
 		<label>Keep Unlocked</label>
-		<category>Switch</category>
+		<category>Lock</category>
 	</channel-type>
 
 	<channel-type id="keeplocked">
 		<item-type>Switch</item-type>
 		<label>Keep Locked</label>
-		<category>Switch</category>
+		<category>Lock</category>
 	</channel-type>
 
 	<channel-type id="unlockminutes">

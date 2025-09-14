@@ -22,5 +22,5 @@ import org.openhab.binding.unifiprotect.internal.dto.ObjectType;
  * @author Dan Cunningham - Initial contribution
  */
 public class CameraSmartDetectLoiterEvent extends BaseEvent {
-    public List<ObjectType> smartDetectTypes; // nullable per schema, but represented when present
+    public List<ObjectType> smartDetectTypes;
 }

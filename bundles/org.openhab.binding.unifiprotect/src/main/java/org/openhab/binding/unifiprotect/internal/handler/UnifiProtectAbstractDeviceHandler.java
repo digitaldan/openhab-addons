@@ -17,6 +17,7 @@ import java.time.Instant;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiprotect.internal.api.UniFiProtectApiClient;
+import org.openhab.binding.unifiprotect.internal.config.UnifiProtectDeviceConfiguration;
 import org.openhab.binding.unifiprotect.internal.dto.ApiValueEnum;
 import org.openhab.binding.unifiprotect.internal.dto.Device;
 import org.openhab.binding.unifiprotect.internal.dto.events.BaseEvent;
@@ -37,18 +38,27 @@ import org.openhab.core.thing.binding.BaseThingHandler;
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public abstract class UnifiProtectAbstractDeviceHandler extends BaseThingHandler {
+public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extends BaseThingHandler {
     /** The device this handler is managing. */
-    protected volatile @Nullable Device device;
+    protected @Nullable T device;
+    protected String deviceId = "";
 
     public enum WSEventType {
         ADD,
         UPDATE
     }
 
-    public abstract void updateFromDevice(Device device);
+    public void updateFromDevice(T device) {
+        this.device = device;
+    }
 
     public abstract void handleEvent(BaseEvent event, WSEventType eventType);
+
+    @Override
+    public void initialize() {
+        updateStatus(ThingStatus.UNKNOWN);
+        deviceId = getConfigAs(UnifiProtectDeviceConfiguration.class).deviceId;
+    }
 
     public UnifiProtectAbstractDeviceHandler(Thing thing) {
         super(thing);
@@ -68,8 +78,6 @@ public abstract class UnifiProtectAbstractDeviceHandler extends BaseThingHandler
         }
         return null;
     }
-
-    // ==== Shared channel update helpers ====
 
     protected boolean hasChannel(String channelId) {
         return thing.getChannel(new ChannelUID(thing.getUID(), channelId)) != null;

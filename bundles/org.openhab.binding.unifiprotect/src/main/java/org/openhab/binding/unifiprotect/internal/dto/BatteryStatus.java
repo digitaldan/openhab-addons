@@ -18,6 +18,6 @@ package org.openhab.binding.unifiprotect.internal.dto;
  * @author Dan Cunningham - Initial contribution
  */
 public class BatteryStatus {
-    public Double percentage; // nullable in schema, use Double
+    public Double percentage; // nullable
     public boolean isLow;
 }

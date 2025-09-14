@@ -8,9 +8,6 @@
 	<bridge-type id="nvr">
 		<label>UniFi Protect NVR</label>
 		<description>UniFi Protect NVR bridge providing device and event streams</description>
-		<channels>
-			<channel id="status" typeId="status"/>
-		</channels>
 		<properties>
 			<property name="applicationVersion">Protect application version</property>
 		</properties>

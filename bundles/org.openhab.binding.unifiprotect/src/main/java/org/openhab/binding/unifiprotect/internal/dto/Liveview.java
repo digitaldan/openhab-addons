@@ -21,7 +21,7 @@ import java.util.List;
  */
 public class Liveview {
     public String id;
-    public ModelKey modelKey; // typically "liveview"
+    public ModelKey modelKey; // "liveview"
     public String name;
     public boolean isDefault;
     public boolean isGlobal;

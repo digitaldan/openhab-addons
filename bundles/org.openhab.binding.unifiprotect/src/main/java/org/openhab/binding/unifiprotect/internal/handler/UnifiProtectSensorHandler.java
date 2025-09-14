@@ -13,9 +13,7 @@
 package org.openhab.binding.unifiprotect.internal.handler;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectBindingConstants;
-import org.openhab.binding.unifiprotect.internal.dto.Device;
 import org.openhab.binding.unifiprotect.internal.dto.Sensor;
 import org.openhab.binding.unifiprotect.internal.dto.events.BaseEvent;
 import org.openhab.binding.unifiprotect.internal.dto.events.SensorAlarmEvent;
@@ -38,17 +36,10 @@ import org.openhab.core.types.RefreshType;
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler {
-
-    private volatile @Nullable Sensor sensor;
+public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler<Sensor> {
 
     public UnifiProtectSensorHandler(Thing thing) {
         super(thing);
-    }
-
-    @Override
-    public void initialize() {
-        updateStatus(ThingStatus.UNKNOWN);
     }
 
     @Override
@@ -156,34 +147,21 @@ public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler
     }
 
     @Override
-    public void updateFromDevice(Device device) {
-        if (device instanceof Sensor sensor) {
-            this.sensor = sensor;
-            this.device = sensor;
-
-            // Battery
-            if (sensor.batteryStatus != null) {
-                Double pct = sensor.batteryStatus.percentage;
-                if (pct != null) {
-                    updateDecimalChannel(UnifiProtectBindingConstants.CHANNEL_BATTERY, pct);
-                }
+    public void updateFromDevice(Sensor sensor) {
+        super.updateFromDevice(sensor);
+        if (sensor.batteryStatus != null && sensor.batteryStatus.percentage != null) {
+            updateDecimalChannel(UnifiProtectBindingConstants.CHANNEL_BATTERY, sensor.batteryStatus.percentage);
+        }
+        updateContactChannel(UnifiProtectBindingConstants.CHANNEL_CONTACT, sensor.isOpened);
+        if (sensor.stats != null) {
+            if (sensor.stats.temperature != null) {
+                updateDecimalChannel(UnifiProtectBindingConstants.CHANNEL_TEMPERATURE, sensor.stats.temperature.value);
             }
-
-            // Contact
-            updateContactChannel(UnifiProtectBindingConstants.CHANNEL_CONTACT, sensor.isOpened);
-
-            // Ambient readings
-            if (sensor.stats != null) {
-                if (sensor.stats.temperature != null) {
-                    updateDecimalChannel(UnifiProtectBindingConstants.CHANNEL_TEMPERATURE,
-                            sensor.stats.temperature.value);
-                }
-                if (sensor.stats.humidity != null) {
-                    updateDecimalChannel(UnifiProtectBindingConstants.CHANNEL_HUMIDITY, sensor.stats.humidity.value);
-                }
-                if (sensor.stats.light != null) {
-                    updateDecimalChannel(UnifiProtectBindingConstants.CHANNEL_ILLUMINANCE, sensor.stats.light.value);
-                }
+            if (sensor.stats.humidity != null) {
+                updateDecimalChannel(UnifiProtectBindingConstants.CHANNEL_HUMIDITY, sensor.stats.humidity.value);
+            }
+            if (sensor.stats.light != null) {
+                updateDecimalChannel(UnifiProtectBindingConstants.CHANNEL_ILLUMINANCE, sensor.stats.light.value);
             }
         }
         if (getThing().getStatus() != ThingStatus.ONLINE) {
@@ -195,7 +173,7 @@ public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler
     public void handleCommand(ChannelUID channelUID, Command command) {
         String id = channelUID.getId();
         if (command instanceof RefreshType) {
-            Sensor s = sensor;
+            Sensor s = device;
             if (s == null) {
                 return;
             }

@@ -14,7 +14,19 @@ package org.openhab.binding.unifiprotect.internal.dto.gson;
 
 import java.io.IOException;
 
-import org.openhab.binding.unifiprotect.internal.dto.*;
+import org.openhab.binding.unifiprotect.internal.dto.AiPort;
+import org.openhab.binding.unifiprotect.internal.dto.AiProcessor;
+import org.openhab.binding.unifiprotect.internal.dto.Bridge;
+import org.openhab.binding.unifiprotect.internal.dto.Camera;
+import org.openhab.binding.unifiprotect.internal.dto.Chime;
+import org.openhab.binding.unifiprotect.internal.dto.Device;
+import org.openhab.binding.unifiprotect.internal.dto.Doorlock;
+import org.openhab.binding.unifiprotect.internal.dto.Light;
+import org.openhab.binding.unifiprotect.internal.dto.LinkStation;
+import org.openhab.binding.unifiprotect.internal.dto.Nvr;
+import org.openhab.binding.unifiprotect.internal.dto.Sensor;
+import org.openhab.binding.unifiprotect.internal.dto.Speaker;
+import org.openhab.binding.unifiprotect.internal.dto.Viewer;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -37,30 +49,6 @@ public class DeviceTypeAdapterFactory implements TypeAdapterFactory {
         if (!Device.class.isAssignableFrom(type.getRawType())) {
             return null;
         }
-        // Use delegate adapters to avoid this factory being applied recursively to subtypes
-        TypeAdapter<Camera> cameraAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(Camera.class));
-        TypeAdapter<Nvr> nvrAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Nvr.class));
-        TypeAdapter<Chime> chimeAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(Chime.class));
-        TypeAdapter<Light> lightAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(Light.class));
-        TypeAdapter<Viewer> viewerAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(Viewer.class));
-        TypeAdapter<Speaker> speakerAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(Speaker.class));
-        TypeAdapter<Bridge> bridgeAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(Bridge.class));
-        TypeAdapter<Doorlock> doorlockAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(Doorlock.class));
-        TypeAdapter<Sensor> sensorAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(Sensor.class));
-        TypeAdapter<AiProcessor> aiProcessorAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(AiProcessor.class));
-        TypeAdapter<AiPort> aiPortAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(AiPort.class));
-        TypeAdapter<LinkStation> linkStationAdapter = gson.getDelegateAdapter(DeviceTypeAdapterFactory.this,
-                TypeToken.get(LinkStation.class));
 
         return (TypeAdapter<T>) new TypeAdapter<Device>() {
             @Override
@@ -82,29 +70,41 @@ public class DeviceTypeAdapterFactory implements TypeAdapterFactory {
                 }
                 switch (modelKey) {
                     case "camera":
-                        return cameraAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Camera.class))
+                                .fromJsonTree(obj);
                     case "nvr":
-                        return nvrAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Nvr.class))
+                                .fromJsonTree(obj);
                     case "chime":
-                        return chimeAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Chime.class))
+                                .fromJsonTree(obj);
                     case "light":
-                        return lightAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Light.class))
+                                .fromJsonTree(obj);
                     case "viewer":
-                        return viewerAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Viewer.class))
+                                .fromJsonTree(obj);
                     case "speaker":
-                        return speakerAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Speaker.class))
+                                .fromJsonTree(obj);
                     case "bridge":
-                        return bridgeAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Bridge.class))
+                                .fromJsonTree(obj);
                     case "doorlock":
-                        return doorlockAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Doorlock.class))
+                                .fromJsonTree(obj);
                     case "sensor":
-                        return sensorAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(Sensor.class))
+                                .fromJsonTree(obj);
                     case "aiprocessor":
-                        return aiProcessorAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(AiProcessor.class))
+                                .fromJsonTree(obj);
                     case "aiport":
-                        return aiPortAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(AiPort.class))
+                                .fromJsonTree(obj);
                     case "linkstation":
-                        return linkStationAdapter.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(DeviceTypeAdapterFactory.this, TypeToken.get(LinkStation.class))
+                                .fromJsonTree(obj);
                     default:
                         throw new IOException("Unknown modelKey '" + modelKey + "' for Device payload");
                 }

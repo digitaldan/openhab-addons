@@ -14,7 +14,6 @@ package org.openhab.binding.unifiprotect.internal.dto;
 
 /**
  * Simple devices with only base fields (Speaker, Bridge, Doorlock, AiProcessor, AiPort, LinkStation).
- * Extend for each to keep type names distinct while sharing structure.
  *
  * @author Dan Cunningham - Initial contribution
  */

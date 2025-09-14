@@ -14,7 +14,22 @@ package org.openhab.binding.unifiprotect.internal.dto.gson;
 
 import java.io.IOException;
 
-import org.openhab.binding.unifiprotect.internal.dto.events.*;
+import org.openhab.binding.unifiprotect.internal.dto.events.BaseEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.CameraMotionEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.CameraSmartDetectAudioEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.CameraSmartDetectLineEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.CameraSmartDetectLoiterEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.CameraSmartDetectZoneEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.LightMotionEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.RingEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.SensorAlarmEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.SensorBatteryLowEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.SensorClosedEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.SensorExtremeValueEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.SensorMotionEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.SensorOpenEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.SensorTamperEvent;
+import org.openhab.binding.unifiprotect.internal.dto.events.SensorWaterLeakEvent;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -37,39 +52,6 @@ public class EventTypeAdapterFactory implements TypeAdapterFactory {
         if (!BaseEvent.class.isAssignableFrom(type.getRawType())) {
             return null;
         }
-
-        // Use delegate adapters to avoid this factory being applied recursively to subtypes
-        TypeAdapter<RingEvent> ring = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(RingEvent.class));
-        TypeAdapter<SensorExtremeValueEvent> sev = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(SensorExtremeValueEvent.class));
-        TypeAdapter<SensorWaterLeakEvent> swl = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(SensorWaterLeakEvent.class));
-        TypeAdapter<SensorTamperEvent> st = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(SensorTamperEvent.class));
-        TypeAdapter<SensorBatteryLowEvent> sbl = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(SensorBatteryLowEvent.class));
-        TypeAdapter<SensorAlarmEvent> sa = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(SensorAlarmEvent.class));
-        TypeAdapter<SensorOpenEvent> so = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(SensorOpenEvent.class));
-        TypeAdapter<SensorClosedEvent> sc = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(SensorClosedEvent.class));
-        TypeAdapter<SensorMotionEvent> sm = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(SensorMotionEvent.class));
-        TypeAdapter<LightMotionEvent> lm = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(LightMotionEvent.class));
-        TypeAdapter<CameraMotionEvent> cm = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(CameraMotionEvent.class));
-        TypeAdapter<CameraSmartDetectAudioEvent> csda = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(CameraSmartDetectAudioEvent.class));
-        TypeAdapter<CameraSmartDetectZoneEvent> csdz = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(CameraSmartDetectZoneEvent.class));
-        TypeAdapter<CameraSmartDetectLineEvent> csdl = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(CameraSmartDetectLineEvent.class));
-        TypeAdapter<CameraSmartDetectLoiterEvent> csdlo = gson.getDelegateAdapter(EventTypeAdapterFactory.this,
-                TypeToken.get(CameraSmartDetectLoiterEvent.class));
-
         return (TypeAdapter<T>) new TypeAdapter<BaseEvent>() {
             @Override
             public void write(JsonWriter out, BaseEvent value) throws IOException {
@@ -84,35 +66,53 @@ public class EventTypeAdapterFactory implements TypeAdapterFactory {
                 String type = obj.has("type") ? obj.get("type").getAsString() : "";
                 switch (type) {
                     case "ring":
-                        return ring.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this, TypeToken.get(RingEvent.class))
+                                .fromJsonTree(obj);
                     case "sensorExtremeValues":
-                        return sev.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(SensorExtremeValueEvent.class)).fromJsonTree(obj);
                     case "sensorWaterLeak":
-                        return swl.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(SensorWaterLeakEvent.class)).fromJsonTree(obj);
                     case "sensorTamper":
-                        return st.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(SensorTamperEvent.class)).fromJsonTree(obj);
                     case "sensorBatteryLow":
-                        return sbl.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(SensorBatteryLowEvent.class)).fromJsonTree(obj);
                     case "sensorAlarm":
-                        return sa.fromJsonTree(obj);
+                        return gson
+                                .getDelegateAdapter(EventTypeAdapterFactory.this, TypeToken.get(SensorAlarmEvent.class))
+                                .fromJsonTree(obj);
                     case "sensorOpened":
-                        return so.fromJsonTree(obj);
+                        return gson
+                                .getDelegateAdapter(EventTypeAdapterFactory.this, TypeToken.get(SensorOpenEvent.class))
+                                .fromJsonTree(obj);
                     case "sensorClosed":
-                        return sc.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(SensorClosedEvent.class)).fromJsonTree(obj);
                     case "sensorMotion":
-                        return sm.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(SensorMotionEvent.class)).fromJsonTree(obj);
                     case "lightMotion":
-                        return lm.fromJsonTree(obj);
+                        return gson
+                                .getDelegateAdapter(EventTypeAdapterFactory.this, TypeToken.get(LightMotionEvent.class))
+                                .fromJsonTree(obj);
                     case "motion":
-                        return cm.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(CameraMotionEvent.class)).fromJsonTree(obj);
                     case "smartAudioDetect":
-                        return csda.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(CameraSmartDetectAudioEvent.class)).fromJsonTree(obj);
                     case "smartDetectZone":
-                        return csdz.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(CameraSmartDetectZoneEvent.class)).fromJsonTree(obj);
                     case "smartDetectLine":
-                        return csdl.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(CameraSmartDetectLineEvent.class)).fromJsonTree(obj);
                     case "smartDetectLoiterZone":
-                        return csdlo.fromJsonTree(obj);
+                        return gson.getDelegateAdapter(EventTypeAdapterFactory.this,
+                                TypeToken.get(CameraSmartDetectLoiterEvent.class)).fromJsonTree(obj);
                     default:
                         throw new IOException("Unknown event type '" + type + "' for Event payload");
                 }

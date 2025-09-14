@@ -18,7 +18,6 @@ package org.openhab.binding.unifiprotect.internal.dto;
  * @author Dan Cunningham - Initial contribution
  */
 public class Viewer extends Device {
-    /** Nullable name already in base. */
     public String liveview; // liveviewId or null
     public Double streamLimit; // number
 }

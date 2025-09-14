@@ -21,6 +21,6 @@ import java.util.List;
  */
 public class LiveviewSlot {
     public List<String> cameras;
-    public CycleMode cycleMode; // motion or time
+    public CycleMode cycleMode;
     public Integer cycleInterval; // seconds
 }

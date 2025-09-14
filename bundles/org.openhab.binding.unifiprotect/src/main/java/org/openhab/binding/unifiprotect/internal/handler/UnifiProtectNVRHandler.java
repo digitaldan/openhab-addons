@@ -98,19 +98,14 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         super.childHandlerInitialized(childHandler, childThing);
         logger.debug("Child handler initialized: {}", childHandler);
         if (getThing().getStatus() == ThingStatus.ONLINE) {
-            if (childHandler instanceof UnifiProtectAbstractDeviceHandler handler) {
+            if (childHandler instanceof UnifiProtectAbstractDeviceHandler<?> handler) {
                 scheduler.execute(() -> {
-                    UniFiProtectApiClient client = apiClient;
-                    if (client == null) {
-                        return;
-                    }
                     Object devIdObj = childThing.getConfiguration().get(UnifiProtectBindingConstants.DEVICE_ID);
                     String deviceId = devIdObj != null ? String.valueOf(devIdObj) : null;
                     if (deviceId == null) {
                         return;
                     }
-                    ThingTypeUID tt = childThing.getThingTypeUID();
-                    refreshChildFromApi(tt, deviceId);
+                    refreshChildFromApi(deviceId, handler);
                 });
             }
         }
@@ -149,7 +144,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                     }
                 }, () -> {
                     updateStatus(ThingStatus.ONLINE);
-                    scheduler.execute(() -> doInitialSync());
+                    scheduler.execute(() -> syncDevices());
                 }, (code, reason) -> {
                     logger.warn("Event WS closed: {} {}", code, reason);
                     setOfflineAndReconnect();
@@ -176,8 +171,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                     }
                 }, update -> {
                     scheduler.execute(() -> {
-                        UniFiProtectApiClient client = apiClient;
-                        if (client == null || update.item == null || update.item.id == null) {
+                        if (update.item == null || update.item.id == null) {
                             return;
                         }
                         String id = update.item.id;
@@ -271,32 +265,42 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
     }
 
     private void refreshChildFromApi(ThingTypeUID type, String deviceId) {
+        if (UnifiProtectBindingConstants.THING_TYPE_CAMERA.equals(type)) {
+            UnifiProtectCameraHandler handler = findChildHandler(type, deviceId, UnifiProtectCameraHandler.class);
+            if (handler != null) {
+                refreshChildFromApi(deviceId, handler);
+            }
+        } else if (UnifiProtectBindingConstants.THING_TYPE_LIGHT.equals(type)) {
+            UnifiProtectLightHandler handler = findChildHandler(type, deviceId, UnifiProtectLightHandler.class);
+            if (handler != null) {
+                refreshChildFromApi(deviceId, handler);
+            }
+        } else if (UnifiProtectBindingConstants.THING_TYPE_SENSOR.equals(type)) {
+            UnifiProtectSensorHandler handler = findChildHandler(type, deviceId, UnifiProtectSensorHandler.class);
+            if (handler != null) {
+                refreshChildFromApi(deviceId, handler);
+            }
+        }
+    }
+
+    private void refreshChildFromApi(String deviceId, UnifiProtectAbstractDeviceHandler<?> handler) {
         UniFiProtectApiClient apiClient = this.apiClient;
         if (apiClient == null) {
             return;
         }
         try {
-            if (UnifiProtectBindingConstants.THING_TYPE_CAMERA.equals(type)) {
-                UnifiProtectCameraHandler ch = findChildHandler(type, deviceId, UnifiProtectCameraHandler.class);
-                if (ch != null) {
-                    Camera cam = apiClient.getCamera(deviceId);
-                    ch.updateFromDevice(cam);
-                }
-            } else if (UnifiProtectBindingConstants.THING_TYPE_LIGHT.equals(type)) {
-                UnifiProtectLightHandler lh = findChildHandler(type, deviceId, UnifiProtectLightHandler.class);
-                if (lh != null) {
-                    Light light = apiClient.getLight(deviceId);
-                    lh.updateFromDevice(light);
-                }
-            } else if (UnifiProtectBindingConstants.THING_TYPE_SENSOR.equals(type)) {
-                UnifiProtectSensorHandler sh = findChildHandler(type, deviceId, UnifiProtectSensorHandler.class);
-                if (sh != null) {
-                    Sensor sensor = apiClient.getSensor(deviceId);
-                    sh.updateFromDevice(sensor);
-                }
+            if (handler instanceof UnifiProtectCameraHandler cameraHandler) {
+                Camera cam = apiClient.getCamera(deviceId);
+                cameraHandler.updateFromDevice(cam);
+            } else if (handler instanceof UnifiProtectLightHandler lightHandler) {
+                Light light = apiClient.getLight(deviceId);
+                lightHandler.updateFromDevice(light);
+            } else if (handler instanceof UnifiProtectSensorHandler sensorHandler) {
+                Sensor sensor = apiClient.getSensor(deviceId);
+                sensorHandler.updateFromDevice(sensor);
             }
         } catch (IOException e) {
-            logger.trace("Failed to refresh child {} {} from API", type, deviceId, e);
+            logger.debug("Failed to refresh child {} from API", deviceId, e);
         }
     }
 
@@ -311,7 +315,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
             return true;
         }
         recentEventKeys.put(key, now);
-        // Opportunistic cleanup of stale entries
         if (recentEventKeys.size() > 2048) {
             recentEventKeys.entrySet().removeIf(e -> (now - e.getValue()) >= WS_EVENT_DEDUP_WINDOW_MS);
         }
@@ -345,7 +348,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         try {
             try {
                 ProtectVersionInfo meta = apiClient.getMetaInfo();
-                if (meta != null && meta.applicationVersion != null) {
+                if (meta.applicationVersion != null) {
                     updateProperty("applicationVersion", meta.applicationVersion);
                 }
             } catch (IOException e) {
@@ -408,13 +411,12 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
     }
 
     private void routeEvent(BaseEvent event, WSEventType eventType) {
-        if (event == null || event.device == null) {
+        if (event.device == null) {
             return;
         }
         String deviceId = event.device;
         EventType et = event.type;
         switch (et) {
-            // Camera-related
             case CAMERA_MOTION:
             case SMART_AUDIO_DETECT:
             case SMART_DETECT_ZONE:
@@ -427,7 +429,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 }
                 break;
             }
-            // Light-related
             case LIGHT_MOTION: {
                 UnifiProtectLightHandler lh = findChildHandler(UnifiProtectBindingConstants.THING_TYPE_LIGHT, deviceId,
                         UnifiProtectLightHandler.class);
@@ -436,7 +437,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 }
                 break;
             }
-            // Sensor-related
             case SENSOR_MOTION:
             case SENSOR_OPENED:
             case SENSOR_CLOSED:
@@ -452,7 +452,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 }
                 break;
             }
-            // Doorbell ring events (camera)
             case RING: {
                 UnifiProtectCameraHandler ch = findChildHandler(UnifiProtectBindingConstants.THING_TYPE_CAMERA,
                         deviceId, UnifiProtectCameraHandler.class);
@@ -471,8 +470,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         if (apiClient != null) {
             try {
                 apiClient.close();
-            } catch (IOException e) {
-                // ignore
+            } catch (IOException ignored) {
             }
             this.apiClient = null;
         }
