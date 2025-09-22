@@ -13,6 +13,7 @@
 package org.openhab.binding.unifiprotect.internal.handler;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -23,12 +24,16 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectBindingConstants;
 import org.openhab.binding.unifiprotect.internal.api.UniFiProtectApiClient;
+import org.openhab.binding.unifiprotect.internal.config.UnifiProtectCameraConfiguration;
 import org.openhab.binding.unifiprotect.internal.dto.ApiValueEnum;
 import org.openhab.binding.unifiprotect.internal.dto.Camera;
 import org.openhab.binding.unifiprotect.internal.dto.CameraFeatureFlags;
+import org.openhab.binding.unifiprotect.internal.dto.ChannelQuality;
+import org.openhab.binding.unifiprotect.internal.dto.ExistingRtspsStreams;
 import org.openhab.binding.unifiprotect.internal.dto.HdrType;
 import org.openhab.binding.unifiprotect.internal.dto.LedSettings;
 import org.openhab.binding.unifiprotect.internal.dto.OsdSettings;
+import org.openhab.binding.unifiprotect.internal.dto.TalkbackSession;
 import org.openhab.binding.unifiprotect.internal.dto.VideoMode;
 import org.openhab.binding.unifiprotect.internal.dto.events.BaseEvent;
 import org.openhab.binding.unifiprotect.internal.dto.events.CameraSmartDetectAudioEvent;
@@ -36,6 +41,7 @@ import org.openhab.binding.unifiprotect.internal.dto.events.CameraSmartDetectLin
 import org.openhab.binding.unifiprotect.internal.dto.events.CameraSmartDetectLoiterEvent;
 import org.openhab.binding.unifiprotect.internal.dto.events.CameraSmartDetectZoneEvent;
 import org.openhab.binding.unifiprotect.internal.dto.events.RingEvent;
+import org.openhab.binding.unifiprotect.internal.media.UnifiMediaService;
 import org.openhab.core.library.CoreItemFactory;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
@@ -64,8 +70,38 @@ import com.google.gson.JsonObject;
 public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler<Camera> {
     private final Logger logger = LoggerFactory.getLogger(UnifiProtectCameraHandler.class);
 
-    public UnifiProtectCameraHandler(Thing thing) {
+    private UnifiMediaService media;
+    private boolean enableWebRTC = true;
+    private Set<String> rtspChannels = Set.of(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH,
+            UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM,
+            UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW,
+            UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE);
+    private final List<String> streamIds = new ArrayList<>();
+    private String baseSourceId;
+
+    public UnifiProtectCameraHandler(Thing thing, UnifiMediaService media) {
         super(thing);
+        this.media = media;
+        this.baseSourceId = thing.getUID().getAsString();
+    }
+
+    @Override
+    public void initialize() {
+        enableWebRTC = getConfigAs(UnifiProtectCameraConfiguration.class).enableWebRTC;
+        getThing().setProperty("snapshot-url", media.getImageBasePath() + "/" + baseSourceId);
+        super.initialize();
+    }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+        List<String> toUnregister;
+        synchronized (streamIds) {
+            toUnregister = new ArrayList<>(streamIds);
+            streamIds.clear();
+        }
+        toUnregister.forEach(media::unregisterStream);
+        media.unregisterHandler(this);
     }
 
     @Override
@@ -231,6 +267,8 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         }
 
         updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT, camera.activePatrolSlot);
+        media.registerHandler(this);
+        updateRtspsChannels();
     }
 
     @Override
@@ -333,6 +371,113 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         }
     }
 
+    public TalkbackSession startTalkback() throws IOException {
+        UniFiProtectApiClient api = getApiClient();
+        if (api == null) {
+            throw new IOException("API client is null");
+        }
+        return api.createTalkbackSession(deviceId);
+    }
+
+    public byte[] getSnapshot(boolean highQuality) throws IOException {
+        UniFiProtectApiClient api = getApiClient();
+        if (api == null) {
+            throw new IOException("API client is null");
+        }
+        return api.getSnapshot(deviceId, highQuality);
+    }
+
+    private void updateRtspsChannels() {
+        UniFiProtectApiClient api = getApiClient();
+        if (api == null) {
+            return;
+        }
+
+        // Create RTSP streams if WebRTC is enabled
+        if (enableWebRTC) {
+            try {
+                api.createRtspsStream(deviceId,
+                        List.of(ChannelQuality.HIGH, ChannelQuality.MEDIUM, ChannelQuality.LOW));
+            } catch (IOException e) {
+                logger.debug("Failed to create RTSP streams", e);
+            }
+        }
+        try {
+            ExistingRtspsStreams rtsps = api.getRtspsStream(deviceId);
+            updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH, rtsps.high);
+            updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM, rtsps.medium);
+            updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW, rtsps.low);
+            updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE, rtsps.packageUrl);
+
+            // Unregister existing streams (snapshot under lock to avoid CME)
+            List<String> toUnregister;
+            synchronized (streamIds) {
+                toUnregister = new ArrayList<>(streamIds);
+                streamIds.clear();
+            }
+            toUnregister.forEach(media::unregisterStream);
+            toUnregister.forEach(id -> getThing().setProperty("stream-url-" + id, null));
+
+            getThing().setProperty("stream-publish-url", null);
+            URI backchannel = null;
+            try {
+                TalkbackSession talkback = startTalkback();
+                backchannel = URI.create(talkback.url);
+            } catch (IOException e) {
+                logger.debug("Talkback not stupported: {}", e.getMessage());
+            }
+            // Register new streams
+            String defaultStream = null;
+            if (enableWebRTC) {
+                if (rtsps.high != null && !rtsps.high.isBlank()) {
+                    registerStream(api, rtsps.high, "high", backchannel);
+                    defaultStream = rtsps.high;
+                }
+                if (rtsps.medium != null && !rtsps.medium.isBlank()) {
+                    registerStream(api, rtsps.medium, "medium", backchannel);
+                    if (defaultStream == null) {
+                        defaultStream = rtsps.medium;
+                    }
+                }
+                if (rtsps.low != null && !rtsps.low.isBlank()) {
+                    registerStream(api, rtsps.low, "low", backchannel);
+                    if (defaultStream == null) {
+                        defaultStream = rtsps.low;
+                    }
+                }
+                if (rtsps.packageUrl != null && !rtsps.packageUrl.isBlank()) {
+                    registerStream(api, rtsps.packageUrl, "package", backchannel);
+                    if (defaultStream == null) {
+                        defaultStream = rtsps.packageUrl;
+                    }
+                }
+                if (defaultStream != null) {
+                    registerStream(api, defaultStream, null, backchannel);
+                }
+            }
+        } catch (IOException e) {
+            logger.debug("Failed to get RTSP streams", e);
+            return;
+        }
+    }
+
+    private void registerStream(UniFiProtectApiClient api, String url, @Nullable String type,
+            @Nullable URI backchannel) {
+        List<URI> sources = new ArrayList<>();
+        sources.add(URI.create(url));
+        if (backchannel != null) {
+            sources.add(backchannel);
+        }
+        String fullStreamId = baseSourceId + (type != null ? ":" + type : "");
+        media.registerStream(fullStreamId, sources);
+        synchronized (streamIds) {
+            streamIds.add(fullStreamId);
+        }
+        // this give us stream-playback-url AND stream-playback-url-high
+        String typeAppended = type != null ? "-" + type : "";
+        getThing().setProperty("stream-playback-url" + typeAppended, media.getPlayBasePath() + "/" + fullStreamId);
+    }
+
     private void addRemoveChannels(Camera camera) {
         List<Channel> channelRemove = new ArrayList<>();
         for (Channel existing : thing.getChannels()) {
@@ -344,14 +489,18 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         // Desired set accumulates all channels that should exist after this call
         Set<String> desiredIds = new HashSet<>();
 
-        addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_START,
-                UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds);
-        addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE,
-                UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, CoreItemFactory.CONTACT,
-                UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, channelAdd, desiredIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_SNAPSHOT, CoreItemFactory.IMAGE,
-                UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, desiredIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM, channelAdd, desiredIds,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH_LABEL);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM, channelAdd, desiredIds,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM_LABEL);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM, channelAdd, desiredIds,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW_LABEL);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM, channelAdd, desiredIds,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE_LABEL);
 
         CameraFeatureFlags flags = camera.featureFlags;
         if (flags != null) {
@@ -401,6 +550,15 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT, CoreItemFactory.IMAGE,
                         UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, desiredIds,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT_LABEL);
+            } else {
+                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_START,
+                        UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds);
+                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE,
+                        UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds);
+                addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, CoreItemFactory.CONTACT,
+                        UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, channelAdd, desiredIds);
+                addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_SNAPSHOT, CoreItemFactory.IMAGE,
+                        UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, desiredIds);
             }
             if (flags.smartDetectAudioTypes != null && !flags.smartDetectAudioTypes.isEmpty()) {
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_AUDIO_DETECT_START,

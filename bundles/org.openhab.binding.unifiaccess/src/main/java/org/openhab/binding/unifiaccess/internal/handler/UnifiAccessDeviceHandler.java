@@ -259,7 +259,7 @@ public class UnifiAccessDeviceHandler extends BaseThingHandler {
                             : OpenClosedType.CLOSED);
         }
 
-        // TODO: Add emergency status, my model structure can't be right, need a real device to test
+        // TODO: Add emergency status, need to understand software vs hardware here
 
         // if (locationState.emergency != null) {
         // String status = "normal";

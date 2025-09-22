@@ -19,6 +19,8 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -85,9 +87,14 @@ public class UniFiProtectApiClient implements Closeable {
     private final HttpClient httpClient;
     private final WebSocketClient wsClient;
     private final Gson gson;
-    private final URI baseUri; // https://host:port/integration
+    private final URI baseUri;
     private final Map<String, String> defaultHeaders;
     private final ScheduledExecutorService heartbeatExecutor;
+    // Simple request throttle: max 8 requests per 1 second
+    private static final int MAX_REQUESTS_PER_SECOND = 8;
+    private static final long THROTTLE_WINDOW_NS = TimeUnit.SECONDS.toNanos(1);
+    private final Object throttleLock = new Object();
+    private final Deque<Long> requestTimestampsNs = new ArrayDeque<>();
 
     public UniFiProtectApiClient(HttpClient httpClient, URI baseUri, Gson gson, String token) {
         this.httpClient = httpClient;
@@ -321,6 +328,7 @@ public class UniFiProtectApiClient implements Closeable {
         Request req = newRequest(HttpMethod.POST, path);
         req.content(multi);
         try {
+            throttleRequest();
             ContentResponse resp = req.send();
             ensure2xx(resp);
             return parseJson(resp, FileSchema.class);
@@ -362,6 +370,7 @@ public class UniFiProtectApiClient implements Closeable {
         return connectWebSocket("/v1/subscribe/devices", text -> {
             logger.trace("WebSocket devices message: {}", text);
             // The union uses discriminator property "type": add|update|remove
+            @Nullable
             JsonObject obj = gson.fromJson(text, JsonObject.class);
             if (obj == null) {
                 logger.trace("WebSocket devices malformed message: {}", text);
@@ -400,6 +409,7 @@ public class UniFiProtectApiClient implements Closeable {
             Runnable onOpen, java.util.function.BiConsumer<Integer, String> onClosed, Consumer<Throwable> onError) {
         return connectWebSocket("/v1/subscribe/events", text -> {
             logger.trace("WebSocket events message: {}", text);
+            @Nullable
             JsonObject obj = gson.fromJson(text, JsonObject.class);
             if (obj == null) {
                 logger.trace("WebSocket events malformed message: {}", text);
@@ -424,20 +434,19 @@ public class UniFiProtectApiClient implements Closeable {
         int sc = resp.getStatus();
         if (sc < 200 || sc >= 300) {
             String body = resp.getContentAsString();
+            String message;
             try {
+                @Nullable
                 GenericError ge = gson.fromJson(body, GenericError.class);
-                if (ge != null) {
-                    throw new IOException("HTTP " + resp.getStatus() + ": " + ge.name + ": " + ge.error);
-                } else {
-                    throw new IOException("HTTP " + resp.getStatus() + ": " + body);
-                }
+                message = ge != null ? ("HTTP " + sc + ": " + ge.name + ": " + ge.error) : ("HTTP " + sc + ": " + body);
             } catch (Exception e) {
-                throw new IOException("HTTP " + resp.getStatus() + ": " + body);
+                message = "HTTP " + sc + ": " + body;
             }
+            throw new IOException(message);
         }
     }
 
-    private Request newRequest(HttpMethod method, String path) {
+    private synchronized Request newRequest(HttpMethod method, String path) {
         URI uri = resolvePath(path);
         logger.trace("New request {} {} {}", method, path, uri);
         Request request = httpClient.newRequest(uri).method(method).header(HttpHeader.ACCEPT, "application/json")
@@ -483,6 +492,7 @@ public class UniFiProtectApiClient implements Closeable {
     }
 
     private ContentResponse sendJson(Request req, @Nullable Object body) throws IOException {
+        throttleRequest();
         if (body != null) {
             String json = gson.toJson(body);
             req.header(HttpHeader.CONTENT_TYPE, "application/json");
@@ -503,6 +513,9 @@ public class UniFiProtectApiClient implements Closeable {
             URI httpUri = resolvePath(path);
             URI wsUri = toWebSocketUri(httpUri);
             logger.debug("Connecting WebSocket to {}", wsUri);
+
+            // Throttle WS upgrade requests as they also count towards API limits
+            throttleRequest();
 
             ClientUpgradeRequest upgrade = new ClientUpgradeRequest();
             for (Map.Entry<String, String> h : defaultHeaders.entrySet()) {
@@ -567,6 +580,39 @@ public class UniFiProtectApiClient implements Closeable {
             future.completeExceptionally(e);
         }
         return future;
+    }
+
+    /**
+     * Very simple rolling-window throttle allowing up to MAX_REQUESTS_PER_SECOND
+     * executions within the last THROTTLE_WINDOW_NS. Blocks the caller until
+     * a slot becomes available.
+     */
+    private void throttleRequest() {
+        long waitNs = 0L;
+        for (;;) {
+            long now = System.nanoTime();
+            synchronized (throttleLock) {
+                // Discard timestamps outside the window
+                while (!requestTimestampsNs.isEmpty() && now - requestTimestampsNs.peekFirst() >= THROTTLE_WINDOW_NS) {
+                    requestTimestampsNs.removeFirst();
+                }
+                if (requestTimestampsNs.size() < MAX_REQUESTS_PER_SECOND) {
+                    requestTimestampsNs.addLast(now);
+                    return;
+                }
+                Long oldest = requestTimestampsNs.peekFirst();
+                waitNs = (oldest + THROTTLE_WINDOW_NS) - now;
+            }
+            if (waitNs > 0L) {
+                try {
+                    logger.trace("Throttling request for {} ns", waitNs);
+                    TimeUnit.NANOSECONDS.sleep(waitNs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+        }
     }
 
     private URI resolvePath(String path) {

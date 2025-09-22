@@ -22,12 +22,14 @@ import org.openhab.binding.unifiprotect.internal.handler.UnifiProtectCameraHandl
 import org.openhab.binding.unifiprotect.internal.handler.UnifiProtectLightHandler;
 import org.openhab.binding.unifiprotect.internal.handler.UnifiProtectNVRHandler;
 import org.openhab.binding.unifiprotect.internal.handler.UnifiProtectSensorHandler;
+import org.openhab.binding.unifiprotect.internal.media.UnifiMediaService;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.binding.BaseThingHandlerFactory;
 import org.openhab.core.thing.binding.ThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerFactory;
+import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
@@ -45,18 +47,26 @@ public class UnifiProtectHandlerFactory extends BaseThingHandlerFactory {
     private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(THING_TYPE_NVR, THING_TYPE_CAMERA,
             THING_TYPE_LIGHT, THING_TYPE_SENSOR);
 
-    private @Nullable HttpClientFactory httpClientFactory;
+    private HttpClientFactory httpClientFactory;
+    private UnifiMediaService media;
 
-    @Reference
-    protected void setHttpClientFactory(HttpClientFactory factory) {
-        this.httpClientFactory = factory;
+    @Activate
+    public UnifiProtectHandlerFactory(@Reference HttpClientFactory httpClientFactory,
+            @Reference UnifiMediaService media) {
+        this.httpClientFactory = httpClientFactory;
+        this.media = media;
     }
 
-    protected void unsetHttpClientFactory(HttpClientFactory factory) {
-        if (factory.equals(this.httpClientFactory)) {
-            this.httpClientFactory = null;
-        }
-    }
+    // @Reference
+    // protected void setHttpClientFactory(HttpClientFactory factory) {
+    // this.httpClientFactory = factory;
+    // }
+
+    // protected void unsetHttpClientFactory(HttpClientFactory factory) {
+    // if (factory.equals(this.httpClientFactory)) {
+    // this.httpClientFactory = null;
+    // }
+    // }
 
     @Override
     public boolean supportsThingType(ThingTypeUID thingTypeUID) {
@@ -67,13 +77,13 @@ public class UnifiProtectHandlerFactory extends BaseThingHandlerFactory {
     protected @Nullable ThingHandler createHandler(Thing thing) {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
         if (THING_TYPE_NVR.equals(thingTypeUID)) {
-            HttpClientFactory httpClientFactory = this.httpClientFactory;
-            if (httpClientFactory == null) {
-                return null;
-            }
+            // HttpClientFactory httpClientFactory = this.httpClientFactory;
+            // if (httpClientFactory == null) {
+            // return null;
+            // }
             return new UnifiProtectNVRHandler(thing, httpClientFactory);
         } else if (THING_TYPE_CAMERA.equals(thingTypeUID)) {
-            return new UnifiProtectCameraHandler(thing);
+            return new UnifiProtectCameraHandler(thing, media);
         } else if (THING_TYPE_LIGHT.equals(thingTypeUID)) {
             return new UnifiProtectLightHandler(thing);
         } else if (THING_TYPE_SENSOR.equals(thingTypeUID)) {

@@ -56,7 +56,7 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extend
 
     @Override
     public void initialize() {
-        updateStatus(ThingStatus.UNKNOWN);
+        // updateStatus(ThingStatus.UNKNOWN);
         deviceId = getConfigAs(UnifiProtectDeviceConfiguration.class).deviceId;
     }
 

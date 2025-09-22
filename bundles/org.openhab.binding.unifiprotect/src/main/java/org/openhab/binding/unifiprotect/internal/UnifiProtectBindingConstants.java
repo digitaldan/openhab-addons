@@ -56,6 +56,15 @@ public class UnifiProtectBindingConstants {
     public static final String CHANNEL_OSD_LOGO = "osd-logo";
     public static final String CHANNEL_LED_ENABLED = "led-enabled";
     public static final String CHANNEL_ACTIVE_PATROL_SLOT = "active-patrol-slot";
+    public static final String CHANNEL_RTSP_STREAM_HIGH = "rtsp-stream-high";
+    public static final String CHANNEL_RTSP_STREAM_HIGH_LABEL = "RTSP Stream High";
+    public static final String CHANNEL_RTSP_STREAM_MEDIUM = "rtsp-stream-medium";
+    public static final String CHANNEL_RTSP_STREAM_MEDIUM_LABEL = "RTSP Stream Medium";
+    public static final String CHANNEL_RTSP_STREAM_LOW = "rtsp-stream-low";
+    public static final String CHANNEL_RTSP_STREAM_LOW_LABEL = "RTSP Stream Low";
+    public static final String CHANNEL_RTSP_STREAM_PACKAGE = "rtsp-stream-package";
+    public static final String CHANNEL_RTSP_STREAM_PACKAGE_LABEL = "RTSP Stream Package";
+    public static final String CHANNEL_RTSP_STREAM = "rtsp-stream";
     // Triggers and Contacts
     public static final String CHANNEL_MOTION = "motion";
     public static final String CHANNEL_MOTION_START = "motion-start";

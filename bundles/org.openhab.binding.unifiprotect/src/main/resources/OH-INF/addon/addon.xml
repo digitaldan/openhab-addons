@@ -6,5 +6,7 @@
 	<type>binding</type>
 	<name>UnifiProtect Binding</name>
 	<description>This is the binding for UnifiProtect.</description>
-
+	<connection>local</connection>
+	<service-id>org.openhab.unifiprotect</service-id>
+	<config-description-ref uri="binding:unifiprotect"/>
 </addon:addon>

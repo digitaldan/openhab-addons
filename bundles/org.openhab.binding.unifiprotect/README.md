@@ -7,6 +7,25 @@ It connects to your Protect NVR/CloudKey/UNVR and provides live events and confi
 
 It uses the official Protect Integration API over HTTPS and WebSocket with a Bearer Token.
 
+## Features
+
+- Supports multiple Protect devices (Cameras, Floodlights, Sensors)
+- Uses the official Protect Integration API locally to a UniFi Protect NVR/CloudKey/UNVR
+- Has granular triggers and channels for realtime events
+- Uses websocket for realtime updates and does not poll for updates
+- Supports [WebRTC streaming](#real-time-media) for cameras
+- Supports [2-way audio](#talkback-support-2-way-audio)  audio for cameras
+- Provides snapshot images for cameras
+
+## Native Binaries
+
+- Uses go2rtc and FFmpeg for WebRTC playback and publishing
+- The binding will automatically download and extract the binaries if they are not present on linux, mac, windows and freeBSD (go2rtc only, see note below)
+- By default the binding will first try and find the binaries on the system PATH before downloading them.
+- If your platform is not supported, or downloading the binaries is not possible, install the binaries manually and ensure they are on the system PATH.
+
+Note: The binding will attempt to download go2rtc for freeBSD, but ffmpeg must be installed manually due to a lack of a static builds for freeBSD.
+
 ## Supported Things
 
 - `unifiprotect:nvr` (Bridge): The Protect NVR/CloudKey/UNVR.
@@ -90,6 +109,10 @@ No channels.
 | osd-logo | Switch | RW | Show logo on OSD |
 | led-enabled | Switch | RW | Enable/disable camera status LED |
 | active-patrol-slot | Number | RW | Active PTZ patrol slot (set 0 to stop) |
+| rtsp-stream-high | String | R | RTSP stream URL for high quality |
+| rtsp-stream-medium | String | R | RTSP stream URL for medium quality |
+| rtsp-stream-low | String | R | RTSP stream URL for low quality |
+| rtsp-stream-package | String | R | RTSP stream URL for package quality |
 | motion-contact | Contact | R | Motion state (OPEN = motion detected) |
 | motion-snapshot | Image | R | Snapshot captured around motion event |
 | smart-audio-detect-contact | Contact | R | Smart audio detection active state |
@@ -153,6 +176,54 @@ Trigger channels (for rules):
 | alarm | `smoke`, `CO` (optional) | Smoke/CO alarm event |
 | water-leak | `door`, `window`, `garage`, `leak`, `none` | Water leak detected |
 | tamper | none | Tampering detected |
+
+## Real-time Media
+
+If enabled in the binding configuration, openHAB will proxy live media using WebRTC which is compatible with the MainUI video widget.
+
+### Stream URLs
+Cameras will dynamically create the following properties that can be used to stream the media:
+
+| Property ID  | Description |
+|-------------|-------------|
+| stream-playback-url | WebRTC stream URL (defaults to high quality) |
+| stream-playback-url-high | WebRTC stream URL for high quality |
+| stream-playback-url-medium | WebRTC stream URL for medium quality |
+| stream-playback-url-low | WebRTC stream URL for low quality |
+| stream-playback-url-package | WebRTC stream URL for package quality |
+| stream-image-url | Snapshot Image URL |
+
+You can view these properties when viewing a Camera Thing in the MainUI.
+All of the above URLs are relative to the openHAB instance.
+
+![stream properties](doc/stream-property.png)
+
+The playback URLs can be used in the MainUI video widget by enabling WebRTC in the advanced settings in the video widget and using an above URL as the source.
+
+An example WebRTC stream URL would be:
+```
+/unifiprotect/media/play/unifiprotect:camera:home:1234567890:high
+```
+Where `unifiprotect:camera:home:1234567890` is the camera's Thing UID and `high` is the quality (high, medium, low, package) if supported by the camera.
+If quality is omitted, the default quality (high) is used.
+
+![video widget settings](doc/video-card.png)
+
+You can also use the `stream-image-url` property to get the live snapshot image URL which can be used on its own, or as a URL for the poster image option in the MainUI video widget.
+
+An example snapshot image URL would be:
+```
+/unifiprotect/media/image/unifiprotect:camera:home:1234567890
+```
+
+Where `unifiprotect:camera:home:1234567890` is the camera's Thing UID.
+You can append `?quality=low` to the URL to get the low quality snapshot image (if supported by the camera).
+
+### Talkback Support (2-way audio)
+
+Some UniFi Protect cameras support "Talkback", which allows you to publish audio back to the camera in a push to talk manner.
+If supported, you can enable "Two Way Audio" in the MainUI video widget (along with selecting WebRTC under advanced settings in the video widget) which will display a microphone icon for push to talk functionality.
+This is automatically supported by the binding and will be enabled if supported by the camera.
 
 ## Full Examples (Textual Configuration)
 

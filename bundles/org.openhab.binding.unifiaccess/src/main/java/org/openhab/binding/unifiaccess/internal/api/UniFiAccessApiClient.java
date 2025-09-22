@@ -90,6 +90,7 @@ public final class UniFiAccessApiClient implements Closeable {
     private long lastHeartbeatEpochMs;
     private @Nullable ScheduledExecutorService wsMonitorExecutor;
     private @Nullable ScheduledFuture<?> wsMonitorFuture;
+    private boolean closed = false;
 
     public UniFiAccessApiClient(HttpClient httpClient, URI base, Gson gson, String token) {
         this.httpClient = httpClient;
@@ -111,6 +112,7 @@ public final class UniFiAccessApiClient implements Closeable {
 
     @Override
     public synchronized void close() {
+        closed = true;
         try {
             Session s = wsSession;
             if (s != null) {
@@ -465,6 +467,7 @@ public final class UniFiAccessApiClient implements Closeable {
                     } catch (Exception e) {
                         logger.warn("Notifications handler failed: {}", e.getMessage());
                         try {
+                            if(!closed)
                             onError.accept(e);
                         } catch (Exception ignored) {
                         }

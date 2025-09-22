@@ -31,21 +31,17 @@
 		</supported-bridge-type-refs>
 		<label>UniFi Protect Camera</label>
 		<description>Individual Protect camera</description>
-		<properties>
-			<property name="deviceId">Unique device identifier</property>
-			<property name="hasMic">true if the camera has a microphone</property>
-			<property name="hasLedStatus">true if the camera has a status LED</property>
-			<property name="hasSpeaker">true if the camera supports talkback</property>
-			<property name="supportFullHdSnapshot">true if the camera supports full HD snapshots</property>
-			<property name="smartDetectTypes">Supported smart object detection types</property>
-			<property name="smartDetectAudioTypes">Supported smart audio detection types</property>
-			<property name="videoModes">Supported video modes</property>
-		</properties>
+		<!-- Channels are dynamically created based on the camera capabilities -->
 		<representation-property>deviceId</representation-property>
 		<config-description>
 			<parameter name="deviceId" type="text" required="true">
 				<label>Device ID</label>
 				<description>Unique device identifier</description>
+			</parameter>
+			<parameter name="enableWebRTC" type="boolean" required="true">
+				<default>true</default>
+				<label>Enable WebRTC</label>
+				<description>Enables WebRTC play and publish streams through openHAB</description>
 			</parameter>
 		</config-description>
 	</thing-type>
@@ -451,6 +447,13 @@
 		<item-type>Switch</item-type>
 		<label>OSD Logo</label>
 		<description>Show the logo on the camera OSD</description>
+	</channel-type>
+
+	<channel-type id="rtsp-stream">
+		<item-type>String</item-type>
+		<label>RTSP Stream</label>
+		<description>RTSP stream URL</description>
+		<state readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="led-enabled">

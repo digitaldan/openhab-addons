@@ -94,13 +94,11 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
 
         scheduler.execute(() -> {
             try {
-                URI configuredBase = URI.create("https://" + config.host + ":" + DEFAULT_PORT + DEFAULT_PATH);
                 if (!httpClient.isStarted()) {
                     httpClient.start();
                 }
                 logger.debug("Creating UniFiAccessApiClient with base: {} and token: {}", configuredBase,
                         config.authToken);
-                apiClient = new UniFiAccessApiClient(httpClient, configuredBase, gson, config.authToken);
                 connect();
             } catch (Exception e) {
                 logger.warn("Bridge initialization failed: {}", e.getMessage(), e);
@@ -151,7 +149,12 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
 
     private void connect() {
         UniFiAccessApiClient client = this.apiClient;
-        if (client != null) {
+        if(client != null) {
+            client.close();
+        }
+        URI configuredBase = URI.create("https://" + config.host + ":" + DEFAULT_PORT + DEFAULT_PATH);
+        client = new UniFiAccessApiClient(httpClient, configuredBase, gson, config.authToken);
+        this.apiClient = client;
             try {
                 client.openNotifications(() -> {
                     logger.info("Notifications WebSocket opened");
@@ -243,7 +246,6 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                 logger.warn("Failed to open notifications WebSocket: {}", e.getMessage());
                 setOfflineAndReconnect(e.getMessage());
             }
-        }
     }
 
     public void setDiscoveryService(UnifiAccessDiscoveryService discoveryService) {
@@ -259,7 +261,9 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, msg);
         this.reconnectFuture = scheduler.schedule(() -> {
             try {
-                connect();
+                // schedule this so our reconnectFuture completes after calling right away so if we need to reconnect
+                // again, this job is already finished.
+                scheduler.execute(this::connect);
             } catch (Exception ex) {
                 logger.debug("Reconnect attempt failed to schedule connect: {}", ex.getMessage());
             }
