@@ -11,11 +11,5 @@
 			<default>true</default>
 			<required>true</required>
 		</parameter>
-		<parameter name="ffmpegOptions" type="text">
-			<label>FFmpeg Options</label>
-			<description>Additional options to pass to FFmpeg</description>
-			<default>-re -fflags nobuffer -f s16be -ar 8000 -i - -vn -b:a 32k -application voip -frame_duration 20</default>
-			<required>true</required>
-		</parameter>
 	</config-description>
 </config-description:config-descriptions>

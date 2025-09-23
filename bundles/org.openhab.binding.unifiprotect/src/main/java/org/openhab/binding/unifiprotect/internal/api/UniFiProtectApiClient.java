@@ -53,14 +53,13 @@ import org.openhab.binding.unifiprotect.internal.dto.AssetFileType;
 import org.openhab.binding.unifiprotect.internal.dto.Camera;
 import org.openhab.binding.unifiprotect.internal.dto.ChannelQuality;
 import org.openhab.binding.unifiprotect.internal.dto.Chime;
-import org.openhab.binding.unifiprotect.internal.dto.CreatedRtspsStreams;
-import org.openhab.binding.unifiprotect.internal.dto.ExistingRtspsStreams;
 import org.openhab.binding.unifiprotect.internal.dto.FileSchema;
 import org.openhab.binding.unifiprotect.internal.dto.GenericError;
 import org.openhab.binding.unifiprotect.internal.dto.Light;
 import org.openhab.binding.unifiprotect.internal.dto.Liveview;
 import org.openhab.binding.unifiprotect.internal.dto.Nvr;
 import org.openhab.binding.unifiprotect.internal.dto.ProtectVersionInfo;
+import org.openhab.binding.unifiprotect.internal.dto.RtspsStreams;
 import org.openhab.binding.unifiprotect.internal.dto.Sensor;
 import org.openhab.binding.unifiprotect.internal.dto.TalkbackSession;
 import org.openhab.binding.unifiprotect.internal.dto.Viewer;
@@ -90,8 +89,8 @@ public class UniFiProtectApiClient implements Closeable {
     private final URI baseUri;
     private final Map<String, String> defaultHeaders;
     private final ScheduledExecutorService heartbeatExecutor;
-    // Simple request throttle: max 8 requests per 1 second
-    private static final int MAX_REQUESTS_PER_SECOND = 8;
+    // Simple request throttle: max 7 requests per 1 second
+    private static final int MAX_REQUESTS_PER_SECOND = 7;
     private static final long THROTTLE_WINDOW_NS = TimeUnit.SECONDS.toNanos(1);
     private final Object throttleLock = new Object();
     private final Deque<Long> requestTimestampsNs = new ArrayDeque<>();
@@ -249,12 +248,12 @@ public class UniFiProtectApiClient implements Closeable {
         }.getType());
     }
 
-    public CreatedRtspsStreams createRtspsStream(String id, List<ChannelQuality> qualities) throws IOException {
+    public RtspsStreams createRtspsStream(String id, List<ChannelQuality> qualities) throws IOException {
         JsonObject body = new JsonObject();
         body.add("qualities", gson.toJsonTree(qualities));
         ContentResponse resp = sendJson(newRequest(HttpMethod.POST, "/v1/cameras/" + id + "/rtsps-stream"), body);
         ensure2xx(resp);
-        return parseJson(resp, CreatedRtspsStreams.class);
+        return parseJson(resp, RtspsStreams.class);
     }
 
     public void deleteRtspsStream(String id, List<ChannelQuality> qualities) throws IOException {
@@ -264,10 +263,10 @@ public class UniFiProtectApiClient implements Closeable {
         ensure2xx(resp);
     }
 
-    public ExistingRtspsStreams getRtspsStream(String id) throws IOException {
+    public RtspsStreams getRtspsStream(String id) throws IOException {
         ContentResponse resp = sendJson(newRequest(HttpMethod.GET, "/v1/cameras/" + id + "/rtsps-stream"), null);
         ensure2xx(resp);
-        return parseJson(resp, ExistingRtspsStreams.class);
+        return parseJson(resp, RtspsStreams.class);
     }
 
     public byte[] getSnapshot(String id, Boolean highQuality) throws IOException {
@@ -446,7 +445,7 @@ public class UniFiProtectApiClient implements Closeable {
         }
     }
 
-    private synchronized Request newRequest(HttpMethod method, String path) {
+    private Request newRequest(HttpMethod method, String path) {
         URI uri = resolvePath(path);
         logger.trace("New request {} {} {}", method, path, uri);
         Request request = httpClient.newRequest(uri).method(method).header(HttpHeader.ACCEPT, "application/json")
@@ -491,7 +490,7 @@ public class UniFiProtectApiClient implements Closeable {
         }
     }
 
-    private ContentResponse sendJson(Request req, @Nullable Object body) throws IOException {
+    private synchronized ContentResponse sendJson(Request req, @Nullable Object body) throws IOException {
         throttleRequest();
         if (body != null) {
             String json = gson.toJson(body);
@@ -509,7 +508,6 @@ public class UniFiProtectApiClient implements Closeable {
             BiConsumer<Integer, String> onClosed, Consumer<Throwable> onError) {
         CompletableFuture<Session> future = new CompletableFuture<>();
         try {
-            // Build WS(S) URI from HTTP(S) base
             URI httpUri = resolvePath(path);
             URI wsUri = toWebSocketUri(httpUri);
             logger.debug("Connecting WebSocket to {}", wsUri);
@@ -585,7 +583,7 @@ public class UniFiProtectApiClient implements Closeable {
     /**
      * Very simple rolling-window throttle allowing up to MAX_REQUESTS_PER_SECOND
      * executions within the last THROTTLE_WINDOW_NS. Blocks the caller until
-     * a slot becomes available.
+     * a slot becomes available. Avoids 429 Too Many Requests errors
      */
     private void throttleRequest() {
         long waitNs = 0L;

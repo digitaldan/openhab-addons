@@ -57,17 +57,6 @@ public class UnifiProtectHandlerFactory extends BaseThingHandlerFactory {
         this.media = media;
     }
 
-    // @Reference
-    // protected void setHttpClientFactory(HttpClientFactory factory) {
-    // this.httpClientFactory = factory;
-    // }
-
-    // protected void unsetHttpClientFactory(HttpClientFactory factory) {
-    // if (factory.equals(this.httpClientFactory)) {
-    // this.httpClientFactory = null;
-    // }
-    // }
-
     @Override
     public boolean supportsThingType(ThingTypeUID thingTypeUID) {
         return SUPPORTED_THING_TYPES_UIDS.contains(thingTypeUID);
@@ -77,10 +66,6 @@ public class UnifiProtectHandlerFactory extends BaseThingHandlerFactory {
     protected @Nullable ThingHandler createHandler(Thing thing) {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
         if (THING_TYPE_NVR.equals(thingTypeUID)) {
-            // HttpClientFactory httpClientFactory = this.httpClientFactory;
-            // if (httpClientFactory == null) {
-            // return null;
-            // }
             return new UnifiProtectNVRHandler(thing, httpClientFactory);
         } else if (THING_TYPE_CAMERA.equals(thingTypeUID)) {
             return new UnifiProtectCameraHandler(thing, media);

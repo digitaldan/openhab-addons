@@ -36,7 +36,8 @@ public class UnifiProtectBindingConstants {
     public static final String DEVICE_ID = "deviceId";
 
     // List of all Channel ids
-    // Shared / generic
+
+    // Shared
     public static final String CHANNEL_STATUS = "status";
 
     // NVR

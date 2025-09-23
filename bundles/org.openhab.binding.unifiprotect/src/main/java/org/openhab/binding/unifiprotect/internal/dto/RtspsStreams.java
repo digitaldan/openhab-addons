@@ -19,7 +19,7 @@ import com.google.gson.annotations.SerializedName;
  *
  * @author Dan Cunningham - Initial contribution
  */
-public class ExistingRtspsStreams {
+public class RtspsStreams {
     public String high;
     public String medium;
     public String low;

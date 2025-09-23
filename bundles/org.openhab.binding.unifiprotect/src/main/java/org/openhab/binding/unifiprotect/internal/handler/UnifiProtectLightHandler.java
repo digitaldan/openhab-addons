@@ -220,10 +220,6 @@ public class UnifiProtectLightHandler extends UnifiProtectAbstractDeviceHandler<
                     updateFromDevice(updated);
                     break;
                 }
-                // Read-only channels - ignore commands
-                case UnifiProtectBindingConstants.CHANNEL_IS_DARK:
-                case UnifiProtectBindingConstants.CHANNEL_PIR_MOTION:
-                case UnifiProtectBindingConstants.CHANNEL_LAST_MOTION:
                 default:
                     break;
             }

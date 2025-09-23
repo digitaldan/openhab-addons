@@ -12,9 +12,9 @@ It uses the official Protect Integration API over HTTPS and WebSocket with a Bea
 - Supports multiple Protect devices (Cameras, Floodlights, Sensors)
 - Uses the official Protect Integration API locally to a UniFi Protect NVR/CloudKey/UNVR
 - Has granular triggers and channels for realtime events
-- Uses websocket for realtime updates and does not poll for updates
-- Supports [WebRTC streaming](#real-time-media) for cameras
-- Supports [2-way audio](#talkback-support-2-way-audio)  audio for cameras
+- Uses websockets for realtime updates and does not poll at all
+- Supports [WebRTC streaming](#real-time-media) for cameras with very low CPU overhead
+- Supports [2-way audio](#talkback-support-2-way-audio) audio for cameras
 - Provides snapshot images for cameras
 
 ## Native Binaries
@@ -25,6 +25,8 @@ It uses the official Protect Integration API over HTTPS and WebSocket with a Bea
 - If your platform is not supported, or downloading the binaries is not possible, install the binaries manually and ensure they are on the system PATH.
 
 Note: The binding will attempt to download go2rtc for freeBSD, but ffmpeg must be installed manually due to a lack of a static builds for freeBSD.
+
+See [Binding Configuration](#binding-configuration) to enable/disable downloading the binaries.
 
 ## Supported Things
 
@@ -44,8 +46,12 @@ Note: The binding will attempt to download go2rtc for freeBSD, but ffmpeg must b
 
 ## Binding Configuration
 
-There are no global binding settings.
-All configuration is on the NVR bridge and on individual things.
+| Name | Type | Description | Required |
+|------|------|-------------|----------|
+| downloadBinaries | boolean | Download binaries if they are not on the system PATH | yes |
+
+The `downloadBinaries` setting is used to control whether the binding should download the native binaries if they are not on the system PATH.
+By default, the binding will download the binaries if they are not on the system PATH for supported platforms.
 
 ## Thing Configuration
 
@@ -63,16 +69,15 @@ How to get the Token:
 
 ![Protect API key creation](doc/keys.png)
 
-
-
 ### Camera `unifiprotect:camera`
 
 | Name | Type | Description | Required |
 |------|------|-------------|----------|
 | deviceId | text | Unique device identifier of the camera | yes |
+| enableWebRTC | boolean | Enable WebRTC streaming | yes |
 
-Cameras are best added via discovery.
-For manual setup, the `deviceId` can be taken from the discovery inbox, logs, or Protect API.
+When WebRTC is enabled, the camera will be able to stream through openHAB using WebRTC.
+You can disable WebRTC by setting `enableWebRTC` to `false`.
 
 ### Floodlight `unifiprotect:light`
 
@@ -182,6 +187,7 @@ Trigger channels (for rules):
 If enabled in the binding configuration, openHAB will proxy live media using WebRTC which is compatible with the MainUI video widget.
 
 ### Stream URLs
+
 Cameras will dynamically create the following properties that can be used to stream the media:
 
 | Property ID  | Description |
@@ -201,23 +207,27 @@ All of the above URLs are relative to the openHAB instance.
 The playback URLs can be used in the MainUI video widget by enabling WebRTC in the advanced settings in the video widget and using an above URL as the source.
 
 An example WebRTC stream URL would be:
+
 ```
 /unifiprotect/media/play/unifiprotect:camera:home:1234567890:high
 ```
+
 Where `unifiprotect:camera:home:1234567890` is the camera's Thing UID and `high` is the quality (high, medium, low, package) if supported by the camera.
-If quality is omitted, the default quality (high) is used.
+If quality is omitted, the highest quality is used that is supported by the camera.
+
+Its also highly recommended to use the camera's Image URL property to get the live snapshot image URL which can be used for the poster image option in the MainUI video widget.
 
 ![video widget settings](doc/video-card.png)
 
-You can also use the `stream-image-url` property to get the live snapshot image URL which can be used on its own, or as a URL for the poster image option in the MainUI video widget.
-
 An example snapshot image URL would be:
+
 ```
 /unifiprotect/media/image/unifiprotect:camera:home:1234567890
 ```
 
 Where `unifiprotect:camera:home:1234567890` is the camera's Thing UID.
-You can append `?quality=low` to the URL to get the low quality snapshot image (if supported by the camera).
+You can append `?quality=high` to the URL to get the a higher quality snapshot image if supported by the camera, but can fail if not supported.
+The default quality level is suitable for most use cases, and supported by all cameras.
 
 ### Talkback Support (2-way audio)
 

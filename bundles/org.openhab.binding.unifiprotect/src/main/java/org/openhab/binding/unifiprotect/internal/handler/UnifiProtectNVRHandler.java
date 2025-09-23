@@ -105,7 +105,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
 
     @Override
     public void childHandlerInitialized(ThingHandler childHandler, Thing childThing) {
-        super.childHandlerInitialized(childHandler, childThing);
         logger.debug("Child handler initialized: {}", childHandler);
         if (getThing().getStatus() == ThingStatus.ONLINE) {
             if (childHandler instanceof UnifiProtectAbstractDeviceHandler<?> handler) {

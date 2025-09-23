@@ -22,5 +22,4 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 @NonNullByDefault
 public class UnifiProtectConfiguration {
     public boolean downloadBinaries = true;
-    public String ffmpegOptions = "-use_wallclock_as_timestamps 1 -re -fflags nobuffer -f alaw -ar 8000 -ac 1 -i - -vn -b:a 32k -application voip -frame_duration 20";
 }

@@ -14,6 +14,7 @@ package org.openhab.binding.unifiprotect.internal.media;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -28,23 +29,19 @@ import org.openhab.core.thing.ThingUID;
 @NonNullByDefault
 public interface UnifiMediaService {
 
-    /** Register/replace a camera stream (Thing UID as stable ID). */
-    void registerStream(String streamId, List<URI> sources);
-
-    /** Remove a camera stream when Thing goes away. */
-    void unregisterStream(String streamId);
-
-    void registerHandler(UnifiProtectCameraHandler handler);
+    void registerHandler(UnifiProtectCameraHandler handler, Map<String, List<URI>> streams);
 
     void unregisterHandler(UnifiProtectCameraHandler handler);
 
     @Nullable
     UnifiProtectCameraHandler getHandler(ThingUID thingUID);
 
-    /** Health/Liveness. */
     boolean isHealthy();
 
     String getPlayBasePath();
 
     String getImageBasePath();
+
+    @Nullable
+    String getGo2RtcBaseForStream(String streamId);
 }

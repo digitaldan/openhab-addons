@@ -13,9 +13,10 @@
 package org.openhab.binding.unifiprotect.internal.media;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Base64;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -38,13 +39,13 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class PlayStreamServlet extends HttpServlet {
 
-    private final String go2rtcBase; // like http://127.0.0.1:1984
+    private final UnifiMediaService mediaService;
     private HttpClient httpClient;
     private final Logger logger = LoggerFactory.getLogger(PlayStreamServlet.class);
 
-    public PlayStreamServlet(String go2rtcBase, HttpClient httpClient) {
+    public PlayStreamServlet(UnifiMediaService mediaService, HttpClient httpClient) {
         this.httpClient = httpClient;
-        this.go2rtcBase = go2rtcBase;
+        this.mediaService = mediaService;
     }
 
     @Override
@@ -77,6 +78,12 @@ public class PlayStreamServlet extends HttpServlet {
         }
         final String streamId = parts[1].trim();
         final String encodedId = URLEncoder.encode(streamId, StandardCharsets.UTF_8);
+        String go2rtcBase = mediaService.getGo2RtcBaseForStream(streamId);
+        if (go2rtcBase == null) {
+            logger.debug("Unknown stream: {}", streamId);
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Unknown stream");
+            return;
+        }
         // Read body
         String base64 = req.getParameter("data");
         String sdpOffer;

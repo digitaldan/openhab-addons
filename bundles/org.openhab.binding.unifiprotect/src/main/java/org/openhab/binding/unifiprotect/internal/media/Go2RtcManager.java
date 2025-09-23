@@ -12,14 +12,25 @@
  */
 package org.openhab.binding.unifiprotect.internal.media;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.http.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -41,35 +52,41 @@ public class Go2RtcManager {
         t.setDaemon(true);
         return t;
     });
-    private final Path workDir; // ${userdata}/unifiprotect
-    private final Path configFile; // ${userdata}/cache/unifiprotect/go2rtc.yaml
-    private final Supplier<Path> go2rtcPathSupplier; // NativeHelper::ensureGo2Rtc
-    private final Supplier<Path> ffmpegPathSupplier; // NativeHelper::ensureFfmpeg (optional)
-    private final String listenHost = "127.0.0.1";
-    private final int listenPort = 1984;
+    private final Path binDir;
+    private final Path configDir;
+    private final Path configFile;
+    private final Supplier<Path> go2rtcPathSupplier;
+    private final Supplier<Path> ffmpegPathSupplier;
+    private final String listenHost;
+    private final int listenPort;
     private final Duration healthTimeout = Duration.ofSeconds(2);
-    private final Duration restartDelay = Duration.ofSeconds(5);
+    // private final Duration restartDelay = Duration.ofSeconds(5);
     private boolean stopping = false;
     @Nullable
     private ScheduledFuture<?> tickFuture;
     @Nullable
     private Process process;
-    @Nullable
-    private ScheduledFuture<?> pendingRestart;
+    // @Nullable
+    // private ScheduledFuture<?> pendingRestart;
 
-    public Go2RtcManager(Path workDir, Supplier<Path> go2rtcPathSupplier, Supplier<Path> ffmpegPathSupplier) {
-        this.workDir = workDir;
+    public Go2RtcManager(Path binDir, Path configDir, Supplier<Path> go2rtcPathSupplier,
+            Supplier<Path> ffmpegPathSupplier, String listenHost, int listenPort, String configFileName) {
+        this.binDir = binDir;
+        this.configDir = configDir;
         this.go2rtcPathSupplier = go2rtcPathSupplier;
         this.ffmpegPathSupplier = ffmpegPathSupplier;
-        this.configFile = workDir.resolve("go2rtc.yaml");
+        this.listenHost = listenHost;
+        this.listenPort = listenPort;
+        this.configFile = configDir.resolve(configFileName);
     }
 
-    /** Write yaml (atomically) and schedule a debounced (re)start if changed. */
     public synchronized void applyConfig(String yamlContent) throws IOException {
         logger.debug("Applying config: {}", configFile);
-        Files.createDirectories(workDir);
+        Files.createDirectories(configDir);
+        Files.createDirectories(binDir);
         Files.writeString(configFile, yamlContent, StandardCharsets.UTF_8);
-        scheduleRestart();
+        // scheduleRestart();
+        restart();
     }
 
     public synchronized void startIfNeeded() throws IOException {
@@ -78,6 +95,7 @@ public class Go2RtcManager {
             return;
         }
         logger.debug("Starting go2rtc with config: {}", configFile);
+        Path workDir = binDir.getParent();
         Path bin = go2rtcPathSupplier.get(); // ensures download if needed
         List<String> cmd = new ArrayList<>();
         cmd.add(bin.toString());
@@ -95,7 +113,7 @@ public class Go2RtcManager {
                     String pathKey = env.containsKey("Path") ? "Path" : (env.containsKey("PATH") ? "PATH" : "PATH");
                     String currentPath = env.getOrDefault(pathKey, "");
                     if (!currentPath.contains(ffmpegDir)) {
-                        String updatedPath = ffmpegDir + java.io.File.pathSeparator + currentPath;
+                        String updatedPath = ffmpegDir + File.pathSeparator + currentPath;
                         env.put(pathKey, updatedPath);
                         logger.debug("Prepended FFmpeg dir to {}: {}", pathKey, ffmpegDir);
                     }
@@ -150,11 +168,11 @@ public class Go2RtcManager {
 
     public synchronized void destroy() {
         stopping = true;
-        ScheduledFuture<?> pr = this.pendingRestart;
-        if (pr != null) {
-            pr.cancel(true);
-            this.pendingRestart = null;
-        }
+        // ScheduledFuture<?> pr = this.pendingRestart;
+        // if (pr != null) {
+        // pr.cancel(true);
+        // this.pendingRestart = null;
+        // }
         Process process = this.process;
         if (process != null && process.isAlive()) {
             process.destroy();
@@ -235,22 +253,29 @@ public class Go2RtcManager {
         return "http://" + listenHost + ":" + listenPort;
     }
 
-    private synchronized void scheduleRestart() {
-        if (stopping) {
-            return;
+    public void deleteConfigFile() {
+        try {
+            Files.deleteIfExists(configFile);
+        } catch (IOException ignored) {
         }
-        ScheduledFuture<?> pr = this.pendingRestart;
-        if (pr != null) {
-            pr.cancel(false);
-        }
-        long delayMs = restartDelay.toMillis();
-        this.pendingRestart = exec.schedule(() -> {
-            try {
-                restart();
-            } catch (IOException e) {
-                logger.debug("Failed to restart go2rtc after debounce delay with config: {}", configFile, e);
-            }
-        }, delayMs, TimeUnit.MILLISECONDS);
-        logger.debug("Scheduled go2rtc restart in {} ms", delayMs);
     }
+
+    // private synchronized void scheduleRestart() {
+    // if (stopping) {
+    // return;
+    // }
+    // ScheduledFuture<?> pr = this.pendingRestart;
+    // if (pr != null) {
+    // pr.cancel(false);
+    // }
+    // long delayMs = restartDelay.toMillis();
+    // this.pendingRestart = exec.schedule(() -> {
+    // try {
+    // restart();
+    // } catch (IOException e) {
+    // logger.debug("Failed to restart go2rtc after debounce delay with config: {}", configFile, e);
+    // }
+    // }, delayMs, TimeUnit.MILLISECONDS);
+    // logger.debug("Scheduled go2rtc restart in {} ms", delayMs);
+    // }
 }

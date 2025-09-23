@@ -205,6 +205,5 @@ public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler
                     return;
             }
         }
-        // All other commands ignored (read-only channels)
     }
 }

@@ -16,8 +16,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -29,10 +33,10 @@ import org.openhab.binding.unifiprotect.internal.dto.ApiValueEnum;
 import org.openhab.binding.unifiprotect.internal.dto.Camera;
 import org.openhab.binding.unifiprotect.internal.dto.CameraFeatureFlags;
 import org.openhab.binding.unifiprotect.internal.dto.ChannelQuality;
-import org.openhab.binding.unifiprotect.internal.dto.ExistingRtspsStreams;
 import org.openhab.binding.unifiprotect.internal.dto.HdrType;
 import org.openhab.binding.unifiprotect.internal.dto.LedSettings;
 import org.openhab.binding.unifiprotect.internal.dto.OsdSettings;
+import org.openhab.binding.unifiprotect.internal.dto.RtspsStreams;
 import org.openhab.binding.unifiprotect.internal.dto.TalkbackSession;
 import org.openhab.binding.unifiprotect.internal.dto.VideoMode;
 import org.openhab.binding.unifiprotect.internal.dto.events.BaseEvent;
@@ -72,11 +76,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
     private UnifiMediaService media;
     private boolean enableWebRTC = true;
-    private Set<String> rtspChannels = Set.of(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH,
-            UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM,
-            UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW,
-            UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE);
-    private final List<String> streamIds = new ArrayList<>();
     private String baseSourceId;
 
     public UnifiProtectCameraHandler(Thing thing, UnifiMediaService media) {
@@ -95,12 +94,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
     @Override
     public void dispose() {
         super.dispose();
-        List<String> toUnregister;
-        synchronized (streamIds) {
-            toUnregister = new ArrayList<>(streamIds);
-            streamIds.clear();
-        }
-        toUnregister.forEach(media::unregisterStream);
         media.unregisterHandler(this);
     }
 
@@ -235,13 +228,12 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
     @Override
     public void updateFromDevice(Camera camera) {
         super.updateFromDevice(camera);
-        // Ensure dynamic channels reflect camera capabilities
+
         addRemoveChannels(camera);
         if (getThing().getStatus() != ThingStatus.ONLINE) {
             updateStatus(ThingStatus.ONLINE);
         }
 
-        // Update initial states for available channels
         updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME, camera.micVolume);
 
         OsdSettings osd = camera.osdSettings;
@@ -267,7 +259,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         }
 
         updateIntegerChannel(UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT, camera.activePatrolSlot);
-        media.registerHandler(this);
         updateRtspsChannels();
     }
 
@@ -392,90 +383,69 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         if (api == null) {
             return;
         }
+        RtspsStreams rtsps = null;
 
         // Create RTSP streams if WebRTC is enabled
         if (enableWebRTC) {
             try {
-                api.createRtspsStream(deviceId,
+                rtsps = api.createRtspsStream(deviceId,
                         List.of(ChannelQuality.HIGH, ChannelQuality.MEDIUM, ChannelQuality.LOW));
             } catch (IOException e) {
                 logger.debug("Failed to create RTSP streams", e);
             }
         }
-        try {
-            ExistingRtspsStreams rtsps = api.getRtspsStream(deviceId);
-            updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH, rtsps.high);
-            updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM, rtsps.medium);
-            updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW, rtsps.low);
-            updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE, rtsps.packageUrl);
+        // update existing channels
+        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH, rtsps != null ? rtsps.high : null);
+        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM,
+                rtsps != null ? rtsps.medium : null);
+        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW, rtsps != null ? rtsps.low : null);
+        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE,
+                rtsps != null ? rtsps.packageUrl : null);
 
-            // Unregister existing streams (snapshot under lock to avoid CME)
-            List<String> toUnregister;
-            synchronized (streamIds) {
-                toUnregister = new ArrayList<>(streamIds);
-                streamIds.clear();
-            }
-            toUnregister.forEach(media::unregisterStream);
-            toUnregister.forEach(id -> getThing().setProperty("stream-url-" + id, null));
+        getThing().setProperty("stream-publish-url", null);
 
-            getThing().setProperty("stream-publish-url", null);
-            URI backchannel = null;
+        // Register new streams if available
+        if (enableWebRTC && rtsps != null) {
+            URI bc = null;
             try {
                 TalkbackSession talkback = startTalkback();
-                backchannel = URI.create(talkback.url);
+                bc = URI.create(talkback.url);
             } catch (IOException e) {
                 logger.debug("Talkback not stupported: {}", e.getMessage());
             }
-            // Register new streams
-            String defaultStream = null;
-            if (enableWebRTC) {
-                if (rtsps.high != null && !rtsps.high.isBlank()) {
-                    registerStream(api, rtsps.high, "high", backchannel);
-                    defaultStream = rtsps.high;
-                }
-                if (rtsps.medium != null && !rtsps.medium.isBlank()) {
-                    registerStream(api, rtsps.medium, "medium", backchannel);
-                    if (defaultStream == null) {
-                        defaultStream = rtsps.medium;
+            final URI backChannel = bc;
+            // streamId -> sources (backchannel + main stream)
+            Map<String, List<URI>> streams = new LinkedHashMap<>();
+            BiConsumer<String, String> add = (type, url) -> {
+                if (url != null && !url.isBlank()) {
+                    List<URI> sources = new ArrayList<>();
+                    sources.add(URI.create(url));
+                    if (backChannel != null) {
+                        sources.add(backChannel);
                     }
+                    String fullStreamId = baseSourceId + (type != null ? ":" + type : "");
+                    streams.put(fullStreamId, sources);
+                    String typeAppended = type != null ? "-" + type : "";
+                    getThing().setProperty("stream-playback-url" + typeAppended,
+                            media.getPlayBasePath() + "/" + fullStreamId);
                 }
-                if (rtsps.low != null && !rtsps.low.isBlank()) {
-                    registerStream(api, rtsps.low, "low", backchannel);
-                    if (defaultStream == null) {
-                        defaultStream = rtsps.low;
-                    }
-                }
-                if (rtsps.packageUrl != null && !rtsps.packageUrl.isBlank()) {
-                    registerStream(api, rtsps.packageUrl, "package", backchannel);
-                    if (defaultStream == null) {
-                        defaultStream = rtsps.packageUrl;
-                    }
-                }
-                if (defaultStream != null) {
-                    registerStream(api, defaultStream, null, backchannel);
-                }
+            };
+            add.accept("high", rtsps.high);
+            add.accept("medium", rtsps.medium);
+            add.accept("low", rtsps.low);
+            add.accept("package", rtsps.packageUrl);
+            if (!streams.isEmpty()) {
+                Entry<String, List<URI>> first = streams.entrySet().iterator().next();
+                List<URI> sources = new ArrayList<>(first.getValue());
+                // add a default stream for the camera (without quality appended). Defaults to
+                // highest quality.
+                streams.put(baseSourceId, sources);
+                getThing().setProperty("stream-playback-url", media.getPlayBasePath() + "/" + baseSourceId);
             }
-        } catch (IOException e) {
-            logger.debug("Failed to get RTSP streams", e);
-            return;
+            media.registerHandler(this, streams);
+        } else {
+            media.registerHandler(this, Map.of());
         }
-    }
-
-    private void registerStream(UniFiProtectApiClient api, String url, @Nullable String type,
-            @Nullable URI backchannel) {
-        List<URI> sources = new ArrayList<>();
-        sources.add(URI.create(url));
-        if (backchannel != null) {
-            sources.add(backchannel);
-        }
-        String fullStreamId = baseSourceId + (type != null ? ":" + type : "");
-        media.registerStream(fullStreamId, sources);
-        synchronized (streamIds) {
-            streamIds.add(fullStreamId);
-        }
-        // this give us stream-playback-url AND stream-playback-url-high
-        String typeAppended = type != null ? "-" + type : "";
-        getThing().setProperty("stream-playback-url" + typeAppended, media.getPlayBasePath() + "/" + fullStreamId);
     }
 
     private void addRemoveChannels(Camera camera) {

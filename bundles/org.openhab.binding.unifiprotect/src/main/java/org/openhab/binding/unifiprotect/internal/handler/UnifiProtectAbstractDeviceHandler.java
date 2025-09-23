@@ -39,7 +39,6 @@ import org.openhab.core.thing.binding.BaseThingHandler;
  */
 @NonNullByDefault
 public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extends BaseThingHandler {
-    /** The device this handler is managing. */
     protected @Nullable T device;
     protected String deviceId = "";
 
@@ -56,7 +55,7 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extend
 
     @Override
     public void initialize() {
-        // updateStatus(ThingStatus.UNKNOWN);
+        updateStatus(ThingStatus.UNKNOWN);
         deviceId = getConfigAs(UnifiProtectDeviceConfiguration.class).deviceId;
     }
 
@@ -95,7 +94,7 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extend
         }
     }
 
-    protected void updateStringChannel(String channelId, String value) {
+    protected void updateStringChannel(String channelId, @Nullable String value) {
         if (hasChannel(channelId)) {
             updateState(channelId, new StringType(value));
         }

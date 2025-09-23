@@ -22,8 +22,6 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiprotect.internal.handler.UnifiProtectCameraHandler;
 import org.openhab.core.thing.ThingUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * ImageStreamServlet.
@@ -34,7 +32,6 @@ import org.slf4j.LoggerFactory;
 public class ImageServlet extends HttpServlet {
 
     private final UnifiMediaService mediaService;
-    private final Logger logger = LoggerFactory.getLogger(ImageServlet.class);
 
     public ImageServlet(UnifiMediaService mediaService) {
         this.mediaService = mediaService;
@@ -56,9 +53,9 @@ public class ImageServlet extends HttpServlet {
             resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-        boolean highQuality = true;
-        if (req.getQueryString() != null && req.getQueryString().contains("quality=low")) {
-            highQuality = false;
+        boolean highQuality = false;
+        if (req.getQueryString() != null && req.getQueryString().contains("quality=high")) {
+            highQuality = true;
         }
         byte[] snapshot = handler.getSnapshot(highQuality);
         resp.setContentType("image/jpeg");

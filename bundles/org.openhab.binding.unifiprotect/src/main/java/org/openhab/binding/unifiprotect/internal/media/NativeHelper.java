@@ -12,8 +12,13 @@
  */
 package org.openhab.binding.unifiprotect.internal.media;
 
-import java.io.*;
-import java.nio.file.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
@@ -55,12 +60,12 @@ public class NativeHelper {
     }
 
     private Path ensureBinary(String name, String url) throws IOException {
-        // 1. if on PATH, just return
+        // if on PATH, just return
         if (isOnPath(name)) {
             return Paths.get(name);
         }
 
-        // 2. download/extract only the target binary to baseDir/<os-arch>/<name>
+        // download/extract only the target binary, not the whole archive
         String osArch = System.getProperty("os.name").toLowerCase(Locale.ROOT) + "-"
                 + System.getProperty("os.arch").toLowerCase(Locale.ROOT);
         Path destDir = baseDir.resolve(osArch);
@@ -155,12 +160,15 @@ public class NativeHelper {
         }
     }
 
-    // findBinaryInTree no longer needed; we extract only the required binary
-
     private String getGo2RtcUrl() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        String arch = System.getProperty("os.arch").toLowerCase(Locale.ROOT);
+        String os = System.getProperty("os.name");
+        String arch = System.getProperty("os.arch");
         // adjust to latest release asset
+        if (os == null || arch == null) {
+            throw new IllegalStateException("Unsupported platform " + os + " " + arch);
+        }
+        os = os.toLowerCase(Locale.ROOT);
+        arch = arch.toLowerCase(Locale.ROOT);
         if (os.contains("linux")
                 && (arch.contains("amd64") || arch.contains("x86_64") || arch.equals("x64") || arch.equals("amd64")))
             return "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_amd64";
@@ -187,8 +195,13 @@ public class NativeHelper {
     }
 
     private String getFfmpegUrl() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        String arch = System.getProperty("os.arch").toLowerCase(Locale.ROOT);
+        String os = System.getProperty("os.name");
+        String arch = System.getProperty("os.arch");
+        if (os == null || arch == null) {
+            throw new IllegalStateException("Unsupported platform " + os + " " + arch);
+        }
+        os = os.toLowerCase(Locale.ROOT);
+        arch = arch.toLowerCase(Locale.ROOT);
         // You choose a static FFmpeg build URL per platform here:
         if (os.contains("linux") && arch.contains("amd64")) {
             return "https://github.com/digitaldan/openhab-addons/releases/download/unifiprotect/ffmpeg-master-latest-linux64-gpl.zip";
