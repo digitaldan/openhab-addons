@@ -138,6 +138,7 @@ public class Go2RtcConfigBuilder {
         return sb.toString();
     }
 
+    // this handles the strange rtp vs rtps with unifi protect streams
     private String formatSourceToRtspx(URI u) {
         String host = u.getHost();
         if (host == null) {
@@ -164,7 +165,7 @@ public class Go2RtcConfigBuilder {
         return "rtspx://" + outHost + ":" + u.getPort() + "/" + token + "#backchannel=0";
     }
 
-    // Quote only if YAML would misparse.
+    // Quote only if YAML would break.
     private String quoteIfNeeded(String s) {
         if (s == null || s.isEmpty()) {
             return "''";

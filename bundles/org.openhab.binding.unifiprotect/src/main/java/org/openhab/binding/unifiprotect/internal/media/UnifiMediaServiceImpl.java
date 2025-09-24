@@ -51,8 +51,8 @@ import org.slf4j.LoggerFactory;
  *
  * @author Dan Cunningham - Initial contribution
  */
-@Component(service = UnifiMediaService.class, immediate = true, configurationPid = "org.openhab.unifiprotect", property = Constants.SERVICE_PID
-        + "=" + "org.openhab.unifiprotect")
+@Component(service = UnifiMediaService.class, immediate = true, configurationPid = UnifiProtectBindingConstants.SERVICE_ID, property = Constants.SERVICE_PID
+        + "=" + UnifiProtectBindingConstants.SERVICE_ID)
 @ConfigurableService(category = "system", label = "UnifiProtect", description_uri = "binding:unifiprotect")
 @NonNullByDefault
 public class UnifiMediaServiceImpl implements UnifiMediaService {

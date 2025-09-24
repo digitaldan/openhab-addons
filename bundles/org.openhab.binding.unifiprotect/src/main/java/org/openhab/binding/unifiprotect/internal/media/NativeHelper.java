@@ -163,7 +163,6 @@ public class NativeHelper {
     private String getGo2RtcUrl() {
         String os = System.getProperty("os.name");
         String arch = System.getProperty("os.arch");
-        // adjust to latest release asset
         if (os == null || arch == null) {
             throw new IllegalStateException("Unsupported platform " + os + " " + arch);
         }
@@ -176,15 +175,9 @@ public class NativeHelper {
             return "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_arm64";
         if (os.contains("freebsd")
                 && (arch.contains("amd64") || arch.contains("x86_64") || arch.equals("x64") || arch.equals("amd64")))
-            return "https://github.com/AlexxIT/go2rtc/releases/download/v1.9.9/go2rtc_freebsd_amd64.zip"; // TODO:
-                                                                                                          // FreeBSD
-                                                                                                          // amd64
-                                                                                                          // go2rtc URL
+            return "https://github.com/AlexxIT/go2rtc/releases/download/v1.9.9/go2rtc_freebsd_amd64.zip";
         if (os.contains("freebsd") && (arch.contains("aarch64") || arch.contains("arm64")))
-            return "https://github.com/AlexxIT/go2rtc/releases/download/v1.9.9/go2rtc_freebsd_arm64.zip"; // TODO:
-                                                                                                          // FreeBSD
-                                                                                                          // arm64
-                                                                                                          // go2rtc URL
+            return "https://github.com/AlexxIT/go2rtc/releases/download/v1.9.9/go2rtc_freebsd_arm64.zip";
         if (os.contains("mac") && arch.contains("arm"))
             return "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_mac_arm64.zip";
         if (os.contains("mac"))
@@ -202,7 +195,6 @@ public class NativeHelper {
         }
         os = os.toLowerCase(Locale.ROOT);
         arch = arch.toLowerCase(Locale.ROOT);
-        // You choose a static FFmpeg build URL per platform here:
         if (os.contains("linux") && arch.contains("amd64")) {
             return "https://github.com/digitaldan/openhab-addons/releases/download/unifiprotect/ffmpeg-master-latest-linux64-gpl.zip";
         }

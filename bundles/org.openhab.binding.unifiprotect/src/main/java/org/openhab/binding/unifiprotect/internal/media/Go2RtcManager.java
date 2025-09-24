@@ -60,14 +60,11 @@ public class Go2RtcManager {
     private final String listenHost;
     private final int listenPort;
     private final Duration healthTimeout = Duration.ofSeconds(2);
-    // private final Duration restartDelay = Duration.ofSeconds(5);
     private boolean stopping = false;
     @Nullable
     private ScheduledFuture<?> tickFuture;
     @Nullable
     private Process process;
-    // @Nullable
-    // private ScheduledFuture<?> pendingRestart;
 
     public Go2RtcManager(Path binDir, Path configDir, Supplier<Path> go2rtcPathSupplier,
             Supplier<Path> ffmpegPathSupplier, String listenHost, int listenPort, String configFileName) {
@@ -85,7 +82,6 @@ public class Go2RtcManager {
         Files.createDirectories(configDir);
         Files.createDirectories(binDir);
         Files.writeString(configFile, yamlContent, StandardCharsets.UTF_8);
-        // scheduleRestart();
         restart();
     }
 
@@ -168,11 +164,6 @@ public class Go2RtcManager {
 
     public synchronized void destroy() {
         stopping = true;
-        // ScheduledFuture<?> pr = this.pendingRestart;
-        // if (pr != null) {
-        // pr.cancel(true);
-        // this.pendingRestart = null;
-        // }
         Process process = this.process;
         if (process != null && process.isAlive()) {
             process.destroy();
@@ -259,23 +250,4 @@ public class Go2RtcManager {
         } catch (IOException ignored) {
         }
     }
-
-    // private synchronized void scheduleRestart() {
-    // if (stopping) {
-    // return;
-    // }
-    // ScheduledFuture<?> pr = this.pendingRestart;
-    // if (pr != null) {
-    // pr.cancel(false);
-    // }
-    // long delayMs = restartDelay.toMillis();
-    // this.pendingRestart = exec.schedule(() -> {
-    // try {
-    // restart();
-    // } catch (IOException e) {
-    // logger.debug("Failed to restart go2rtc after debounce delay with config: {}", configFile, e);
-    // }
-    // }, delayMs, TimeUnit.MILLISECONDS);
-    // logger.debug("Scheduled go2rtc restart in {} ms", delayMs);
-    // }
 }

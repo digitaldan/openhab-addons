@@ -25,6 +25,7 @@ import org.openhab.core.thing.ThingTypeUID;
 public class UnifiProtectBindingConstants {
 
     public static final String BINDING_ID = "unifiprotect";
+    public static final String SERVICE_ID = "org.openhab." + BINDING_ID;
 
     // List of all Thing Type UIDs
     public static final ThingTypeUID THING_TYPE_NVR = new ThingTypeUID(BINDING_ID, "nvr");
