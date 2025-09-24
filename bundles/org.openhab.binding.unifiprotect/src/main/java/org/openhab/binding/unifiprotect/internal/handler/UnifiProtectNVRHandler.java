@@ -96,6 +96,11 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 .registerTypeAdapterFactory(new EventTypeAdapterFactory()).create();
         httpClient = httpClientFactory.createHttpClient(UnifiProtectBindingConstants.BINDING_ID,
                 new SslContextFactory.Client(true));
+        try {
+            httpClient.start();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to start HTTP client", e);
+        }
     }
 
     @Override
@@ -127,6 +132,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
     @Override
     public void initialize() {
         logger.debug("Initializing NVR");
+        shuttingDown = false;
         config = getConfigAs(UnifiProtectNVRConfiguration.class);
         updateStatus(ThingStatus.UNKNOWN);
         scheduler.execute(() -> {
@@ -391,6 +397,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         if (shuttingDown || reconnectTask != null && !reconnectTask.isDone()) {
             return;
         }
+        shuttingDown = true;
         updateStatus(ThingStatus.OFFLINE);
         stopApiClient();
         stopTasks();

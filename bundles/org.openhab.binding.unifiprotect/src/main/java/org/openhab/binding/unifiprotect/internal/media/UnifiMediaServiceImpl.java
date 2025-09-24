@@ -116,7 +116,13 @@ public class UnifiMediaServiceImpl implements UnifiMediaService {
     @Modified
     protected void modified(@Nullable Map<String, Object> properties) {
         if (properties != null) {
+            UnifiProtectConfiguration oldConfig = config;
             config = (new Configuration(properties)).as(UnifiProtectConfiguration.class);
+            if (oldConfig.useStun != config.useStun) {
+                for (ThingUID uid : managers.keySet()) {
+                    rebuildAndApplyYaml(uid);
+                }
+            }
         }
     }
 
@@ -207,8 +213,13 @@ public class UnifiMediaServiceImpl implements UnifiMediaService {
             int webrtcPort = webrtcPorts.getOrDefault(uid, 8555);
             int rtspPort = rtspPorts.getOrDefault(uid, 8554);
 
-            Go2RtcConfigBuilder b = new Go2RtcConfigBuilder("127.0.0.1", apiPort).stun("stun:stun.l.google.com:19302")
-                    .webrtcListen(webrtcPort).rtspListen(rtspPort);
+            Go2RtcConfigBuilder b = new Go2RtcConfigBuilder("127.0.0.1", apiPort).webrtcListen(webrtcPort)
+                    .rtspListen(rtspPort);
+
+            // remove stun if not needed
+            if (!config.useStun) {
+                b.stun();
+            }
 
             Map<String, List<URI>> streamsForUid = cameraStreams.get(uid);
             boolean hasAny = false;

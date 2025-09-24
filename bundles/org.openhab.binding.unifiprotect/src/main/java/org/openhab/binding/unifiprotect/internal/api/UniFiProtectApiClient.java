@@ -89,8 +89,8 @@ public class UniFiProtectApiClient implements Closeable {
     private final URI baseUri;
     private final Map<String, String> defaultHeaders;
     private final ScheduledExecutorService heartbeatExecutor;
-    // Simple request throttle: max 7 requests per 1 second
-    private static final int MAX_REQUESTS_PER_SECOND = 7;
+    // Simple request throttle: max 8 requests per 1 second
+    private static final int MAX_REQUESTS_PER_SECOND = 8;
     private static final long THROTTLE_WINDOW_NS = TimeUnit.SECONDS.toNanos(1);
     private final Object throttleLock = new Object();
     private final Deque<Long> requestTimestampsNs = new ArrayDeque<>();
@@ -101,6 +101,8 @@ public class UniFiProtectApiClient implements Closeable {
         this.gson = gson;
         this.defaultHeaders = Map.of("X-API-KEY", token, "Accept", "application/json");
         this.wsClient = new WebSocketClient(httpClient);
+        // Prevent wsClient.stop() from stopping the shared HttpClient instance
+        this.wsClient.unmanage(this.httpClient);
         this.heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "unifiprotect-ws-heartbeat");
             t.setDaemon(true);

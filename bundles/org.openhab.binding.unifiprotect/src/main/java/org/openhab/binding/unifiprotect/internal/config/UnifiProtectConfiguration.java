@@ -22,4 +22,5 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 @NonNullByDefault
 public class UnifiProtectConfiguration {
     public boolean downloadBinaries = true;
+    public boolean useStun = true;
 }

@@ -48,10 +48,8 @@ See [Binding Configuration](#binding-configuration) to enable/disable downloadin
 
 | Name | Type | Description | Required |
 |------|------|-------------|----------|
-| downloadBinaries | boolean | Download binaries if they are not on the system PATH | yes |
-
-The `downloadBinaries` setting is used to control whether the binding should download the native binaries if they are not on the system PATH.
-By default, the binding will download the binaries if they are not on the system PATH for supported platforms.
+| downloadBinaries | boolean | Download binaries if they are not on the system PATH.  This setting is used to control whether the binding should download the native binaries if they are not found. By default, the binding will download the binaries if they are not on the system PATH for supported platforms | yes |
+| useStun | boolean | Use STUN for external IP discovery.  This will allow camera streams to work behind NATs when outside your local network (e.g. when using the openHAB cloud service) and is enabled by default. STUN will incur an approximately 5 second delay starting the stream as it discovers your external IP. | yes |
 
 ## Thing Configuration
 

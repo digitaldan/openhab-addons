@@ -30,7 +30,8 @@ public class Go2RtcConfigBuilder {
 
     private String listenHost = "127.0.0.1";
     private int listenPort = 1984;
-    private final List<String> stunServers = new ArrayList<>(List.of("stun:stun.l.google.com:19302"));
+    private final List<String> stunServers = new ArrayList<>(List.of("stun:stun.cloudflare.com:3478",
+            "stun:stun.l.google.com:19302", "stun:global.stun.twilio.com:3478"));
     private final List<String> candidates = new ArrayList<>();
     private int webrtcListenPort = 8555;
     private int rtspListenPort = 8554;
@@ -56,6 +57,7 @@ public class Go2RtcConfigBuilder {
     }
 
     public Go2RtcConfigBuilder candidates(String... candidates) {
+        this.candidates.clear();
         this.candidates.addAll(List.of(candidates));
         return this;
     }
@@ -98,9 +100,16 @@ public class Go2RtcConfigBuilder {
         // webrtc
         sb.append("webrtc:\n");
         sb.append("  listen: \"").append(":").append(webrtcListenPort).append("\"\n");
-        sb.append("  stun:\n");
-        for (String s : stunServers) {
-            sb.append("    - ").append(quoteIfNeeded(s)).append("\n");
+        sb.append("  ice_servers:\n");
+        if (!stunServers.isEmpty()) {
+            sb.append("    - urls: [ ");
+            for (int i = 0; i < stunServers.size(); i++) {
+                if (i > 0) {
+                    sb.append(", ");
+                }
+                sb.append(quoteIfNeeded(stunServers.get(i)));
+            }
+            sb.append(" ]\n");
         }
         if (!candidates.isEmpty()) {
             sb.append("  candidates:\n");
