@@ -43,6 +43,12 @@ public class UnifiAccessBindingConstants {
     public static final String CHANNEL_UNLOCK_MINUTES = "unlock-minutes";
     public static final String CHANNEL_DOOR_THUMBNAIL = "thumbnail";
 
+    // Door trigger channels
+    public static final String CHANNEL_DOOR_ACCESS_ATTEMPT_SUCCESS = "access-attempt-success";
+    public static final String CHANNEL_DOOR_ACCESS_ATTEMPT_FAILURE = "access-attempt-failure";
+    public static final String CHANNEL_DOOR_REMOTE_UNLOCK = "remote-unlock";
+    public static final String CHANNEL_DOORBELL_STATUS = "doorbell-status";
+
     // Device channels
     public static final String CHANNEL_DEVICE_NFC_ENABLED = "nfc-enabled";
     public static final String CHANNEL_DEVICE_PIN_ENABLED = "pin-enabled";
@@ -61,4 +67,8 @@ public class UnifiAccessBindingConstants {
     public static final String CHANNEL_DEVICE_TOUCH_PASS_ENABLED = "touch-pass-enabled";
     public static final String CHANNEL_DEVICE_FACE_ANTI_SPOOFING = "face-anti-spoofing";
     public static final String CHANNEL_DEVICE_FACE_DETECT_DISTANCE = "face-detect-distance";
+
+    // Bridge trigger channels
+    public static final String CHANNEL_BRIDGE_LOG_INSIGHT = "log-insight";
+    public static final String CHANNEL_BRIDGE_LOG = "log";
 }

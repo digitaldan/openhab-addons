@@ -17,7 +17,7 @@ import java.time.Instant;
 import org.eclipse.jdt.annotation.Nullable;
 
 /**
- * Generic Webhook event envelope with typed {@code data}.
+ * Generic Webhook event wrapper.
  *
  * @author Dan Cunningham - Initial contribution
  */

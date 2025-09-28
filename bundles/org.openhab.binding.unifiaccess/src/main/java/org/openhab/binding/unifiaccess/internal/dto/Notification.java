@@ -373,30 +373,125 @@ public class Notification {
         }
     }
 
+    /**
+     * Reusable simple references used across log payloads.
+     */
+    public static class Actor {
+        public String id;
+        public String type;
+        public String displayName;
+        public String firstName;
+        public String lastName;
+    }
+
+    // this is use to point to a base access object like a door, floor, camera, config
+    public static class BaseReference {
+        public String id;
+        public String type;
+        public String displayName;
+    }
+
+    public static class CameraCaptureReference extends BaseReference {
+        public String alternateId; // this is the camera ID used in the Protect binding !
+        public String alternateName; // strange, actually a URL to a tiny thumbnail of the product picture ?
+        public String videoUrl; // relative path to the video using the Unifi Protect App
+        public String videoFileName; // interesting, this a reference to the recorded clip ?
+        public String videoSource; // protect
+        public String thumbnailUrl; // relative path to the thumbnail using the Unifi Protect App
+    }
+
     /** access.logs.insights.add payload (partial). */
     public static class LogsInsightsAddData {
         public String logKey;
-        public String eventType;
+        public String eventType; // access.door.unlock....
         public String message;
-        public Long published;
-        public String result;
+        public Long published; // epoch millis
+        public String result; // ACCESS / DENY / etc
         public JsonObject metadata;
+    }
+
+    /** access.logs.insights.add payload (typed). */
+    public static class InsightLogsAddData {
+        public String logKey; // dashboard.access.door.unlock.success
+        public String eventType; // access.door.unlock
+        public String message; // human-readable message
+        public Long published; // epoch millis
+        public String result; // ACCESS / DENY / etc
+        public Metadata metadata;
+
+        public static class Metadata {
+            public Actor actor;
+            public Authentication authentication;
+            public BaseReference building;
+            public CameraCaptureReference cameraCapture;
+            public BaseReference device;
+            public BaseReference deviceConfig;
+            public BaseReference deviceUaHub;
+            public BaseReference door;
+            @SerializedName("fo")
+            public BaseReference floor;
+            public BaseReference openedDirection;
+            public BaseReference openedMethod;
+            public BaseReference userStatus;
+        }
+
+        public static class Authentication {
+            public String id;
+            public String type;
+            public String displayName;
+            public String credentialProvider; // REMOTE_THROUGH_UAH, TOUCH_PASS, NFC, PIN_CODE, etc...
+        }
     }
 
     /** access.logs.add payload (partial). */
     public static class LogsAddData {
         @SerializedName("_id")
         public String id;
+
         @SerializedName("@timestamp")
         public String timestamp;
+
         @SerializedName("_source")
-        public JsonObject source;
+        public Source source;
+
+        /** e.g. "access" */
         public String tag;
+
+        public static class Source {
+            public Actor actor;
+            public Event event;
+            public Authentication authentication;
+            public List<Target> target;
+        }
+
+        public static class Event {
+            public String type; // access.door.unlock
+            public String displayMessage;
+            public String result;
+            public Long published; // epoch millis
+            public String logKey; // dashboard.access.door.unlock.success
+            public String logCategory; // Unlocks...
+        }
+
+        public static class Authentication {
+            public String credentialProvider; // REMOTE_THROUGH_UAH, TOUCH_PASS, NFC, PIN_CODE, etc...
+        }
+
+        public static class Target extends BaseReference {
+            public String alternateId;
+            public String alternateName;
+        }
     }
 
     /** access.base.info payload (partial). */
     public static class BaseInfoData {
         public Integer topLogCount;
+    }
+
+    public static class DoorBellData {
+        public String deviceId;
+        public String doorId;
+        public String requestId;
     }
 
     public DeviceUpdateData dataAsDeviceUpdate(Gson gson) {
@@ -411,7 +506,7 @@ public class Notification {
         return dataAs(gson, LocationUpdateV2Data.class);
     }
 
-    public LogsInsightsAddData dataAsLogsInsightsAdd(Gson gson) {
+    public LogsInsightsAddData dataAsInsightsAddData(Gson gson) {
         return dataAs(gson, LogsInsightsAddData.class);
     }
 
@@ -419,7 +514,15 @@ public class Notification {
         return dataAs(gson, LogsAddData.class);
     }
 
+    public InsightLogsAddData dataAsInsightLogsAdd(Gson gson) {
+        return dataAs(gson, InsightLogsAddData.class);
+    }
+
     public BaseInfoData dataAsBaseInfo(Gson gson) {
         return dataAs(gson, BaseInfoData.class);
+    }
+
+    public DoorBellData dataAsDoorBell(Gson gson) {
+        return dataAs(gson, DoorBellData.class);
     }
 }

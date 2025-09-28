@@ -15,6 +15,7 @@ package org.openhab.binding.unifiaccess.internal.handler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -27,6 +28,7 @@ import org.openhab.binding.unifiaccess.internal.dto.Image;
 import org.openhab.binding.unifiaccess.internal.dto.Notification;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.LocationState;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.LocationUpdateV2Data;
+import org.openhab.binding.unifiaccess.internal.dto.Notification.RemoteViewChangeData;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
@@ -41,6 +43,8 @@ import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
 
 /**
  * Thing handler for UniFi Access Door things.
@@ -211,6 +215,44 @@ public class UnifiAccessDoorHandler extends BaseThingHandler {
         }
         setLastUnlock(remoteUnlock.fullName, System.currentTimeMillis());
         door.doorLockRelayStatus = DoorState.LockState.UNLOCKED;
+
+        try {
+            String payload = new Gson()
+                    .toJson(Map.of("deviceId", remoteUnlock.uniqueId, "name", remoteUnlock.name, "fullName",
+                            remoteUnlock.fullName, "level", remoteUnlock.level, "workTimeId", remoteUnlock.workTimeId));
+            triggerChannel(UnifiAccessBindingConstants.CHANNEL_DOOR_REMOTE_UNLOCK, payload);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void handleDoorbellStatus(RemoteViewChangeData change) {
+        try {
+            String event = change.reason != null ? change.reason.name() : "UNKNOWN";
+            triggerChannel(UnifiAccessBindingConstants.CHANNEL_DOORBELL_STATUS, event);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void triggerAccessAttemptSuccess(String payload) {
+        try {
+            triggerChannel(UnifiAccessBindingConstants.CHANNEL_DOOR_ACCESS_ATTEMPT_SUCCESS, payload);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void triggerAccessAttemptFailure(String payload) {
+        try {
+            triggerChannel(UnifiAccessBindingConstants.CHANNEL_DOOR_ACCESS_ATTEMPT_FAILURE, payload);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void triggerLogInsight(String payload) {
+        try {
+            // shared channel id 'log-insight'
+            triggerChannel(UnifiAccessBindingConstants.CHANNEL_BRIDGE_LOG_INSIGHT, payload);
+        } catch (Exception ignored) {
+        }
     }
 
     private void updateLock(DoorState.LockState lock) {

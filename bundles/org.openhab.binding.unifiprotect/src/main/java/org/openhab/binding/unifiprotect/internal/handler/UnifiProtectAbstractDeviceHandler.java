@@ -47,6 +47,10 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extend
         UPDATE
     }
 
+    public UnifiProtectAbstractDeviceHandler(Thing thing) {
+        super(thing);
+    }
+
     public void updateFromDevice(T device) {
         this.device = device;
     }
@@ -59,8 +63,15 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extend
         deviceId = getConfigAs(UnifiProtectDeviceConfiguration.class).deviceId;
     }
 
-    public UnifiProtectAbstractDeviceHandler(Thing thing) {
-        super(thing);
+    // making public
+    @Override
+    public void updateStatus(ThingStatus status) {
+        super.updateStatus(status);
+    }
+
+    @Override
+    public void updateStatus(ThingStatus status, ThingStatusDetail statusDetail, @Nullable String description) {
+        super.updateStatus(status, statusDetail, description);
     }
 
     public void markGone() {

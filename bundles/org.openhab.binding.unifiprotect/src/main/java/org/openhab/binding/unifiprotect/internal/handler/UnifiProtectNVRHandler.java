@@ -32,6 +32,7 @@ import org.openhab.binding.unifiprotect.internal.UnifiProtectDiscoveryService;
 import org.openhab.binding.unifiprotect.internal.api.UniFiProtectApiClient;
 import org.openhab.binding.unifiprotect.internal.config.UnifiProtectNVRConfiguration;
 import org.openhab.binding.unifiprotect.internal.dto.Camera;
+import org.openhab.binding.unifiprotect.internal.dto.DeviceState;
 import org.openhab.binding.unifiprotect.internal.dto.Light;
 import org.openhab.binding.unifiprotect.internal.dto.Nvr;
 import org.openhab.binding.unifiprotect.internal.dto.ProtectVersionInfo;
@@ -46,6 +47,7 @@ import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
+import org.openhab.core.thing.ThingStatusDetail;
 import org.openhab.core.thing.ThingTypeUID;
 import org.openhab.core.thing.binding.BaseBridgeHandler;
 import org.openhab.core.thing.binding.ThingHandler;
@@ -79,7 +81,9 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
 
     private static final long WS_UPDATE_DEBOUNCE_MS = 500; // inactivity window
     private static final long WS_UPDATE_MAX_WAIT_MS = 2000; // max wait per burst
+    private static final long CHILD_REFRESH_RETRY_DELAY_SECONDS = 10; // retry delay for failed child refresh
     private final Map<String, PendingUpdate> pendingEventUpdates = new ConcurrentHashMap<>();
+    private final Map<String, ScheduledFuture<?>> childRefreshRetryTasks = new ConcurrentHashMap<>();
 
     private static final class PendingUpdate {
         @Nullable
@@ -146,7 +150,8 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 headers.put("Authorization", "Bearer " + cfg.token);
 
                 URI base = URI.create("https://" + cfg.hostname + "/proxy/protect/integration/");
-                UniFiProtectApiClient apiClient = new UniFiProtectApiClient(httpClient, base, gson, cfg.token);
+                UniFiProtectApiClient apiClient = new UniFiProtectApiClient(httpClient, base, gson, cfg.token,
+                        scheduler);
                 this.apiClient = apiClient;
 
                 apiClient.subscribeEvents(add -> {
@@ -157,14 +162,14 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                     updateStatus(ThingStatus.ONLINE);
                     scheduler.execute(() -> syncDevices());
                 }, (code, reason) -> {
-                    logger.warn("Event WS closed: {} {}", code, reason);
+                    logger.debug("Event WS closed: {} {}", code, reason);
                     setOfflineAndReconnect();
-                }, err -> logger.warn("Event WS error", err)).get();
+                }, err -> logger.debug("Event WS error", err)).get();
 
                 apiClient.subscribeDevices(add -> {
                     UnifiProtectDiscoveryService discoveryService = this.discoveryService;
                     if (discoveryService == null) {
-                        logger.warn("Discovery service not set");
+                        logger.debug("Discovery service not set");
                         return;
                     }
                     switch (add.item.modelKey) {
@@ -186,19 +191,36 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                             return;
                         }
                         String id = update.item.id;
-                        switch (update.item.modelKey) {
-                            case CAMERA:
-                                refreshChildFromApi(UnifiProtectBindingConstants.THING_TYPE_CAMERA, id);
-                                break;
-                            case LIGHT:
-                                refreshChildFromApi(UnifiProtectBindingConstants.THING_TYPE_LIGHT, id);
-                                break;
-                            case SENSOR:
-                                refreshChildFromApi(UnifiProtectBindingConstants.THING_TYPE_SENSOR, id);
-                                break;
-                            default:
-                                break;
+                        DeviceState state = update.item.state;
+                        if (state != null) {
+                            switch (update.item.modelKey) {
+                                case CAMERA:
+                                    setChildStatus(UnifiProtectBindingConstants.THING_TYPE_CAMERA, id, state);
+                                    break;
+                                case LIGHT:
+                                    setChildStatus(UnifiProtectBindingConstants.THING_TYPE_LIGHT, id, state);
+                                    break;
+                                case SENSOR:
+                                    setChildStatus(UnifiProtectBindingConstants.THING_TYPE_SENSOR, id, state);
+                                    break;
+                                default:
+                                    break;
+                            }
                         }
+
+                        // switch (update.item.modelKey) {
+                        // case CAMERA:
+                        // refreshChildFromApi(UnifiProtectBindingConstants.THING_TYPE_CAMERA, id);
+                        // break;
+                        // case LIGHT:
+                        // refreshChildFromApi(UnifiProtectBindingConstants.THING_TYPE_LIGHT, id);
+                        // break;
+                        // case SENSOR:
+                        // refreshChildFromApi(UnifiProtectBindingConstants.THING_TYPE_SENSOR, id);
+                        // break;
+                        // default:
+                        // break;
+                        // }
                     });
                 }, remove -> {
                     scheduler.execute(() -> {
@@ -223,12 +245,12 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 }, () -> {
                     // ignore on-open
                 }, (code, reason) -> {
-                    logger.warn("Device WS closed: {} {}", code, reason);
+                    logger.debug("Device WS closed: {} {}", code, reason);
                     setOfflineAndReconnect();
-                }, err -> logger.warn("Device WS error", err)).get();
+                }, err -> logger.debug("Device WS error", err)).get();
             } catch (Exception e) {
-                logger.warn("Initialization failed", e);
-                updateStatus(ThingStatus.OFFLINE);
+                logger.debug("Initialization failed", e);
+                setOfflineAndReconnect();
             }
         });
     }
@@ -294,6 +316,40 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         }
     }
 
+    private void setChildStatus(ThingTypeUID type, String deviceId, DeviceState state) {
+        ThingStatus status = ThingStatus.OFFLINE;
+        switch (state) {
+            case CONNECTED:
+                status = ThingStatus.ONLINE;
+                break;
+            case DISCONNECTED:
+                status = ThingStatus.OFFLINE;
+                break;
+            case CONNECTING:
+                status = ThingStatus.UNKNOWN;
+                break;
+            default:
+                status = ThingStatus.OFFLINE;
+                break;
+        }
+        if (UnifiProtectBindingConstants.THING_TYPE_CAMERA.equals(type)) {
+            UnifiProtectCameraHandler handler = findChildHandler(type, deviceId, UnifiProtectCameraHandler.class);
+            if (handler != null && handler.getThing().getStatus() != status) {
+                handler.updateStatus(status);
+            }
+        } else if (UnifiProtectBindingConstants.THING_TYPE_LIGHT.equals(type)) {
+            UnifiProtectLightHandler handler = findChildHandler(type, deviceId, UnifiProtectLightHandler.class);
+            if (handler != null && handler.getThing().getStatus() != status) {
+                handler.updateStatus(status);
+            }
+        } else if (UnifiProtectBindingConstants.THING_TYPE_SENSOR.equals(type)) {
+            UnifiProtectSensorHandler handler = findChildHandler(type, deviceId, UnifiProtectSensorHandler.class);
+            if (handler != null && handler.getThing().getStatus() != status) {
+                handler.updateStatus(status);
+            }
+        }
+    }
+
     private void refreshChildFromApi(String deviceId, UnifiProtectAbstractDeviceHandler<?> handler) {
         UniFiProtectApiClient apiClient = this.apiClient;
         if (apiClient == null) {
@@ -310,9 +366,39 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 Sensor sensor = apiClient.getSensor(deviceId);
                 sensorHandler.updateFromDevice(sensor);
             }
+            cancelChildRefreshRetry(deviceId);
         } catch (IOException e) {
             logger.debug("Failed to refresh child {} from API", deviceId, e);
+            handler.updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                    Objects.requireNonNull(e.getMessage(), "Failed to refresh child from API"));
+            scheduleChildRefreshRetry(handler.getThing().getThingTypeUID(), deviceId);
         }
+    }
+
+    private void scheduleChildRefreshRetry(ThingTypeUID type, String deviceId) {
+        ScheduledFuture<?> existing = childRefreshRetryTasks.get(deviceId);
+        if (existing != null) {
+            existing.cancel(true);
+        }
+        ScheduledFuture<?> future = scheduler.schedule(() -> refreshChildFromApi(type, deviceId),
+                CHILD_REFRESH_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
+        childRefreshRetryTasks.put(deviceId, future);
+    }
+
+    private void cancelChildRefreshRetry(String deviceId) {
+        ScheduledFuture<?> existing = childRefreshRetryTasks.remove(deviceId);
+        if (existing != null) {
+            existing.cancel(false);
+        }
+    }
+
+    private void stopChildRefreshRetryTasks() {
+        for (ScheduledFuture<?> f : childRefreshRetryTasks.values()) {
+            if (f != null) {
+                f.cancel(true);
+            }
+        }
+        childRefreshRetryTasks.clear();
     }
 
     private void markChildGone(ThingTypeUID type, String deviceId) {
@@ -385,10 +471,10 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                     }
                 });
             } else {
-                logger.warn("Discovery service not set");
+                logger.debug("Discovery service not set");
             }
         } catch (IOException e) {
-            logger.warn("Initial sync failed", e);
+            logger.debug("Initial sync failed", e);
         }
     }
 
@@ -475,6 +561,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         stopPollTask();
         stopReconnectTask();
         stopPendingUpdateTasks();
+        stopChildRefreshRetryTasks();
     }
 
     private void stopPollTask() {

@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -88,14 +87,15 @@ public class UniFiProtectApiClient implements Closeable {
     private final Gson gson;
     private final URI baseUri;
     private final Map<String, String> defaultHeaders;
-    private final ScheduledExecutorService heartbeatExecutor;
-    // Simple request throttle: max 8 requests per 1 second
-    private static final int MAX_REQUESTS_PER_SECOND = 8;
+    private final ScheduledExecutorService executorService;
+    // Simple request throttle: max 7 requests per 1 second
+    private static final int MAX_REQUESTS_PER_SECOND = 7;
     private static final long THROTTLE_WINDOW_NS = TimeUnit.SECONDS.toNanos(1);
     private final Object throttleLock = new Object();
     private final Deque<Long> requestTimestampsNs = new ArrayDeque<>();
 
-    public UniFiProtectApiClient(HttpClient httpClient, URI baseUri, Gson gson, String token) {
+    public UniFiProtectApiClient(HttpClient httpClient, URI baseUri, Gson gson, String token,
+            ScheduledExecutorService executorService) {
         this.httpClient = httpClient;
         this.baseUri = ensureTrailingSlash(baseUri);
         this.gson = gson;
@@ -103,11 +103,7 @@ public class UniFiProtectApiClient implements Closeable {
         this.wsClient = new WebSocketClient(httpClient);
         // Prevent wsClient.stop() from stopping the shared HttpClient instance
         this.wsClient.unmanage(this.httpClient);
-        this.heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "unifiprotect-ws-heartbeat");
-            t.setDaemon(true);
-            return t;
-        });
+        this.executorService = executorService;
         try {
             this.wsClient.start();
         } catch (Exception e) {
@@ -122,18 +118,6 @@ public class UniFiProtectApiClient implements Closeable {
         try {
             wsClient.stop();
         } catch (Exception e) {
-            logger.debug("Failed to stop WS client", e);
-            ex = e;
-        }
-        try {
-            heartbeatExecutor.shutdownNow();
-        } catch (Exception e) {
-            logger.debug("Failed to stop heartbeat executor", e);
-            if (ex == null) {
-                ex = e;
-            }
-        }
-        if (ex != null) {
             throw new IOException("Failed to stop client", ex);
         }
     }
@@ -274,6 +258,7 @@ public class UniFiProtectApiClient implements Closeable {
     public byte[] getSnapshot(String id, Boolean highQuality) throws IOException {
         String query = "?highQuality=" + highQuality.toString();
         Request req = newRequest(HttpMethod.GET, "/v1/cameras/" + id + "/snapshot" + query);
+        req.timeout(5, TimeUnit.SECONDS); // if this take longer, its going to fail
         req.header(HttpHeader.ACCEPT, "image/jpeg");
         ContentResponse resp = sendJson(req, null);
         ensure2xx(resp);
@@ -450,8 +435,7 @@ public class UniFiProtectApiClient implements Closeable {
     private Request newRequest(HttpMethod method, String path) {
         URI uri = resolvePath(path);
         logger.trace("New request {} {} {}", method, path, uri);
-        Request request = httpClient.newRequest(uri).method(method).header(HttpHeader.ACCEPT, "application/json")
-                .timeout(30, TimeUnit.SECONDS);
+        Request request = httpClient.newRequest(uri).method(method).timeout(30, TimeUnit.SECONDS);
         for (Map.Entry<String, String> h : defaultHeaders.entrySet()) {
             request.header(h.getKey(), h.getValue());
         }
@@ -492,7 +476,7 @@ public class UniFiProtectApiClient implements Closeable {
         }
     }
 
-    private synchronized ContentResponse sendJson(Request req, @Nullable Object body) throws IOException {
+    private ContentResponse sendJson(Request req, @Nullable Object body) throws IOException {
         throttleRequest();
         if (body != null) {
             String json = gson.toJson(body);
@@ -533,7 +517,7 @@ public class UniFiProtectApiClient implements Closeable {
                     }
                     super.onWebSocketConnect(session);
                     // Schedule periodic ping frames as heartbeat
-                    heartbeatTask = heartbeatExecutor.scheduleWithFixedDelay(() -> {
+                    heartbeatTask = executorService.scheduleWithFixedDelay(() -> {
                         try {
                             Session s = getSession();
                             if (s != null && s.isOpen()) {
@@ -542,6 +526,7 @@ public class UniFiProtectApiClient implements Closeable {
                         } catch (IOException e) {
                             logger.debug("WebSocket heartbeat ping failed", e);
                             session.close(1000, "WebSocket heartbeat ping failed");
+                            throw new IllegalStateException("WebSocket heartbeat ping failed", e);
                         }
                     }, 30, 30, TimeUnit.SECONDS);
                     logger.debug("WebSocket connected: {}", wsUri);
@@ -605,7 +590,8 @@ public class UniFiProtectApiClient implements Closeable {
             }
             if (waitNs > 0L) {
                 try {
-                    logger.trace("Throttling request for {} ns", waitNs);
+                    logger.trace("Throttling request for {} ns, waiting requests {}", waitNs,
+                            requestTimestampsNs.size());
                     TimeUnit.NANOSECONDS.sleep(waitNs);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

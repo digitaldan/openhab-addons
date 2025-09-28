@@ -33,6 +33,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.zip.CRC32;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -77,11 +78,37 @@ public class Go2RtcManager {
         this.configFile = configDir.resolve(configFileName);
     }
 
+    private static long hashConfigContent(String content) {
+        CRC32 crc = new CRC32();
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        crc.update(bytes, 0, bytes.length);
+        return crc.getValue();
+    }
+
     public synchronized void applyConfig(String yamlContent) throws IOException {
         logger.debug("Applying config: {}", configFile);
         Files.createDirectories(configDir);
         Files.createDirectories(binDir);
+        long newHash = hashConfigContent(yamlContent);
+        long existingHash = -1L;
+        boolean hasExisting = Files.exists(configFile);
+        if (hasExisting) {
+            try {
+                String existingContent = Files.readString(configFile, StandardCharsets.UTF_8);
+                existingHash = hashConfigContent(existingContent);
+            } catch (IOException e) {
+                logger.debug("Failed reading existing config for hash compare, will overwrite", e);
+            }
+        }
+
+        if (hasExisting && existingHash == newHash) {
+            logger.debug("Config unchanged (CRC32={}), skipping restart", Long.toHexString(newHash));
+            return;
+        }
+
         Files.writeString(configFile, yamlContent, StandardCharsets.UTF_8);
+        logger.debug("Config changed (old CRC32={}, new CRC32={}), wrote config and restarting",
+                existingHash == -1L ? "n/a" : Long.toHexString(existingHash), Long.toHexString(newHash));
         restart();
     }
 
@@ -100,42 +127,32 @@ public class Go2RtcManager {
         cmd.add(listenHost + ":" + listenPort);
         ProcessBuilder pb = new ProcessBuilder(cmd).directory(workDir.toFile()).redirectErrorStream(true);
         // Ensure ffmpeg is on PATH so go2rtc can invoke it directly
-        try {
-            if (ffmpegPathSupplier != null) {
-                Path ffmpeg = ffmpegPathSupplier.get();
-                if (ffmpeg != null && ffmpeg.getParent() != null) {
-                    String ffmpegDir = ffmpeg.getParent().toString();
-                    Map<String, String> env = pb.environment();
-                    String pathKey = env.containsKey("Path") ? "Path" : (env.containsKey("PATH") ? "PATH" : "PATH");
-                    String currentPath = env.getOrDefault(pathKey, "");
-                    if (!currentPath.contains(ffmpegDir)) {
-                        String updatedPath = ffmpegDir + File.pathSeparator + currentPath;
-                        env.put(pathKey, updatedPath);
-                        logger.debug("Prepended FFmpeg dir to {}: {}", pathKey, ffmpegDir);
-                    }
-                }
+        Path ffmpeg = ffmpegPathSupplier.get();
+        if (ffmpeg != null && ffmpeg.getParent() != null) {
+            String ffmpegDir = ffmpeg.getParent().toString();
+            Map<String, String> env = pb.environment();
+            String pathKey = env.containsKey("Path") ? "Path" : (env.containsKey("PATH") ? "PATH" : "PATH");
+            String currentPath = env.getOrDefault(pathKey, "");
+            if (!currentPath.contains(ffmpegDir)) {
+                String updatedPath = ffmpegDir + File.pathSeparator + currentPath;
+                env.put(pathKey, updatedPath);
+                logger.debug("Prepended FFmpeg dir to {}: {}", pathKey, ffmpegDir);
             }
-        } catch (Exception e) {
-            logger.debug("Failed to prepend FFmpeg path for go2rtc process", e);
         }
         logger.debug("Starting go2rtc with in dir {} cmd: {} and args: {}", workDir.toFile(), bin,
                 cmd.stream().collect(Collectors.joining(" ")));
         Process process = pb.start();
         this.process = process;
         // Ensure we don't lose track of exit and clear reference deterministically
-        try {
-            process.onExit().thenAccept(p -> {
-                synchronized (Go2RtcManager.this) {
-                    Process p2 = this.process;
-                    if (p.equals(p2)) {
-                        logger.debug("go2rtc process exited with code {}", p.exitValue());
-                        this.process = null;
-                    }
+        process.onExit().thenAccept(p -> {
+            synchronized (Go2RtcManager.this) {
+                Process p2 = this.process;
+                if (p.equals(p2)) {
+                    logger.debug("go2rtc process exited with code {}", p.exitValue());
+                    this.process = null;
                 }
-            });
-        } catch (Throwable t) {
-            logger.debug("onExit hook not installed: {}", t.toString());
-        }
+            }
+        });
         attachLogger(process);
         ScheduledFuture<?> tickFuture = this.tickFuture;
         if (tickFuture != null) {

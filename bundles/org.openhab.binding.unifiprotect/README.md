@@ -11,20 +11,21 @@ It uses the official Protect Integration API over HTTPS and WebSocket with a Bea
 
 - Supports multiple Protect devices (Cameras, Floodlights, Sensors)
 - Uses the official Protect Integration API locally to a UniFi Protect NVR/CloudKey/UNVR
-- Has granular triggers and channels for realtime events
-- Uses websockets for realtime updates and does not poll at all
-- Supports [WebRTC streaming](#real-time-media) for cameras with very low CPU overhead
-- Supports [2-way audio](#talkback-support-2-way-audio) audio for cameras
-- Provides snapshot images for cameras
+- Has granular triggers and channels for realtime motion events including AI object detection, audio, and line crossing events.
+- Uses websockets for realtime updates without polling
+- Supports [WebRTC streaming](#real-time-media) for cameras with very low server CPU overhead
+- Supports [2-way audio](#talkback-support-2-way-audio) for cameras that support it
+- Uses STUN for external access to cameras when outside your local network (e.g. when using the openHAB cloud service)
+- Provides general purpose image snapshot API endpoints for cameras
 
 ## Native Binaries
 
-- Uses go2rtc and FFmpeg for WebRTC playback and publishing
+- Uses [go2rtc](https://github.com/AlexxIT/go2rtc) and [FFmpeg](https://ffmpeg.org/) for WebRTC playback and publishing
 - The binding will automatically download and extract the binaries if they are not present on linux, mac, windows and freeBSD (go2rtc only, see note below)
 - By default the binding will first try and find the binaries on the system PATH before downloading them.
 - If your platform is not supported, or downloading the binaries is not possible, install the binaries manually and ensure they are on the system PATH.
 
-Note: The binding will attempt to download go2rtc for freeBSD, but ffmpeg must be installed manually due to a lack of a static builds for freeBSD.
+Note: The binding will attempt to download [go2rtc](https://github.com/AlexxIT/go2rtc) for freeBSD, but [FFmpeg](https://ffmpeg.org/) must be installed manually due to a lack of a static builds for freeBSD.
 
 See [Binding Configuration](#binding-configuration) to enable/disable downloading the binaries.
 
@@ -46,19 +47,21 @@ See [Binding Configuration](#binding-configuration) to enable/disable downloadin
 
 ## Binding Configuration
 
-| Name | Type | Description | Required |
-|------|------|-------------|----------|
-| downloadBinaries | boolean | Download binaries if they are not on the system PATH.  This setting is used to control whether the binding should download the native binaries if they are not found. By default, the binding will download the binaries if they are not on the system PATH for supported platforms | yes |
-| useStun | boolean | Use STUN for external IP discovery.  This will allow camera streams to work behind NATs when outside your local network (e.g. when using the openHAB cloud service) and is enabled by default. STUN will incur an approximately 5 second delay starting the stream as it discovers your external IP. | yes |
+| Name             | Type    | Description                                                                                                                                                                                                                                                                         | Required |
+|------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|
+| downloadBinaries | boolean | Download binaries if they are not on the system PATH.  This setting is used to control whether the binding should download the native binaries if they are not found. By default, the binding will download the binaries if they are not on the system PATH for supported platforms | yes      |
+| useStun          | boolean | Use STUN for external IP discovery.  This will allow camera streams to work behind NATs when outside your local network (e.g. when using the openHAB cloud service) and is enabled by default.                                                                                      | yes      |
+
+Note: Enabling STUN will incur an approximately 5 second delay delivering the stream to clients as it discovers your external IP and pins a port on your router for streams.  If you are not using the openHAB cloud service with cameras, disabling STUN will allow for near instant stream starts (video will start within a second of loading) on your local network or over a VPN.
 
 ## Thing Configuration
 
 ### NVR (Bridge) `unifiprotect:nvr`
 
-| Name | Type | Description | Default | Required | Advanced |
-|------|------|-------------|---------|----------|----------|
-| hostname | text | Hostname or IP address of the NVR | N/A | yes | no |
-| token | text | Bearer token used for API/WebSocket authentication | N/A | yes | no |
+| Name     | Type | Description                                        | Default | Required | Advanced |
+|----------|------|----------------------------------------------------|---------|----------|----------|
+| hostname | text | Hostname or IP address of the NVR                  | N/A     | yes      | no       |
+| token    | text | Bearer token used for API/WebSocket authentication | N/A     | yes      | no       |
 
 How to get the Token:
 
@@ -69,25 +72,25 @@ How to get the Token:
 
 ### Camera `unifiprotect:camera`
 
-| Name | Type | Description | Required |
-|------|------|-------------|----------|
-| deviceId | text | Unique device identifier of the camera | yes |
-| enableWebRTC | boolean | Enable WebRTC streaming | yes |
+| Name         | Type    | Description                            | Required |
+|--------------|---------|----------------------------------------|----------|
+| deviceId     | text    | Unique device identifier of the camera | yes      |
+| enableWebRTC | boolean | Enable WebRTC streaming                | yes      |
 
 When WebRTC is enabled, the camera will be able to stream through openHAB using WebRTC.
 You can disable WebRTC by setting `enableWebRTC` to `false`.
 
 ### Floodlight `unifiprotect:light`
 
-| Name | Type | Description | Required |
-|------|------|-------------|----------|
-| deviceId | text | Unique device identifier of the floodlight | yes |
+| Name     | Type | Description                                | Required |
+|----------|------|--------------------------------------------|----------|
+| deviceId | text | Unique device identifier of the floodlight | yes      |
 
 ### Sensor `unifiprotect:sensor`
 
-| Name | Type | Description | Required |
-|------|------|-------------|----------|
-| deviceId | text | Unique device identifier of the sensor | yes |
+| Name     | Type | Description                            | Required |
+|----------|------|----------------------------------------|----------|
+| deviceId | text | Unique device identifier of the sensor | yes      |
 
 ## Channels
 
@@ -101,84 +104,89 @@ No channels.
 ### Camera
 
 - The following are dynamically created depending on features.
+- Advanced channels are hidden by default in the MainUI, select "Show Advanced" to see them.
 
-| Channel ID | Item Type | RW | Description |
-|------------|-----------|----|-------------|
-| mic-volume | Number | RW | Microphone volume (0-100) |
-| video-mode | String | RW | Camera video mode (e.g., `default`, `highFps`, `sport`, `slowShutter`, `lprReflex`, `lprNoneReflex`) |
-| hdr-type | String | RW | HDR mode (`auto`, `on`, `off`) |
-| osd-name | Switch | RW | Show name on OSD |
-| osd-date | Switch | RW | Show date on OSD |
-| osd-logo | Switch | RW | Show logo on OSD |
-| led-enabled | Switch | RW | Enable/disable camera status LED |
-| active-patrol-slot | Number | RW | Active PTZ patrol slot (set 0 to stop) |
-| rtsp-stream-high | String | R | RTSP stream URL for high quality |
-| rtsp-stream-medium | String | R | RTSP stream URL for medium quality |
-| rtsp-stream-low | String | R | RTSP stream URL for low quality |
-| rtsp-stream-package | String | R | RTSP stream URL for package quality |
-| motion-contact | Contact | R | Motion state (OPEN = motion detected) |
-| motion-snapshot | Image | R | Snapshot captured around motion event |
-| smart-audio-detect-contact | Contact | R | Smart audio detection active state |
-| smart-audio-detect-snapshot | Image | R | Snapshot captured around smart audio detection |
-| smart-detect-zone-contact | Contact | R | Smart zone detection active state |
-| smart-detect-zone-snapshot | Image | R | Snapshot captured around smart zone detection |
-| smart-detect-line-contact | Contact | R | Smart line detection active state |
-| smart-detect-line-snapshot | Image | R | Snapshot captured around smart line detection |
-| smart-detect-loiter-contact | Contact | R | Smart loiter detection active state |
-| smart-detect-loiter-snapshot | Image | R | Snapshot captured around smart loiter detection |
+| Channel ID                   | Item Type | RW | Description                                                                                          | Advanced |
+|------------------------------|-----------|----|------------------------------------------------------------------------------------------------------|----------|
+| mic-volume                   | Number    | RW | Microphone volume (0-100)                                                                            | false    |
+| video-mode                   | String    | RW | Camera video mode (e.g., `default`, `highFps`, `sport`, `slowShutter`, `lprReflex`, `lprNoneReflex`) | false    |
+| hdr-type                     | String    | RW | HDR mode (`auto`, `on`, `off`)                                                                       | false    |
+| osd-name                     | Switch    | RW | Show name on OSD                                                                                     | false    |
+| osd-date                     | Switch    | RW | Show date on OSD                                                                                     | false    |
+| osd-logo                     | Switch    | RW | Show logo on OSD                                                                                     | false    |
+| led-enabled                  | Switch    | RW | Enable/disable camera status LED                                                                     | false    |
+| active-patrol-slot           | Number    | RW | Active PTZ patrol slot (set 0 to stop)                                                               | false    |
+| rtsp-stream-high             | String    | R  | RTSP stream URL for high quality                                                                     | true     |
+| rtsp-stream-medium           | String    | R  | RTSP stream URL for medium quality                                                                   | true     |
+| rtsp-stream-low              | String    | R  | RTSP stream URL for low quality                                                                      | true     |
+| rtsp-stream-package          | String    | R  | RTSP stream URL for package quality                                                                  | true     |
+| snapshot                     | Image     | R  | Snapshot image. Send a REFRESH command to update.                                                    | false    |
+| motion-contact               | Contact   | R  | Motion state (OPEN = motion detected)                                                                | false    |
+| motion-snapshot              | Image     | R  | Snapshot captured around motion event                                                                | false    |
+| smart-detect-audio-contact   | Contact   | R  | Smart audio detection active state                                                                   | false    |
+| smart-detect-audio-snapshot  | Image     | R  | Snapshot captured around smart audio detection                                                       | false    |
+| smart-detect-zone-contact    | Contact   | R  | Smart zone detection active state                                                                    | false    |
+| smart-detect-zone-snapshot   | Image     | R  | Snapshot captured around smart zone detection                                                        | false    |
+| smart-detect-line-contact    | Contact   | R  | Smart line detection active state                                                                    | false    |
+| smart-detect-line-snapshot   | Image     | R  | Snapshot captured around smart line detection                                                        | false    |
+| smart-detect-loiter-contact  | Contact   | R  | Smart loiter detection active state                                                                  | false    |
+| smart-detect-loiter-snapshot | Image     | R  | Snapshot captured around smart loiter detection                                                      | false    |
 
 Trigger channels (for rules):
 
-| Trigger Channel ID | Payload (if any) | Description |
-|--------------------|------------------|-------------|
-| motion-start | none | Motion started |
-| motion-update | none | Motion updated (debounced update event) |
-| smart-audio-detect-start | `alrmSmoke`, `alrmCmonx`, `alrmSiren`, `alrmBabyCry`, `alrmSpeak`, `alrmBark`, `alrmBurglar`, `alrmCarHorn`, `alrmGlassBreak`, `none` | Smart audio detection started |
-| smart-audio-detect-update | `alrmSmoke`, `alrmCmonx`, `alrmSiren`, `alrmBabyCry`, `alrmSpeak`, `alrmBark`, `alrmBurglar`, `alrmCarHorn`, `alrmGlassBreak`, `none` | Smart audio detection updated |
-| smart-detect-zone-start | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none` | Zone smart detection started |
-| smart-detect-zone-update | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none` | Zone smart detection updated |
-| smart-detect-line-start | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none` | Line smart detection started |
-| smart-detect-line-update | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none` | Line smart detection updated |
-| smart-detect-loiter-start | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none` | Loiter smart detection started |
-| smart-detect-loiter-update | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none` | Loiter smart detection updated |
+- Triggers Channels are hidden by default in the MainUI, select "Show Advanced" to see them.
+
+| Trigger Channel ID         | Payload (if any)                                                                                                                      | Description                             |
+|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------|
+| motion-start               | none                                                                                                                                  | Motion started                          |
+| motion-update              | none                                                                                                                                  | Motion updated (debounced update event) |
+| smart-audio-detect-start   | `alrmSmoke`, `alrmCmonx`, `alrmSiren`, `alrmBabyCry`, `alrmSpeak`, `alrmBark`, `alrmBurglar`, `alrmCarHorn`, `alrmGlassBreak`, `none` | Smart audio detection started           |
+| smart-audio-detect-update  | `alrmSmoke`, `alrmCmonx`, `alrmSiren`, `alrmBabyCry`, `alrmSpeak`, `alrmBark`, `alrmBurglar`, `alrmCarHorn`, `alrmGlassBreak`, `none` | Smart audio detection updated           |
+| smart-detect-zone-start    | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none`                                                              | Zone smart detection started            |
+| smart-detect-zone-update   | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none`                                                              | Zone smart detection updated            |
+| smart-detect-line-start    | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none`                                                              | Line smart detection started            |
+| smart-detect-line-update   | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none`                                                              | Line smart detection updated            |
+| smart-detect-loiter-start  | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none`                                                              | Loiter smart detection started          |
+| smart-detect-loiter-update | `person`, `vehicle`, `package`, `licensePlate`, `face`, `animal`, `none`                                                              | Loiter smart detection updated          |
 
 ### Floodlight
 
-| Channel ID | Item Type | RW | Description |
-|------------|-----------|----|-------------|
-| light | Switch | RW | Main floodlight on/off (forces light) |
-| is-dark | Switch | R | Scene is currently dark |
-| pir-motion | Trigger | - | PIR motion event |
-| last-motion | DateTime | R | Timestamp of last motion |
-| light-mode | String | RW | Light mode (`always`, `motion`, `off`) |
-| enable-at | String | RW | When mode is relevant (`fulltime`, `dark`) |
-| indicator-enabled | Switch | RW | Status LED indicator on floodlight |
-| pir-duration | Number | RW | How long the light stays on after motion (milliseconds) |
-| pir-sensitivity | Number | RW | PIR motion sensitivity (0-100) |
-| led-level | Number | RW | LED brightness level (1-6) |
+| Channel ID        | Item Type | RW | Description                                             | Advanced |
+|-------------------|-----------|----|---------------------------------------------------------|----------|
+| light             | Switch    | RW | Main floodlight on/off (forces light)                   | false    |
+| is-dark           | Switch    | R  | Scene is currently dark                                 | false    |
+| pir-motion        | Trigger   | -  | PIR motion event                                        | false    |
+| last-motion       | DateTime  | R  | Timestamp of last motion                                | false    |
+| light-mode        | String    | RW | Light mode (`always`, `motion`, `off`)                  | false    |
+| enable-at         | String    | RW | When mode is relevant (`fulltime`, `dark`)              | false    |
+| indicator-enabled | Switch    | RW | Status LED indicator on floodlight                      | false    |
+| pir-duration      | Number    | RW | How long the light stays on after motion (milliseconds) | false    |
+| pir-sensitivity   | Number    | RW | PIR motion sensitivity (0-100)                          | false    |
+| led-level         | Number    | RW | LED brightness level (1-6)                              | false    |
+
 
 ### Sensor
 
-| Channel ID | Item Type | RW | Description |
-|------------|-----------|----|-------------|
-| battery | Number | R | Battery charge level (%) |
-| contact | Contact | R | Contact state (OPEN/CLOSED) |
-| temperature | Number:Temperature | R | Ambient temperature |
-| humidity | Number | R | Ambient humidity |
-| illuminance | Number:Illuminance | R | Ambient light (Lux) |
-| alarm-contact | Contact | R | Smoke/CO alarm contact (OPEN = alarming) |
-| water-leak-contact | Contact | R | Water leak contact (OPEN = leak) |
-| tamper-contact | Contact | R | Tamper contact (OPEN = tampering) |
+| Channel ID         | Item Type          | RW | Description                              | Advanced |
+|--------------------|--------------------|----|------------------------------------------|----------|
+| battery            | Number             | R  | Battery charge level (%)                 | false    |
+| contact            | Contact            | R  | Contact state (OPEN/CLOSED)              | false    |
+| temperature        | Number:Temperature | R  | Ambient temperature                      | false    |
+| humidity           | Number             | R  | Ambient humidity                         | false    |
+| illuminance        | Number:Illuminance | R  | Ambient light (Lux)                      | false    |
+| alarm-contact      | Contact            | R  | Smoke/CO alarm contact (OPEN = alarming) | false    |
+| water-leak-contact | Contact            | R  | Water leak contact (OPEN = leak)         | false    |
+| tamper-contact     | Contact            | R  | Tamper contact (OPEN = tampering)        | false    |
 
 Trigger channels (for rules):
 
-| Trigger Channel ID | Payload (if any) | Description |
-|--------------------|------------------|-------------|
-| opened | `door`, `window`, `garage`, `leak`, `none` | Sensor opened |
-| closed | `door`, `window`, `garage`, `leak`, `none` | Sensor closed |
-| alarm | `smoke`, `CO` (optional) | Smoke/CO alarm event |
-| water-leak | `door`, `window`, `garage`, `leak`, `none` | Water leak detected |
-| tamper | none | Tampering detected |
+| Trigger Channel ID | Payload (if any)                           | Description          |
+|--------------------|--------------------------------------------|----------------------|
+| opened             | `door`, `window`, `garage`, `leak`, `none` | Sensor opened        |
+| closed             | `door`, `window`, `garage`, `leak`, `none` | Sensor closed        |
+| alarm              | `smoke`, `CO` (optional)                   | Smoke/CO alarm event |
+| water-leak         | `door`, `window`, `garage`, `leak`, `none` | Water leak detected  |
+| tamper             | none                                       | Tampering detected   |
 
 ## Real-time Media
 
@@ -188,14 +196,14 @@ If enabled in the binding configuration, openHAB will proxy live media using Web
 
 Cameras will dynamically create the following properties that can be used to stream the media:
 
-| Property ID  | Description |
-|-------------|-------------|
-| stream-playback-url | WebRTC stream URL (defaults to high quality) |
-| stream-playback-url-high | WebRTC stream URL for high quality |
-| stream-playback-url-medium | WebRTC stream URL for medium quality |
-| stream-playback-url-low | WebRTC stream URL for low quality |
-| stream-playback-url-package | WebRTC stream URL for package quality |
-| stream-image-url | Snapshot Image URL |
+| Property ID        | Description                                  |
+|--------------------|----------------------------------------------|
+| webrtc-url         | WebRTC stream URL (defaults to high quality) |
+| webrtc-url-high    | WebRTC stream URL for high quality           |
+| webrtc-url-medium  | WebRTC stream URL for medium quality         |
+| webrtc-url-low     | WebRTC stream URL for low quality            |
+| webrtc-url-package | WebRTC stream URL for package quality        |
+| snapshot-url       | Snapshot Image URL                           |
 
 You can view these properties when viewing a Camera Thing in the MainUI.
 All of the above URLs are relative to the openHAB instance.
@@ -213,9 +221,9 @@ An example WebRTC stream URL would be:
 Where `unifiprotect:camera:home:1234567890` is the camera's Thing UID and `high` is the quality (high, medium, low, package) if supported by the camera.
 If quality is omitted, the highest quality is used that is supported by the camera.
 
-Its also highly recommended to use the camera's Image URL property to get the live snapshot image URL which can be used for the poster image option in the MainUI video widget.
-
 ![video widget settings](doc/video-card.png)
+
+Its also highly recommended to use the camera's Image URL property to get the live snapshot image URL which can be used for the poster image option in the MainUI video widget.
 
 An example snapshot image URL would be:
 
@@ -311,7 +319,7 @@ sitemap home label="Home" {
 }
 ```
 
-### Rules (`.rules`)
+### Rules
 
 Examples showing trigger channels.
 
@@ -419,4 +427,52 @@ then
 	val String payload = receivedEvent.getEvent() // door, window, garage, leak, none
 	logWarn("protect", "Water leak detected by garage sensor: {}", payload)
 end
+```
+
+## Tips and Tricks
+
+### Main UI Widgets
+
+It can be helpful to display a live preview of multiple cameras in the MainUI using low quality streams, much like the UniFi Protect app, where clicking on a camera preview opens a higher quality version in a popup.
+The following widget creates a preview card for a camera, muting the audio and will open another widget or page when clicked anywhere on the card.
+Use the "low" quality stream for this preview widget, and the "high" quality stream for the popup, such as a dedicated page with a single video widget for the camera.
+A modest server can support dozens of simultaneous streams for MainUI clients with many camera views in a single page.
+
+```yaml
+uid: unifi-webrtc-video-preview
+tags: []
+props:
+  parameters:
+    - description: Thing UID
+      label: Thing UID
+      name: thingUid
+      required: true
+      type: TEXT
+  parameterGroups:
+    - name: clickAction
+      context: action
+      label: Click Action
+component: f7-card
+config: {}
+slots:
+  default:
+    - component: oh-video
+      config:
+        hideControls: true
+        playerType: webrtc
+        posterURL: ='/unifiprotect/media/image/' + props.thingUid + '?quality=low'
+        startMuted: true
+        style:
+          position: absolute
+        url: ='/unifiprotect/media/play/' + props.thingUid + ':low'
+    - component: oh-button
+      config:
+        actionPropsParameterGroup: clickAction
+        style:
+          height: 100%
+          margin: 0px
+          opacity: 100%
+          position: absolute
+          top: 0px
+          width: 100%
 ```

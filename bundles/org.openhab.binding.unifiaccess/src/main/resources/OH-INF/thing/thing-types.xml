@@ -8,6 +8,10 @@
 	<bridge-type id="bridge">
 		<label>UniFi Access Bridge</label>
 		<description>UniFi Access controller</description>
+		<channels>
+			<channel id="log-insight" typeId="log-insight"/>
+			<channel id="log" typeId="log"/>
+		</channels>
 		<config-description>
 			<parameter name="host" type="text" required="true">
 				<label>Host</label>
@@ -30,34 +34,22 @@
 		<label>UniFi Access Door</label>
 		<description>Door with remote control and status</description>
 		<channels>
-			<!-- status -->
-			<channel id="lock" typeId="lock">
-				<label>Lock</label>
-			</channel>
-			<channel id="position" typeId="door-position">
-				<label>Door Position</label>
-			</channel>
-			<channel id="last-unlock" typeId="last-unlock">
-				<label>Last Unlock</label>
-			</channel>
-			<channel id="last-actor" typeId="last-actor">
-				<label>Last Actor</label>
-			</channel>
-			<channel id="lock-rule" typeId="lock-rule">
-				<label>Lock Rule</label>
-			</channel>
-			<channel id="keep-unlocked" typeId="keep-unlocked">
-				<label>Keep Unlocked</label>
-			</channel>
-			<channel id="keep-locked" typeId="keep-locked">
-				<label>Keep Locked</label>
-			</channel>
-			<channel id="unlock-minutes" typeId="unlock-minutes">
-				<label>Unlock Minutes</label>
-			</channel>
+			<channel id="lock" typeId="lock"/>
+			<channel id="position" typeId="door-position"/>
+			<channel id="last-unlock" typeId="last-unlock"/>
+			<channel id="last-actor" typeId="last-actor"/>
+			<channel id="lock-rule" typeId="lock-rule"/>
+			<channel id="keep-unlocked" typeId="keep-unlocked"/>
+			<channel id="keep-locked" typeId="keep-locked"/>
+			<channel id="unlock-minutes" typeId="unlock-minutes"/>
 			<channel id="thumbnail" typeId="door-thumbnail">
 				<label>Door Thumbnail</label>
 			</channel>
+			<channel id="log-insight" typeId="log-insight"/>
+			<channel id="access-attempt-success" typeId="door-access-attempt-success"/>
+			<channel id="access-attempt-failure" typeId="door-access-attempt-failure"/>
+			<channel id="remote-unlock" typeId="door-remote-unlock"/>
+			<channel id="doorbell-status" typeId="doorbell-status"/>
 		</channels>
 		<config-description>
 			<parameter name="deviceId" type="text" required="true">
@@ -107,26 +99,22 @@
 			<channel id="touch-pass-enabled" typeId="device-access-toggle">
 				<label>Touch Pass Enabled</label>
 			</channel>
-			<channel id="face-anti-spoofing" typeId="face-anti-spoofing">
-				<label>Face Anti-Spoofing</label>
-			</channel>
-			<channel id="face-detect-distance" typeId="face-detect-distance">
-				<label>Face Detect Distance</label>
-			</channel>
-			<channel id="emergency-status" typeId="device-emergency-status">
-				<label>Emergency Status</label>
-			</channel>
-			<channel id="door-sensor" typeId="door-position">
-				<label>Door Sensor</label>
-			</channel>
-
+			<channel id="face-anti-spoofing" typeId="face-anti-spoofing"/>
+			<channel id="face-detect-distance" typeId="face-detect-distance"/>
+			<channel id="emergency-status" typeId="device-emergency-status"/>
+			<channel id="door-sensor" typeId="door-position"/>
 			<channel id="doorbell-contact" typeId="device-doorbell-contact">
 				<label>Doorbell</label>
 			</channel>
-
 			<channel id="doorbell" typeId="device-doorbell">
 				<label>Doorbell</label>
 			</channel>
+			<channel id="log-insight" typeId="log-insight">
+				<label>Insight Log</label>
+				<description>Fires for access.logs.insights.add referencing this device; event payload JSON includes logKey,
+					eventType, message, published, result, actorName, doorId, doorName, deviceId, cameraId.</description>
+			</channel>
+			<channel id="doorbell-status" typeId="doorbell-status"/>
 		</channels>
 
 		<config-description>
@@ -140,12 +128,14 @@
 	<channel-type id="device-access-toggle">
 		<item-type>Switch</item-type>
 		<label>Access Method Toggle</label>
+		<description>Toggles this access method</description>
 		<category>Switch</category>
 	</channel-type>
 
 	<channel-type id="face-anti-spoofing">
 		<item-type>String</item-type>
 		<label>Face Anti-Spoofing</label>
+		<description>Face Anti-Spoofing level</description>
 		<state>
 			<options>
 				<option value="high">High</option>
@@ -158,6 +148,7 @@
 	<channel-type id="face-detect-distance">
 		<item-type>String</item-type>
 		<label>Face Detect Distance</label>
+		<description>Face Detect Distance</description>
 		<state>
 			<options>
 				<option value="near">Near</option>
@@ -170,6 +161,7 @@
 	<channel-type id="device-emergency-status">
 		<item-type>String</item-type>
 		<label>Emergency Status</label>
+		<description>Emergency Status</description>
 		<category>Alarm</category>
 		<state>
 			<options>
@@ -191,6 +183,60 @@
 				<option value="completed">Completed</option>
 			</options>
 		</event>
+	</channel-type>
+
+	<!-- Trigger channel types -->
+	<channel-type id="doorbell-status">
+		<kind>trigger</kind>
+		<label>Doorbell Status</label>
+		<description>Fires on doorbell status changes</description>
+		<event>
+			<options>
+				<option value="DOORBELL_TIMED_OUT">Doorbell Timed Out</option>
+				<option value="ADMIN_REJECTED_UNLOCK">Admin Rejected Unlock</option>
+				<option value="ADMIN_UNLOCK_SUCCEEDED">Admin Unlock Succeeded</option>
+				<option value="VISITOR_CANCELED_DOORBELL">Visitor Canceled Doorbell</option>
+				<option value="ANSWERED_BY_ANOTHER_ADMIN">Answered By Another Admin</option>
+				<option value="UNKNOWN">Unknown</option>
+			</options>
+		</event>
+	</channel-type>
+
+
+	<channel-type id="door-access-attempt-success">
+		<kind>trigger</kind>
+		<label>Access Attempt Success</label>
+		<description>Event payload is a JSON string with keys: doorId, doorName, actorName, credentialProvider, message,
+			published.</description>
+	</channel-type>
+
+	<channel-type id="door-access-attempt-failure">
+		<kind>trigger</kind>
+		<label>Access Attempt Failure</label>
+		<description>Event payload is a JSON string with keys: doorId, doorName, actorName, credentialProvider, message,
+			published.</description>
+	</channel-type>
+
+	<channel-type id="door-remote-unlock">
+		<kind>trigger</kind>
+		<label>Remote Unlock</label>
+		<description>Payload is a JSON string with keys: deviceId, name, fullName, level, workTimeId.</description>
+	</channel-type>
+
+	<channel-type id="log-insight">
+		<kind>trigger</kind>
+		<label>Insight Log</label>
+		<description>Fires for insights log events. Payload is a JSON string with keys: logKey, eventType,
+			message, published,
+			result, and common refs like actor/displayName, door/name.</description>
+	</channel-type>
+
+	<channel-type id="log">
+		<kind>trigger</kind>
+		<label>Log</label>
+		<description>Fires for access log events. Payload is a JSON string with keys: type, displayMessage,
+			result, published,
+			logKey, logCategory, actor/displayName, and targets.</description>
 	</channel-type>
 
 	<channel-type id="device-doorbell-contact">

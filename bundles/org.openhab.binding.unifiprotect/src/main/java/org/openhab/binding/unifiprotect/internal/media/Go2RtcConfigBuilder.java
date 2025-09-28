@@ -167,7 +167,7 @@ public class Go2RtcConfigBuilder {
 
     // Quote only if YAML would break.
     private String quoteIfNeeded(String s) {
-        if (s == null || s.isEmpty()) {
+        if (s.isEmpty()) {
             return "''";
         }
         // (spaces, #, :, ?, [, ], {, }, & )

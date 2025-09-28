@@ -36,20 +36,18 @@ public class UnifiProtectBindingConstants {
     // List of all Configuration ids
     public static final String DEVICE_ID = "deviceId";
 
+    // List of all Property ids
+    public static final String PROPERTY_WEBRTC_URL = "webrtc-url"; // also used as base url for all webrtc urls
+    public static final String PROPERTY_SNAPSHOT_URL = "snapshot-url";
+
     // List of all Channel ids
 
     // Shared
     public static final String CHANNEL_STATUS = "status";
 
-    // NVR
-    public static final String CHANNEL_DOORBELL_DEFAULT_MESSAGE = "doorbell-default-message";
-    public static final String CHANNEL_DOORBELL_DEFAULT_MESSAGE_RESET_MS = "doorbell-default-message-reset-ms";
-    public static final String CHANNEL_DEVICE_ADDED = "device-added";
-    public static final String CHANNEL_DEVICE_UPDATED = "device-updated";
-    public static final String CHANNEL_DEVICE_REMOVED = "device-removed";
-
     // Camera
     public static final String CHANNEL_SNAPSHOT = "snapshot";
+    public static final String CHANNEL_SNAPSHOT_LABEL = "Snapshot";
     public static final String CHANNEL_MIC_VOLUME = "mic-volume";
     public static final String CHANNEL_VIDEO_MODE = "video-mode";
     public static final String CHANNEL_HDR_TYPE = "hdr-type";
@@ -75,12 +73,12 @@ public class UnifiProtectBindingConstants {
     public static final String CHANNEL_MOTION_SNAPSHOT = "motion-snapshot";
     public static final String CHANNEL_MOTION_SNAPSHOT_LABEL = "Motion Snapshot";
 
-    public static final String CHANNEL_SMART_AUDIO_DETECT = "smart-audio-detect";
-    public static final String CHANNEL_SMART_AUDIO_DETECT_START = "smart-audio-detect-start";
-    public static final String CHANNEL_SMART_AUDIO_DETECT_UPDATE = "smart-audio-detect-update";
-    public static final String CHANNEL_SMART_AUDIO_DETECT_CONTACT = "smart-audio-detect-contact";
-    public static final String CHANNEL_SMART_AUDIO_DETECT_SNAPSHOT = "smart-audio-detect-snapshot";
-    public static final String CHANNEL_SMART_AUDIO_DETECT_SNAPSHOT_LABEL = "Smart Audio Detect Snapshot";
+    public static final String CHANNEL_SMART_DETECT_AUDIO = "smart-detect-audio";
+    public static final String CHANNEL_SMART_DETECT_AUDIO_START = "smart-detect-audio-start";
+    public static final String CHANNEL_SMART_DETECT_AUDIO_UPDATE = "smart-detect-audio-update";
+    public static final String CHANNEL_SMART_DETECT_AUDIO_CONTACT = "smart-detect-audio-contact";
+    public static final String CHANNEL_SMART_DETECT_AUDIO_SNAPSHOT = "smart-detect-audio-snapshot";
+    public static final String CHANNEL_SMART_DETECT_AUDIO_SNAPSHOT_LABEL = "Smart Detect Audio Snapshot";
 
     public static final String CHANNEL_SMART_DETECT_ZONE = "smart-detect-zone";
     public static final String CHANNEL_SMART_DETECT_ZONE_START = "smart-detect-zone-start";

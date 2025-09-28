@@ -40,8 +40,9 @@ public class AccessPolicySchedule {
         Objects.requireNonNull(when, "when");
         // Holiday override
         if (holidayGroup != null && holidayGroup.isHoliday(when)) {
-            if (holidaySchedule == null || holidaySchedule.isEmpty())
+            if (holidaySchedule == null || holidaySchedule.isEmpty()) {
                 return false;
+            }
             final LocalTime t = when.toLocalTime();
             for (TimeRange r : holidaySchedule) {
                 if (r != null && r.contains(t))
@@ -50,11 +51,13 @@ public class AccessPolicySchedule {
             return false;
         }
         final WeekSchedule ws = weekly;
-        if (ws == null)
+        if (ws == null) {
             return false;
+        }
         final var ranges = ws.rangesFor(when.getDayOfWeek());
-        if (ranges == null || ranges.isEmpty())
+        if (ranges == null || ranges.isEmpty()) {
             return false;
+        }
         final LocalTime t = when.toLocalTime();
         for (TimeRange r : ranges) {
             if (r != null && r.contains(t))

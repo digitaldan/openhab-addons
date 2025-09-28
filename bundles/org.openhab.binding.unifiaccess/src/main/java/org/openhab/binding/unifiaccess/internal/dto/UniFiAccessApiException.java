@@ -12,25 +12,23 @@
  */
 package org.openhab.binding.unifiaccess.internal.dto;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
+
 /**
- * HTTP error wrapper for UniFi Access client.
+ * Parse/serialization error for UniFi Access client.
  *
  * @author Dan Cunningham - Initial contribution
  */
-public class UniFiAccessHttpException extends RuntimeException {
-    private final int status;
+@NonNullByDefault
+public class UniFiAccessApiException extends Exception {
+    private static final long serialVersionUID = 1L;
 
-    public UniFiAccessHttpException(String message, Throwable cause) {
-        super(message, cause);
-        this.status = -1;
-    }
-
-    public UniFiAccessHttpException(int status, String message) {
+    public UniFiAccessApiException(String message) {
         super(message);
-        this.status = status;
     }
 
-    public int status() {
-        return status;
+    public UniFiAccessApiException(String message, @Nullable Throwable cause) {
+        super(message, cause);
     }
 }

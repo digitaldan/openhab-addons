@@ -14,6 +14,8 @@ package org.openhab.binding.unifiaccess.internal.dto;
 
 import java.util.Map;
 
+import org.eclipse.jdt.annotation.Nullable;
+
 /**
  * Request body for remote door unlock (optional actor + passthrough extra).
  *
@@ -22,11 +24,13 @@ import java.util.Map;
 public class DoorUnlockRequest {
     public String actorId;
     public String actorName;
-    public Map<String, Object> extra;
+    public Map<String, Object> extra = Map.of();
 
-    public DoorUnlockRequest(String actorId, String actorName, Map<String, Object> extra) {
+    public DoorUnlockRequest(String actorId, String actorName, @Nullable Map<String, Object> extra) {
         this.actorId = actorId;
         this.actorName = actorName;
-        this.extra = extra;
+        if (extra != null) {
+            this.extra = extra;
+        }
     }
 }

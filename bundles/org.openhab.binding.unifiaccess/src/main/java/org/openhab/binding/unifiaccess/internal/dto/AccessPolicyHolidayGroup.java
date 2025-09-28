@@ -65,8 +65,9 @@ public class AccessPolicyHolidayGroup {
         public boolean contains(ZonedDateTime when) {
             final Instant s = parsedStart();
             final Instant e = parsedEnd();
-            if (s == null || e == null || when == null)
+            if (s == null || e == null || when == null) {
                 return false;
+            }
             final Instant x = when.toInstant();
             return !x.isBefore(s) && x.isBefore(e); // [start, end)
         }

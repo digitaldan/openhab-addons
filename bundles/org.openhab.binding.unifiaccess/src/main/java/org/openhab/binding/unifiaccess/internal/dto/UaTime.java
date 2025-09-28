@@ -37,8 +37,9 @@ public final class UaTime {
     }
 
     public static Instant parseInstant(String s) {
-        if (s == null || s.isBlank())
+        if (s == null || s.isBlank()) {
             return null;
+        }
         try {
             return OffsetDateTime.parse(s, ISO_ZONED).toInstant();
         } catch (Exception ignored) {
@@ -59,8 +60,9 @@ public final class UaTime {
     }
 
     public static boolean within(LocalTime t, LocalTime start, LocalTime end) {
-        if (t == null || start == null || end == null || start.equals(end))
+        if (t == null || start == null || end == null || start.equals(end)) {
             return false;
+        }
         if (start.isBefore(end)) {
             return !t.isBefore(start) && t.isBefore(end);
         }

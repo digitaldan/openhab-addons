@@ -22,15 +22,17 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiprotect.internal.handler.UnifiProtectCameraHandler;
 import org.openhab.core.thing.ThingUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * ImageStreamServlet.
+ * ImageStreamServlet provides a simple image proxy for the camera snapshot image.
  *
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
 public class ImageServlet extends HttpServlet {
-
+    private final Logger logger = LoggerFactory.getLogger(ImageServlet.class);
     private final UnifiMediaService mediaService;
 
     public ImageServlet(UnifiMediaService mediaService) {
@@ -57,10 +59,15 @@ public class ImageServlet extends HttpServlet {
         if (req.getQueryString() != null && req.getQueryString().contains("quality=high")) {
             highQuality = true;
         }
-        byte[] snapshot = handler.getSnapshot(highQuality);
-        resp.setContentType("image/jpeg");
-        resp.setContentLength(snapshot.length);
-        resp.getOutputStream().write(snapshot);
-        resp.getOutputStream().flush();
+        try {
+            byte[] snapshot = handler.getSnapshot(highQuality);
+            resp.setContentType("image/jpeg");
+            resp.setContentLength(snapshot.length);
+            resp.getOutputStream().write(snapshot);
+            resp.getOutputStream().flush();
+        } catch (IOException e) {
+            logger.debug("Error getting snapshot", e);
+            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
     }
 }

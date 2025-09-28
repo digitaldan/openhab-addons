@@ -12,7 +12,7 @@
  */
 package org.openhab.binding.unifiprotect.internal.dto.ws;
 
-import org.openhab.binding.unifiprotect.internal.dto.DevicePartialWithReference;
+import org.openhab.binding.unifiprotect.internal.dto.Device;
 
 /**
  * WebSocket payload: device update.
@@ -21,5 +21,5 @@ import org.openhab.binding.unifiprotect.internal.dto.DevicePartialWithReference;
  */
 public class DeviceUpdate {
     public String type; // "update"
-    public DevicePartialWithReference item;
+    public Device item;
 }

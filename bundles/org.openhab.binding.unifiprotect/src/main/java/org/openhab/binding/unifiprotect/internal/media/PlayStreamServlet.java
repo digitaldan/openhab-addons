@@ -32,7 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * WebRTCServlet.
+ * WebRTCServlet acts as a SDP proxy for go2rtc.
+ * Supports both raw SDP and base64 encoded SDP types
  *
  * @author Dan Cunningham - Initial contribution
  */
@@ -129,7 +130,7 @@ public class PlayStreamServlet extends HttpServlet {
                 resp.getOutputStream().write(r.getContent());
             }
         } catch (Exception e) {
-            logger.error("HTTP proxy failed", e);
+            logger.debug("HTTP proxy failed", e);
             resp.sendError(500, "HTTP proxy failed");
         }
     }

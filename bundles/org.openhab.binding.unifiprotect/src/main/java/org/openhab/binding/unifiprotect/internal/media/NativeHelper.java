@@ -169,12 +169,12 @@ public class NativeHelper {
         os = os.toLowerCase(Locale.ROOT);
         arch = arch.toLowerCase(Locale.ROOT);
         if (os.contains("linux")
-                && (arch.contains("amd64") || arch.contains("x86_64") || arch.equals("x64") || arch.equals("amd64")))
+                && (arch.contains("amd64") || arch.contains("x86_64") || "x64".equals(arch) || "amd64".equals(arch)))
             return "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_amd64";
         if (os.contains("linux") && (arch.contains("aarch64") || arch.contains("arm64")))
             return "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_arm64";
         if (os.contains("freebsd")
-                && (arch.contains("amd64") || arch.contains("x86_64") || arch.equals("x64") || arch.equals("amd64")))
+                && (arch.contains("amd64") || arch.contains("x86_64") || "x64".equals(arch) || "amd64".equals(arch)))
             return "https://github.com/AlexxIT/go2rtc/releases/download/v1.9.9/go2rtc_freebsd_amd64.zip";
         if (os.contains("freebsd") && (arch.contains("aarch64") || arch.contains("arm64")))
             return "https://github.com/AlexxIT/go2rtc/releases/download/v1.9.9/go2rtc_freebsd_arm64.zip";

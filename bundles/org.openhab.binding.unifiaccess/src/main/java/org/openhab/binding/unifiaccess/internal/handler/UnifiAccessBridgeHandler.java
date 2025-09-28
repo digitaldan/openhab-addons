@@ -14,6 +14,7 @@ package org.openhab.binding.unifiaccess.internal.handler;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,7 +37,7 @@ import org.openhab.binding.unifiaccess.internal.dto.Notification.LocationUpdateV
 import org.openhab.binding.unifiaccess.internal.dto.Notification.RemoteUnlockData;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.RemoteViewChangeData;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.RemoteViewData;
-import org.openhab.binding.unifiaccess.internal.dto.UniFiAccessHttpException;
+import org.openhab.binding.unifiaccess.internal.dto.UniFiAccessApiException;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.ChannelUID;
@@ -88,27 +89,15 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
 
     @Override
     public void initialize() {
+        logger.debug("Initializing bridge handler");
         config = getConfigAs(UnifiAccessBridgeConfiguration.class);
-
         updateStatus(ThingStatus.UNKNOWN);
-
-        scheduler.execute(() -> {
-            try {
-                if (!httpClient.isStarted()) {
-                    httpClient.start();
-                }
-                logger.debug("Creating UniFiAccessApiClient with base: {} and token: {}", configuredBase,
-                        config.authToken);
-                connect();
-            } catch (Exception e) {
-                logger.warn("Bridge initialization failed: {}", e.getMessage(), e);
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, e.getMessage());
-            }
-        });
+        scheduler.execute(this::connect);
     }
 
     @Override
     public void dispose() {
+        logger.debug("Disposing bridge handler");
         try {
             UniFiAccessApiClient client = this.apiClient;
             if (client != null) {
@@ -147,105 +136,275 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         }
     }
 
-    private void connect() {
+    private synchronized void connect() {
         UniFiAccessApiClient client = this.apiClient;
-        if(client != null) {
+        if (client != null) {
             client.close();
         }
-        URI configuredBase = URI.create("https://" + config.host + ":" + DEFAULT_PORT + DEFAULT_PATH);
-        client = new UniFiAccessApiClient(httpClient, configuredBase, gson, config.authToken);
-        this.apiClient = client;
+        if (!httpClient.isStarted()) {
             try {
-                client.openNotifications(() -> {
-                    logger.info("Notifications WebSocket opened");
-                    updateStatus(ThingStatus.ONLINE);
-                    scheduler.execute(UnifiAccessBridgeHandler.this::syncDevices);
-                }, notification -> {
-
-                    logger.debug("Notification event: {} data: {}", notification.event, notification.data);
-                    try {
-                        switch (notification.event) {
-                            // When a doorbell rings
-                            case "access.remote_view":
-                                RemoteViewData rv = notification.dataAsRemoteView(gson);
-                                try {
-                                    if (rv != null) {
-                                        if (rv.requestId != null && rv.deviceId != null) {
-                                            remoteViewRequestToDeviceId.put(rv.requestId, rv.deviceId);
-                                        }
-                                        if (rv.clearRequestId != null && rv.deviceId != null) {
-                                            remoteViewRequestToDeviceId.put(rv.clearRequestId, rv.deviceId);
-                                        }
-                                        handleRemoteView(rv);
-                                    }
-                                } catch (Exception ex) {
-                                    logger.debug("Failed to handle remote_view: {}", ex.getMessage());
-                                }
-                                break;
-                            // Doorbell status change
-                            case "access.remote_view.change":
-                                RemoteViewChangeData rvc = notification.dataAsRemoteViewChange(gson);
-                                try {
-                                    handleRemoteViewChange(rvc);
-                                } catch (Exception ex) {
-                                    logger.debug("Failed to handle remote_view.change: {}", ex.getMessage());
-                                }
-                                break;
-                            // Remote door unlock by admin
-                            case "access.data.device.remote_unlock":
-                                RemoteUnlockData ru = notification.dataAsRemoteUnlock(gson);
-                                logger.debug("Device remote unlock: {}", ru.name);
-                                handleRemoteUnlock(ru);
-                                break;
-                            case "access.data.device.update":
-                                // TODO: handle device update which carries Online status
-                                notification.dataAsDeviceUpdate(gson);
-                                break;
-                            case "access.data.v2.device.update":
-                                DeviceUpdateV2Data du2 = notification.dataAsDeviceUpdateV2(gson);
-                                try {
-                                    handleDeviceUpdateV2(du2);
-                                } catch (Exception ex) {
-                                    logger.debug("Failed to handle device update: {}", ex.getMessage());
-                                }
-
-                                break;
-                            case "access.data.v2.location.update":
-                                LocationUpdateV2Data lu2 = notification.dataAsLocationUpdateV2(gson);
-                                try {
-                                    handleLocationUpdateV2(lu2);
-                                } catch (Exception ex) {
-                                    logger.debug("Failed to handle location update: {}", ex.getMessage());
-                                }
-                                break;
-                            case "access.logs.insights.add":
-                                notification.dataAsLogsInsightsAdd(gson);
-                                break;
-                            case "access.logs.add":
-                                notification.dataAsLogsAdd(gson);
-                                break;
-                            case "access.base.info":
-                                notification.dataAsBaseInfo(gson);
-                                break;
-                            default:
-                                // leave as raw
-                                break;
-                        }
-                    } catch (Exception ex) {
-                        logger.debug("Failed to parse typed notification for {}: {}", notification.event,
-                                ex.getMessage());
-                    }
-                }, error -> {
-                    logger.warn("Notifications error: {}", error.getMessage());
-                    setOfflineAndReconnect(error.getMessage());
-                }, (statusCode, reason) -> {
-                    logger.info("Notifications closed: {} - {}", statusCode, reason);
-                    setOfflineAndReconnect(reason);
-                });
+                httpClient.start();
             } catch (Exception e) {
-                logger.warn("Failed to open notifications WebSocket: {}", e.getMessage());
+                logger.debug("Failed to start HTTP client: {}", e.getMessage());
                 setOfflineAndReconnect(e.getMessage());
             }
+        }
+        URI configuredBase = URI.create("https://" + config.host + ":" + DEFAULT_PORT + DEFAULT_PATH);
+        client = new UniFiAccessApiClient(httpClient, configuredBase, gson, config.authToken, scheduler);
+        this.apiClient = client;
+        try {
+            client.openNotifications(() -> {
+                logger.info("Notifications WebSocket opened");
+                updateStatus(ThingStatus.ONLINE);
+                scheduler.execute(UnifiAccessBridgeHandler.this::syncDevices);
+            }, notification -> {
+
+                logger.debug("Notification event: {} data: {}", notification.event, notification.data);
+                try {
+                    switch (notification.event) {
+                        // When a doorbell rings
+                        case "access.remote_view":
+                            RemoteViewData rv = notification.dataAsRemoteView(gson);
+                            if (rv == null) {
+                                break;
+                            }
+                            try {
+                                if (rv.requestId != null && rv.deviceId != null) {
+                                    remoteViewRequestToDeviceId.put(rv.requestId, rv.deviceId);
+                                }
+                                if (rv.clearRequestId != null && rv.deviceId != null) {
+                                    remoteViewRequestToDeviceId.put(rv.clearRequestId, rv.deviceId);
+                                }
+                                handleRemoteView(rv);
+                            } catch (Exception ex) {
+                                logger.debug("Failed to handle remote_view: {}", ex.getMessage());
+                            }
+                            break;
+                        // Doorbell status change
+                        case "access.remote_view.change":
+                            RemoteViewChangeData rvc = notification.dataAsRemoteViewChange(gson);
+                            if (rvc == null) {
+                                break;
+                            }
+                            try {
+                                handleRemoteViewChange(rvc);
+                                // route doorbell status to both device and door handlers if possible
+                                if (rvc.remoteCallRequestId != null) {
+                                    String deviceId = remoteViewRequestToDeviceId.get(rvc.remoteCallRequestId);
+                                    if (deviceId != null) {
+                                        UnifiAccessDeviceHandler dh = getDeviceHandlerByDeviceId(deviceId);
+                                        if (dh != null) {
+                                            dh.handleRemoteViewChange(rvc);
+                                        }
+                                        UnifiAccessDoorHandler d = getDoorHandler(deviceId);
+                                        if (d != null) {
+                                            d.handleDoorbellStatus(rvc);
+                                        }
+                                    }
+                                }
+                            } catch (Exception ex) {
+                                logger.debug("Failed to handle remote_view.change: {}", ex.getMessage());
+                            }
+                            break;
+                        // Remote door unlock by admin
+                        case "access.data.device.remote_unlock":
+                            RemoteUnlockData ru = notification.dataAsRemoteUnlock(gson);
+                            logger.debug("Device remote unlock: {}", ru.name);
+                            handleRemoteUnlock(ru);
+                            break;
+                        case "access.data.device.update":
+                            // TODO: handle device update which carries Online status
+                            notification.dataAsDeviceUpdate(gson);
+                            break;
+                        case "access.data.v2.device.update":
+                            DeviceUpdateV2Data du2 = notification.dataAsDeviceUpdateV2(gson);
+                            if (du2 == null) {
+                                break;
+                            }
+                            try {
+                                handleDeviceUpdateV2(du2);
+                            } catch (Exception ex) {
+                                logger.debug("Failed to handle device update: {}", ex.getMessage());
+                            }
+
+                            break;
+                        case "access.data.v2.location.update":
+                            LocationUpdateV2Data lu2 = notification.dataAsLocationUpdateV2(gson);
+                            if (lu2 == null) {
+                                break;
+                            }
+                            try {
+                                handleLocationUpdateV2(lu2);
+                            } catch (Exception ex) {
+                                logger.debug("Failed to handle location update: {}", ex.getMessage());
+                            }
+                            break;
+                        case "access.logs.insights.add": {
+                            var data = notification.dataAsInsightLogsAdd(gson);
+                            if (data == null) {
+                                break;
+                            }
+                            String cameraId = data.metadata != null && data.metadata.cameraCapture != null
+                                    ? data.metadata.cameraCapture.alternateId
+                                    : null;
+                            // fire bridge trigger with compact JSON payload
+                            Map<String, Object> insight = new LinkedHashMap<>();
+                            if (data.logKey != null) {
+                                insight.put("logKey", data.logKey);
+                            }
+                            if (data.eventType != null) {
+                                insight.put("eventType", data.eventType);
+                            }
+                            if (data.message != null) {
+                                insight.put("message", data.message);
+                            }
+                            if (data.published != null) {
+                                insight.put("published", data.published);
+                            }
+                            if (data.result != null) {
+                                insight.put("result", data.result);
+                            }
+                            String actorName = (data.metadata != null && data.metadata.actor != null)
+                                    ? data.metadata.actor.displayName
+                                    : null;
+                            if (actorName != null) {
+                                insight.put("actorName", actorName);
+                            }
+                            String insightDoorId = (data.metadata != null && data.metadata.door != null)
+                                    ? data.metadata.door.id
+                                    : null;
+                            if (insightDoorId != null) {
+                                insight.put("doorId", insightDoorId);
+                            }
+                            String insightDoorName = (data.metadata != null && data.metadata.door != null)
+                                    ? data.metadata.door.displayName
+                                    : null;
+                            if (insightDoorName != null) {
+                                insight.put("doorName", insightDoorName);
+                            }
+                            String insightDeviceId = (data.metadata != null && data.metadata.device != null)
+                                    ? data.metadata.device.id
+                                    : null;
+                            if (insightDeviceId != null) {
+                                insight.put("deviceId", insightDeviceId);
+                            }
+                            if (cameraId != null) {
+                                insight.put("cameraId", cameraId);
+                            }
+                            String payload = gson.toJson(insight);
+                            // bridge-level trigger
+                            triggerChannel(UnifiAccessBindingConstants.CHANNEL_BRIDGE_LOG_INSIGHT, payload);
+
+                            // route to specific door/device if referenced
+                            String doorId = data.metadata != null && data.metadata.door != null ? data.metadata.door.id
+                                    : null;
+                            if (doorId != null) {
+                                UnifiAccessDoorHandler dh = getDoorHandler(doorId);
+                                if (dh != null) {
+                                    dh.triggerLogInsight(payload);
+                                }
+                            }
+                            String deviceId = data.metadata != null && data.metadata.device != null
+                                    ? data.metadata.device.id
+                                    : null;
+                            if (deviceId != null) {
+                                UnifiAccessDeviceHandler d = getDeviceHandlerByDeviceId(deviceId);
+                                if (d != null) {
+                                    d.triggerLogInsight(payload);
+                                }
+                            }
+                        }
+                            break;
+                        case "access.logs.add": {
+                            var data = notification.dataAsLogsAdd(gson);
+                            if (data == null || data.source == null) {
+                                break;
+                            }
+                            Map<String, Object> logMap = new LinkedHashMap<>();
+                            if (data.source.event != null) {
+                                if (data.source.event.type != null) {
+                                    logMap.put("type", data.source.event.type);
+                                }
+                                if (data.source.event.displayMessage != null) {
+                                    logMap.put("displayMessage", data.source.event.displayMessage);
+                                }
+                                if (data.source.event.result != null) {
+                                    logMap.put("result", data.source.event.result);
+                                }
+                                if (data.source.event.published != null) {
+                                    logMap.put("published", data.source.event.published);
+                                }
+                                if (data.source.event.logKey != null) {
+                                    logMap.put("logKey", data.source.event.logKey);
+                                }
+                                if (data.source.event.logCategory != null) {
+                                    logMap.put("logCategory", data.source.event.logCategory);
+                                }
+                            }
+                            if (data.source.actor != null && data.source.actor.displayName != null) {
+                                logMap.put("actorName", data.source.actor.displayName);
+                            }
+                            String payload = gson.toJson(logMap);
+                            triggerChannel(UnifiAccessBindingConstants.CHANNEL_BRIDGE_LOG, payload);
+
+                            // door-level success/failure triggers
+                            String doorId = (data.source.target == null) ? null
+                                    : data.source.target.stream().filter(t -> "door".equalsIgnoreCase(t.type))
+                                            .map(t -> t.id).findFirst().orElse(null);
+
+                            if (doorId != null) {
+                                boolean isSuccess = data.source.event != null
+                                        && "ACCESS".equalsIgnoreCase(data.source.event.result);
+                                Map<String, Object> accessMap = new LinkedHashMap<>();
+                                if (data.source.actor != null && data.source.actor.displayName != null) {
+                                    accessMap.put("actorName", data.source.actor.displayName);
+                                }
+                                if (data.source.authentication != null
+                                        && data.source.authentication.credentialProvider != null) {
+                                    accessMap.put("credentialProvider", data.source.authentication.credentialProvider);
+                                }
+                                if (data.source.event != null && data.source.event.displayMessage != null) {
+                                    accessMap.put("message", data.source.event.displayMessage);
+                                }
+                                String accessPayload = gson.toJson(accessMap);
+                                UnifiAccessDoorHandler dh = getDoorHandler(doorId);
+                                if (dh != null) {
+                                    if (isSuccess) {
+                                        dh.triggerAccessAttemptSuccess(accessPayload);
+                                    } else {
+                                        dh.triggerAccessAttemptFailure(accessPayload);
+                                    }
+                                }
+                            }
+                        }
+                            break;
+
+                        case "access.base.info":
+                            notification.dataAsBaseInfo(gson);
+                            break;
+                        case "access.hw.door_bell":
+                            // this is notified of a hardware doorbell event start, but we don't get a stop
+                            // event
+                            notification.dataAsDoorBell(gson);
+                            break;
+                        default:
+                            // leave as raw
+                            break;
+                    }
+                } catch (Exception ex) {
+                    logger.debug("Failed to parse typed notification for {}: {}", notification.event, ex.getMessage());
+                }
+            }, error -> {
+                logger.debug("Notifications error: {}", error.getMessage());
+                setOfflineAndReconnect(error.getMessage());
+            }, (statusCode, reason) -> {
+                logger.debug("Notifications closed: {} - {}", statusCode, reason);
+                setOfflineAndReconnect(reason);
+            });
+        } catch (UniFiAccessApiException e) {
+            logger.debug("Failed to open notifications WebSocket", e);
+            setOfflineAndReconnect("Failed to open notifications WebSocket");
+        }
     }
 
     public void setDiscoveryService(UnifiAccessDiscoveryService discoveryService) {
@@ -261,8 +420,8 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, msg);
         this.reconnectFuture = scheduler.schedule(() -> {
             try {
-                // schedule this so our reconnectFuture completes after calling right away so if we need to reconnect
-                // again, this job is already finished.
+                // schedule this so our reconnectFuture completes after calling right away so if
+                // we need to reconnect again, this job is already finished.
                 scheduler.execute(this::connect);
             } catch (Exception ex) {
                 logger.debug("Reconnect attempt failed to schedule connect: {}", ex.getMessage());
@@ -331,14 +490,14 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                             try {
                                 var settings = client.getDeviceAccessMethodSettings(dh.deviceId);
                                 dh.updateFromSettings(settings);
-                            } catch (UniFiAccessHttpException ex) {
+                            } catch (UniFiAccessApiException ex) {
                                 logger.debug("Failed to update device {}: {}", dh.deviceId, ex.getMessage());
                             }
                         }
                     }
                 }
             }
-        } catch (UniFiAccessHttpException e) {
+        } catch (UniFiAccessApiException e) {
             logger.debug("Polling error: {}", e.getMessage());
         }
     }
@@ -372,7 +531,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
     private void handleRemoteViewChange(RemoteViewChangeData rvc) {
         // First try to route via remote call request id mapping (if available)
         String deviceId = null;
-        if (rvc != null && rvc.remoteCallRequestId != null) {
+        if (rvc.remoteCallRequestId != null) {
             deviceId = remoteViewRequestToDeviceId.get(rvc.remoteCallRequestId);
         }
         if (deviceId != null) {
@@ -394,7 +553,8 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
             });
         } else {
             // update for a device ?
-            // TODO this update carries the isOnline status of the device, so we need to update the device thing status
+            // TODO this update carries the isOnline status of the device, so we need to
+            // update the device thing status
         }
     }
 

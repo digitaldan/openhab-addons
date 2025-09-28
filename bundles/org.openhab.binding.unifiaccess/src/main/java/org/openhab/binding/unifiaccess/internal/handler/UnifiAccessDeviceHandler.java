@@ -158,7 +158,7 @@ public class UnifiAccessDeviceHandler extends BaseThingHandler {
                         updated = true;
                         break;
                     case UnifiAccessBindingConstants.CHANNEL_DEVICE_EMERGENCY_STATUS:
-                        String normalized = value == null ? "" : value.toLowerCase();
+                        String normalized = value.toLowerCase();
                         org.openhab.binding.unifiaccess.internal.dto.DoorEmergencySettings des = new org.openhab.binding.unifiaccess.internal.dto.DoorEmergencySettings();
                         if ("lockdown".equals(normalized)) {
                             des.lockdown = Boolean.TRUE;
@@ -171,11 +171,9 @@ public class UnifiAccessDeviceHandler extends BaseThingHandler {
                             des.evacuation = Boolean.FALSE;
                         }
                         try {
-                            UnifiAccessBridgeHandler bridge2 = getBridgeHandler();
-                            UniFiAccessApiClient api2 = bridge2 != null ? bridge2.getApiClient() : null;
                             String doorId = this.locationId;
-                            if (api2 != null && doorId != null && !doorId.isBlank()) {
-                                api2.setDoorEmergencySettings(doorId, des);
+                            if (doorId != null && !doorId.isBlank()) {
+                                api.setDoorEmergencySettings(doorId, des);
                                 updateState(UnifiAccessBindingConstants.CHANNEL_DEVICE_EMERGENCY_STATUS,
                                         new org.openhab.core.library.types.StringType(
                                                 normalized.isEmpty() ? "normal" : normalized));
@@ -248,6 +246,18 @@ public class UnifiAccessDeviceHandler extends BaseThingHandler {
     public void handleRemoteViewChange(RemoteViewChangeData change) {
         triggerChannel(UnifiAccessBindingConstants.CHANNEL_DEVICE_DOORBELL_TRIGGER, "completed");
         updateState(UnifiAccessBindingConstants.CHANNEL_DEVICE_DOORBELL_CONTACT, OpenClosedType.CLOSED);
+        try {
+            String event = change.reason != null ? change.reason.name() : "UNKNOWN";
+            triggerChannel(UnifiAccessBindingConstants.CHANNEL_DOORBELL_STATUS, event);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void triggerLogInsight(String payload) {
+        try {
+            triggerChannel(UnifiAccessBindingConstants.CHANNEL_BRIDGE_LOG_INSIGHT, payload);
+        } catch (Exception ignored) {
+        }
     }
 
     public void handleLocationState(LocationState locationState) {

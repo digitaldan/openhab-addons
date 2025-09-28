@@ -96,7 +96,7 @@ public class UnifiMediaServiceImpl implements UnifiMediaService {
         try {
             this.httpClient.start();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("Failed to start HTTP client", e);
         }
 
         NativeHelper nativeHelper = new NativeHelper(BIN_DIR, config.downloadBinaries, httpClient);
@@ -108,8 +108,8 @@ public class UnifiMediaServiceImpl implements UnifiMediaService {
             httpService.registerServlet(playBasePath, new PlayStreamServlet(this, httpClient), null, null);
             httpService.registerServlet(imageBasePath, new ImageServlet(this), null, null);
         } catch (IOException | ServletException | NamespaceException e) {
-            logger.warn("Failed to activate WebRtcMediaServiceImpl", e);
-            throw new RuntimeException(e);
+            logger.debug("Failed to activate WebRtcMediaServiceImpl", e);
+            throw new IllegalStateException("Failed to activate WebRtcMediaServiceImpl", e);
         }
     }
 
@@ -152,6 +152,11 @@ public class UnifiMediaServiceImpl implements UnifiMediaService {
     @Override
     public void registerHandler(UnifiProtectCameraHandler handler, Map<String, List<URI>> streams) {
         ThingUID uid = handler.getThing().getUID();
+        cameraStreams.put(uid, streams);
+        if (handlers.containsKey(uid)) {
+            rebuildAndApplyYaml(uid);
+            return;
+        }
         handlers.put(uid, handler);
         cameraStreams.put(uid, streams);
         ensureManager(uid);
@@ -242,7 +247,7 @@ public class UnifiMediaServiceImpl implements UnifiMediaService {
                 logger.trace("Applying YAML for {}: {}", uid, yaml);
                 manager.applyConfig(yaml);
             } catch (IOException e) {
-                logger.warn("Failed to apply YAML for {}", uid, e);
+                logger.debug("Failed to apply YAML for {}", uid, e);
             }
         }
     }
@@ -273,19 +278,19 @@ public class UnifiMediaServiceImpl implements UnifiMediaService {
                 try {
                     return go2rtcBin;
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    throw new IllegalStateException("Failed to get go2rtc bin", e);
                 }
             }, () -> {
                 try {
                     return ffmpegBin;
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    throw new IllegalStateException("Failed to get ffmpeg bin", e);
                 }
             }, "127.0.0.1", apiPort, configName);
             managers.put(uid, manager);
             manager.startIfNeeded();
         } catch (IOException e) {
-            logger.warn("Failed to create go2rtc manager for {}", uid, e);
+            logger.debug("Failed to create go2rtc manager for {}", uid, e);
         }
     }
 

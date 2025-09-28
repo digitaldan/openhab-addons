@@ -12,7 +12,7 @@
  */
 package org.openhab.binding.unifiprotect.internal.dto.ws;
 
-import org.openhab.binding.unifiprotect.internal.dto.DeviceReference;
+import org.openhab.binding.unifiprotect.internal.dto.Device;
 
 /**
  * WebSocket payload: device remove.
@@ -21,5 +21,5 @@ import org.openhab.binding.unifiprotect.internal.dto.DeviceReference;
  */
 public class DeviceRemove {
     public String type; // "remove"
-    public DeviceReference item;
+    public Device item;
 }

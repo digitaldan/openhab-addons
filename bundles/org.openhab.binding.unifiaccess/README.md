@@ -107,8 +107,36 @@ sitemap home label="Home" {
     }
 }
 ```
+### Rules
 
-## Notes
+```javascript
+rules.when().channel('unifiaccess:door:ua:frontdoor:access-attempt-success').triggered().then( e => {
+    const jsonData = JSON.parse(e.payload.event);
+    console.log("Door Access Attempt Success: ", jsonData);
+}).build('Unifi Protect Door Access Attempt Success');
 
-The `Bridge` has no channels and only holds connection settings.
-Door discovery and state updates are near real time via a persistent connection to the controller.
+rules.when().channel('unifiaccess:door:ua:frontdoor:access-attempt-failure').triggered().then( e => {
+    const jsonData = JSON.parse(e.payload.event);
+    console.log("Door Access Attempt Failure: ", jsonData);
+}).build('Unifi Protect Door Access Attempt Failure');
+
+rules.when().channel('unifiaccess:door:ua:frontdoor:remote-unlock').triggered().then( e => {
+    const jsonData = JSON.parse(e.payload.event);
+    console.log("Door Remote Unlock: ", jsonData);
+}).build('Unifi Protect Door Remote Unlock');
+
+rules.when().channel('unifiaccess:door:ua:frontdoor:doorbell-status').triggered().then( e => {
+    const data = e.payload.event;
+    console.log("Doorbell Status: ", e);
+}).build('Unifi Protect Doorbell Status');
+
+rules.when().channel('unifiaccess:bridge:ua:log-insight').triggered().then( e => {
+    const jsonData = JSON.parse(e.payload.event);
+    console.log("Bridge Log Insight: ", jsonData);
+}).build('Unifi Protect Bridge Log Insight');
+
+rules.when().channel('unifiaccess:bridge:ua:log').triggered().then( e => {
+    const jsonData = JSON.parse(e.payload.event);
+    console.log("Bridge Log: ", jsonData);
+}).build('Unifi Protect Bridge Log');
+```

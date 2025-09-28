@@ -22,6 +22,6 @@ package org.openhab.binding.unifiprotect.internal.dto;
 public abstract class Device {
     public String id;
     public ModelKey modelKey;
-    public DeviceState state;
+    public DeviceState state; // nullable
     public String name;
 }
