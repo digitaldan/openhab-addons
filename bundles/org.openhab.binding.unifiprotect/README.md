@@ -204,9 +204,7 @@ The URL for WebRTC streams can be found in 2 different ways
 
 All of the above URLs are relative to the openHAB instance.
 
-![stream properties](doc/stream-property.png)
-
-The playback URLs can be used in the MainUI video widget by enabling WebRTC in the advanced settings in the video widget and using an above URL as the source.
+The playback URLs can be used in the MainUI video widget by enabling WebRTC in the advanced settings in the video widget and using an above URL or Item as the source.
 
 An example WebRTC stream URL would be:
 
