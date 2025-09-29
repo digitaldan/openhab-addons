@@ -449,10 +449,24 @@
 		<description>Show the logo on the camera OSD</description>
 	</channel-type>
 
-	<channel-type id="rtsp-stream" advanced="true">
+	<channel-type id="rtsp-url" advanced="true">
 		<item-type>String</item-type>
-		<label>RTSP Stream</label>
+		<label>RTSP Stream URL</label>
 		<description>RTSP stream URL</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="webrtc-url">
+		<item-type>String</item-type>
+		<label>WebRTC URL</label>
+		<description>WebRTC stream URL</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="snapshot-url">
+		<item-type>String</item-type>
+		<label>Snapshot URL</label>
+		<description>Snapshot image URL</description>
 		<state readOnly="true"/>
 	</channel-type>
 

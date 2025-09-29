@@ -116,11 +116,16 @@ No channels.
 | osd-logo                     | Switch    | RW | Show logo on OSD                                                                                     | false    |
 | led-enabled                  | Switch    | RW | Enable/disable camera status LED                                                                     | false    |
 | active-patrol-slot           | Number    | RW | Active PTZ patrol slot (set 0 to stop)                                                               | false    |
-| rtsp-stream-high             | String    | R  | RTSP stream URL for high quality                                                                     | true     |
-| rtsp-stream-medium           | String    | R  | RTSP stream URL for medium quality                                                                   | true     |
-| rtsp-stream-low              | String    | R  | RTSP stream URL for low quality                                                                      | true     |
-| rtsp-stream-package          | String    | R  | RTSP stream URL for package quality                                                                  | true     |
-| snapshot                     | Image     | R  | Snapshot image. Send a REFRESH command to update.                                                    | false    |
+| webrtc-url-high              | String    | R  | WebRTC stream URL for high quality                                                                   | true     |
+| webrtc-url-medium            | String    | R  | WebRTC stream URL for medium quality                                                                 | true     |
+| webrtc-url-low               | String    | R  | WebRTC stream URL for low quality                                                                    | true     |
+| webrtc-url-package           | String    | R  | WebRTC stream URL for package quality                                                                | true     |
+| rtsp-url-high                | String    | R  | RTSP stream URL for high quality                                                                     | true     |
+| rtsp-url-medium              | String    | R  | RTSP stream URL for medium quality                                                                   | true     |
+| rtsp-url-low                 | String    | R  | RTSP stream URL for low quality                                                                      | true     |
+| rtsp-url-package             | String    | R  | RTSP stream URL for package quality                                                                  | true     |
+| snapshot                     | Image     | R  | Snapshot image. Send a REFRESH command to update.                                                         | false    |
+| snapshot-url                 | String    | R  | Snapshot image URL                                                                                      | true     |
 | motion-contact               | Contact   | R  | Motion state (OPEN = motion detected)                                                                | false    |
 | motion-snapshot              | Image     | R  | Snapshot captured around motion event                                                                | false    |
 | smart-detect-audio-contact   | Contact   | R  | Smart audio detection active state                                                                   | false    |
@@ -193,19 +198,10 @@ Trigger channels (for rules):
 If enabled in the binding configuration, openHAB will proxy live media using WebRTC which is compatible with the MainUI video widget.
 
 ### Stream URLs
+The URL for WebRTC streams can be found in 2 different ways
+1. As a property on the Camera Thing (webrtc-url-high, webrtc-url-medium, webrtc-url-low, webrtc-url-package)
+1. As an Item linked to a channel on the Camera Thing (webrtc-url-high, webrtc-url-medium, webrtc-url-low, webrtc-url-package)
 
-Cameras will dynamically create the following properties that can be used to stream the media:
-
-| Property ID        | Description                                  |
-|--------------------|----------------------------------------------|
-| webrtc-url         | WebRTC stream URL (defaults to high quality) |
-| webrtc-url-high    | WebRTC stream URL for high quality           |
-| webrtc-url-medium  | WebRTC stream URL for medium quality         |
-| webrtc-url-low     | WebRTC stream URL for low quality            |
-| webrtc-url-package | WebRTC stream URL for package quality        |
-| snapshot-url       | Snapshot Image URL                           |
-
-You can view these properties when viewing a Camera Thing in the MainUI.
 All of the above URLs are relative to the openHAB instance.
 
 ![stream properties](doc/stream-property.png)
@@ -219,11 +215,12 @@ An example WebRTC stream URL would be:
 ```
 
 Where `unifiprotect:camera:home:1234567890` is the camera's Thing UID and `high` is the quality (high, medium, low, package) if supported by the camera.
-If quality is omitted, the highest quality is used that is supported by the camera.
+
+You can either use the String URL or select the Item linked to the channel in the MainUI video widget.
 
 ![video widget settings](doc/video-card.png)
 
-Its also highly recommended to use the camera's Image URL property to get the live snapshot image URL which can be used for the poster image option in the MainUI video widget.
+Its also highly recommended to use the camera's Snapshot URL property or the Item linked to the `snapshot-url` channel to get the live snapshot image URL which can be used for the poster image option in the MainUI video widget.
 
 An example snapshot image URL would be:
 
@@ -259,7 +256,7 @@ Bridge unifiprotect:nvr:myNvr "UniFi Protect NVR" [ hostname="192.168.1.10", tok
 
 ```
 // Camera
-Number  Cam_Front_MicVolume        "Mic Volume [%d]"                   { channel="unifiprotect:camera:myNvr:frontdoor:mic-volume" }
+Number  Cam_Front_MicVolume        "Mic Volume [%d]"                    { channel="unifiprotect:camera:myNvr:frontdoor:mic-volume" }
 String  Cam_Front_VideoMode        "Video Mode [%s]"                    { channel="unifiprotect:camera:myNvr:frontdoor:video-mode" }
 String  Cam_Front_HDR              "HDR [%s]"                           { channel="unifiprotect:camera:myNvr:frontdoor:hdr-type" }
 Switch  Cam_Front_OSD_Name         "OSD Name"                           { channel="unifiprotect:camera:myNvr:frontdoor:osd-name" }
@@ -267,6 +264,10 @@ Switch  Cam_Front_OSD_Date         "OSD Date"                           { channe
 Switch  Cam_Front_OSD_Logo         "OSD Logo"                           { channel="unifiprotect:camera:myNvr:frontdoor:osd-logo" }
 Switch  Cam_Front_LED              "Status LED"                         { channel="unifiprotect:camera:myNvr:frontdoor:led-enabled" }
 Number  Cam_Front_PatrolSlot       "PTZ Patrol Slot [%d]"               { channel="unifiprotect:camera:myNvr:frontdoor:active-patrol-slot" }
+String  Cam_Front_WebRTC_High      "WebRTC High [%s]"                   { channel="unifiprotect:camera:myNvr:frontdoor:webrtc-url-high" }
+String  Cam_Front_WebRTC_Medium    "WebRTC Medium [%s]"                 { channel="unifiprotect:camera:myNvr:frontdoor:webrtc-url-medium" }
+String  Cam_Front_WebRTC_Low       "WebRTC Low [%s]"                    { channel="unifiprotect:camera:myNvr:frontdoor:webrtc-url-low" }
+String  Cam_Front_WebRTC_Package   "WebRTC Package [%s]"                { channel="unifiprotect:camera:myNvr:frontdoor:webrtc-url-package" }
 Contact Cam_Front_Motion           "Motion [%s]"                        { channel="unifiprotect:camera:myNvr:frontdoor:motion-contact" }
 Image   Cam_Front_MotionSnapshot   "Motion Snapshot"                    { channel="unifiprotect:camera:myNvr:frontdoor:motion-snapshot" }
 
@@ -284,7 +285,7 @@ Number  Light_Driveway_LED_Level   "LED Level [%.0f]"                   { channe
 // Sensor
 Number  Sensor_Garage_Battery      "Battery [%.0f %%]"                  { channel="unifiprotect:sensor:myNvr:garagedoor:battery" }
 Contact Sensor_Garage_Contact      "Contact [%s]"                       { channel="unifiprotect:sensor:myNvr:garagedoor:contact" }
-Number:Temperature Sensor_Garage_T "Temperature [%.1f %unit%]"         { channel="unifiprotect:sensor:myNvr:garagedoor:temperature" }
+Number:Temperature Sensor_Garage_T "Temperature [%.1f %unit%]"          { channel="unifiprotect:sensor:myNvr:garagedoor:temperature" }
 Number  Sensor_Garage_Humidity     "Humidity [%.0f %%]"                 { channel="unifiprotect:sensor:myNvr:garagedoor:humidity" }
 Number:Illuminance Sensor_Garage_L "Illuminance [%.0f lx]"              { channel="unifiprotect:sensor:myNvr:garagedoor:illuminance" }
 Contact Sensor_Garage_Alarm        "Alarm [%s]"                         { channel="unifiprotect:sensor:myNvr:garagedoor:alarm-contact" }

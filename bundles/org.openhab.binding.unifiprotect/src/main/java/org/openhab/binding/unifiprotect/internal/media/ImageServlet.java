@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class ImageServlet extends HttpServlet {
+    private static final long serialVersionUID = 1L;
     private final Logger logger = LoggerFactory.getLogger(ImageServlet.class);
     private final UnifiMediaService mediaService;
 
@@ -42,6 +43,11 @@ public class ImageServlet extends HttpServlet {
     @Override
     protected void doGet(@Nullable HttpServletRequest req, @Nullable HttpServletResponse resp) throws IOException {
         if (req == null || resp == null) {
+            return;
+        }
+        String pathInfo = req.getPathInfo();
+        if (pathInfo == null) {
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
         String[] parts = req.getPathInfo().split("\\/");
@@ -56,7 +62,8 @@ public class ImageServlet extends HttpServlet {
             return;
         }
         boolean highQuality = false;
-        if (req.getQueryString() != null && req.getQueryString().contains("quality=high")) {
+        String queryString = req.getQueryString();
+        if (queryString != null && queryString.contains("quality=high")) {
             highQuality = true;
         }
         try {

@@ -394,9 +394,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
 
     private void stopChildRefreshRetryTasks() {
         for (ScheduledFuture<?> f : childRefreshRetryTasks.values()) {
-            if (f != null) {
-                f.cancel(true);
-            }
+            f.cancel(true);
         }
         childRefreshRetryTasks.clear();
     }

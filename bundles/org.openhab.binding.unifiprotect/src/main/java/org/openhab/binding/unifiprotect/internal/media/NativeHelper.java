@@ -66,8 +66,12 @@ public class NativeHelper {
         }
 
         // download/extract only the target binary, not the whole archive
-        String osArch = System.getProperty("os.name").toLowerCase(Locale.ROOT) + "-"
-                + System.getProperty("os.arch").toLowerCase(Locale.ROOT);
+        String osName = System.getProperty("os.name");
+        String arch = System.getProperty("os.arch");
+        if (osName == null || arch == null) {
+            throw new IllegalStateException("Unsupported platform " + osName + " " + arch);
+        }
+        String osArch = osName.toLowerCase(Locale.ROOT) + "-" + arch.toLowerCase(Locale.ROOT);
         Path destDir = baseDir.resolve(osArch);
         Files.createDirectories(destDir);
         Path destBinary = destDir.resolve(name + (isWindows() ? ".exe" : ""));

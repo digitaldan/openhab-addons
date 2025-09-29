@@ -19,7 +19,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -74,9 +73,9 @@ import com.google.gson.JsonObject;
 public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler<Camera> {
     private final Logger logger = LoggerFactory.getLogger(UnifiProtectCameraHandler.class);
 
-    private UnifiMediaService media;
+    private final UnifiMediaService media;
     private boolean enableWebRTC = true;
-    private String baseSourceId;
+    private final String baseSourceId;
 
     public UnifiProtectCameraHandler(Thing thing, UnifiMediaService media) {
         super(thing);
@@ -87,7 +86,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
     @Override
     public void initialize() {
         enableWebRTC = getConfigAs(UnifiProtectCameraConfiguration.class).enableWebRTC;
-        getThing().setProperty("snapshot-url", media.getImageBasePath() + "/" + baseSourceId);
         super.initialize();
     }
 
@@ -105,39 +103,13 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             if (cam == null) {
                 return;
             }
+
             switch (id) {
-                case UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME:
-                    updateIntegerChannel(id, cam.micVolume);
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_HDR_TYPE:
-                    if (cam.hdrType != null) {
-                        updateApiValueChannel(id, cam.hdrType);
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE:
-                    if (cam.videoMode != null) {
-                        updateApiValueChannel(id, cam.videoMode);
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_OSD_NAME:
-                    updateBooleanChannel(id, cam.osdSettings != null ? cam.osdSettings.isNameEnabled : null);
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_OSD_DATE:
-                    updateBooleanChannel(id, cam.osdSettings != null ? cam.osdSettings.isDateEnabled : null);
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_OSD_LOGO:
-                    updateBooleanChannel(id, cam.osdSettings != null ? cam.osdSettings.isLogoEnabled : null);
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_LED_ENABLED:
-                    updateBooleanChannel(id, cam.ledSettings != null ? cam.ledSettings.isEnabled : null);
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT:
-                    updateIntegerChannel(id, cam.activePatrolSlot);
-                    return;
                 case UnifiProtectBindingConstants.CHANNEL_SNAPSHOT:
                     updateSnapshot(id);
                     return;
                 default:
+                    refreshState(id);
                     return;
             }
         }
@@ -398,11 +370,10 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             }
         }
         // update existing channels
-        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH, rtsps != null ? rtsps.high : null);
-        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM,
-                rtsps != null ? rtsps.medium : null);
-        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW, rtsps != null ? rtsps.low : null);
-        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE,
+        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_URL_HIGH, rtsps != null ? rtsps.high : null);
+        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_URL_MEDIUM, rtsps != null ? rtsps.medium : null);
+        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_URL_LOW, rtsps != null ? rtsps.low : null);
+        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_URL_PACKAGE,
                 rtsps != null ? rtsps.packageUrl : null);
 
         getThing().setProperty("stream-publish-url", null);
@@ -428,20 +399,17 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     }
                     String fullStreamId = baseSourceId + ":" + type;
                     streams.put(fullStreamId, sources);
-                    getThing().setProperty("stream-playback-url-" + type, media.getPlayBasePath() + "/" + fullStreamId);
+                    String webRTCId = UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL + "-" + type;
+                    String webRTCUrl = media.getPlayBasePath() + "/" + fullStreamId;
+                    // set a property as well as a channel so users don't need to map to an Item
+                    getThing().setProperty(webRTCId, webRTCUrl);
+                    updateStringChannel(webRTCId, webRTCUrl);
                 }
             };
             add.accept("high", rtsps.high);
             add.accept("medium", rtsps.medium);
             add.accept("low", rtsps.low);
             add.accept("package", rtsps.packageUrl);
-            if (!streams.isEmpty()) {
-                // add a default stream for the camera (without quality appended). Defaults to highest quality.
-                Entry<String, List<URI>> first = streams.entrySet().iterator().next();
-                List<URI> sources = new ArrayList<>(first.getValue());
-                streams.put(baseSourceId, sources);
-                getThing().setProperty("stream-playback-url", media.getPlayBasePath() + "/" + baseSourceId);
-            }
             media.registerHandler(this, streams);
         } else {
             media.registerHandler(this, Map.of());
@@ -459,22 +427,45 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         // Desired set accumulates all channels that should exist after this call
         Set<String> desiredIds = new HashSet<>();
 
-        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM, channelAdd, desiredIds,
-                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_HIGH_LABEL);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM, channelAdd, desiredIds,
-                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_MEDIUM_LABEL);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM, channelAdd, desiredIds,
-                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_LOW_LABEL);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM, channelAdd, desiredIds,
-                UnifiProtectBindingConstants.CHANNEL_RTSP_STREAM_PACKAGE_LABEL);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_URL_HIGH, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_URL, channelAdd, desiredIds,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_URL_HIGH_LABEL);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_URL_MEDIUM, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_URL, channelAdd, desiredIds,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_URL_MEDIUM_LABEL);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_URL_LOW, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_URL, channelAdd, desiredIds,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_URL_LOW_LABEL);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_RTSP_URL_PACKAGE, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_URL, channelAdd, desiredIds,
+                UnifiProtectBindingConstants.CHANNEL_RTSP_URL_PACKAGE_LABEL);
 
         addChannel(UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, CoreItemFactory.IMAGE,
                 UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, desiredIds,
                 UnifiProtectBindingConstants.CHANNEL_SNAPSHOT_LABEL);
+
+        addChannel(UnifiProtectBindingConstants.CHANNEL_SNAPSHOT_URL, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_SNAPSHOT_URL, channelAdd, desiredIds,
+                UnifiProtectBindingConstants.CHANNEL_SNAPSHOT_URL_LABEL);
+
+        String snapshotUrl = media.getImageBasePath() + "/" + baseSourceId;
+        updateStringChannel(UnifiProtectBindingConstants.CHANNEL_SNAPSHOT_URL, snapshotUrl);
+        getThing().setProperty("snapshot-url", snapshotUrl);
+
+        if (enableWebRTC) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL_HIGH, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL, channelAdd, desiredIds,
+                    UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL_HIGH_LABEL);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL_MEDIUM, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL, channelAdd, desiredIds,
+                    UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL_MEDIUM_LABEL);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL_LOW, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL, channelAdd, desiredIds,
+                    UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL_LOW_LABEL);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL_PACKAGE, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL, channelAdd, desiredIds,
+                    UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL_PACKAGE_LABEL);
+        }
 
         CameraFeatureFlags flags = camera.featureFlags;
         if (flags != null) {
@@ -496,9 +487,11 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             }
             if (flags.smartDetectTypes != null && !flags.smartDetectTypes.isEmpty()) {
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START_LABEL);
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_UPDATE,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_UPDATE_LABEL);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT, CoreItemFactory.CONTACT,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT, channelAdd, desiredIds);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_SNAPSHOT, CoreItemFactory.IMAGE,
@@ -506,9 +499,11 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_SNAPSHOT_LABEL);
 
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_START,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_START_LABEL);
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_UPDATE,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_UPDATE_LABEL);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT, CoreItemFactory.CONTACT,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT, channelAdd, desiredIds);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_SNAPSHOT, CoreItemFactory.IMAGE,
@@ -516,9 +511,11 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_SNAPSHOT_LABEL);
 
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_START,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_START_LABEL);
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_UPDATE,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_UPDATE_LABEL);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT, CoreItemFactory.CONTACT,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT, channelAdd, desiredIds);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT, CoreItemFactory.IMAGE,
@@ -526,9 +523,11 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT_LABEL);
             } else {
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_START,
-                        UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_MOTION_START_LABEL);
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE,
-                        UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE_LABEL);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, CoreItemFactory.CONTACT,
                         UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, channelAdd, desiredIds);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_SNAPSHOT, CoreItemFactory.IMAGE,
@@ -536,9 +535,11 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             }
             if (flags.smartDetectAudioTypes != null && !flags.smartDetectAudioTypes.isEmpty()) {
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_START,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_START_LABEL);
                 addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_UPDATE,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO, channelAdd, desiredIds);
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO, channelAdd, desiredIds,
+                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_UPDATE_LABEL);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_CONTACT, CoreItemFactory.CONTACT,
                         UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_CONTACT, channelAdd, desiredIds);
                 addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_SNAPSHOT, CoreItemFactory.IMAGE,
@@ -585,14 +586,17 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
     }
 
     private void addTriggerChannel(String channelId, String channelTypeId, List<Channel> channelAdd,
-            Set<String> desiredIds) {
+            Set<String> desiredIds, @Nullable String label) {
         ChannelUID uid = new ChannelUID(thing.getUID(), channelId);
         desiredIds.add(channelId);
         if (thing.getChannel(uid) == null) {
-            Channel ch = ChannelBuilder.create(uid, null)
+            ChannelBuilder cb = ChannelBuilder.create(uid, null)
                     .withType(new ChannelTypeUID(UnifiProtectBindingConstants.BINDING_ID, channelTypeId))
-                    .withKind(ChannelKind.TRIGGER).build();
-            channelAdd.add(ch);
+                    .withKind(ChannelKind.TRIGGER);
+            if (label != null) {
+                cb.withLabel(label);
+            }
+            channelAdd.add(cb.build());
         }
     }
 

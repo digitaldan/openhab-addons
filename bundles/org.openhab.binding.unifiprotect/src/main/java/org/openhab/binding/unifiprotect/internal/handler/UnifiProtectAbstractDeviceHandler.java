@@ -12,7 +12,10 @@
  */
 package org.openhab.binding.unifiprotect.internal.handler;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -31,6 +34,8 @@ import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.thing.ThingStatusDetail;
 import org.openhab.core.thing.binding.BaseThingHandler;
+import org.openhab.core.types.State;
+import org.openhab.core.types.UnDefType;
 
 /**
  * Abstract handler for all device types.
@@ -41,6 +46,7 @@ import org.openhab.core.thing.binding.BaseThingHandler;
 public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extends BaseThingHandler {
     protected @Nullable T device;
     protected String deviceId = "";
+    protected Map<String, State> stateCache = new HashMap<>();
 
     public enum WSEventType {
         ADD,
@@ -74,8 +80,21 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extend
         super.updateStatus(status, statusDetail, description);
     }
 
+    @Override
+    public void updateState(String channelUID, State state) {
+        super.updateState(channelUID, state);
+        stateCache.put(channelUID, state);
+    }
+
     public void markGone() {
         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.GONE, "GONE");
+    }
+
+    protected void refreshState(String channelId) {
+        State state = stateCache.get(channelId);
+        if (state != null) {
+            super.updateState(channelId, state);
+        }
     }
 
     protected @Nullable UniFiProtectApiClient getApiClient() {
@@ -94,21 +113,15 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extend
     }
 
     protected void updateBooleanChannel(String channelId, @Nullable Boolean value) {
-        if (value != null && hasChannel(channelId)) {
-            updateState(channelId, value ? OnOffType.ON : OnOffType.OFF);
-        }
+        updateState(channelId, value == null ? UnDefType.NULL : value ? OnOffType.ON : OnOffType.OFF);
     }
 
     protected void updateIntegerChannel(String channelId, @Nullable Integer value) {
-        if (value != null && hasChannel(channelId)) {
-            updateState(channelId, new DecimalType(value));
-        }
+        updateState(channelId, value == null ? UnDefType.NULL : new DecimalType(value));
     }
 
     protected void updateStringChannel(String channelId, @Nullable String value) {
-        if (hasChannel(channelId)) {
-            updateState(channelId, new StringType(value));
-        }
+        updateState(channelId, value == null ? UnDefType.NULL : new StringType(value));
     }
 
     protected void updateApiValueChannel(String channelId, ApiValueEnum value) {
@@ -116,20 +129,15 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extend
     }
 
     protected void updateDateTimeChannel(String channelId, long epochMillis) {
-        if (hasChannel(channelId)) {
-            updateState(channelId, new DateTimeType(Instant.ofEpochMilli(epochMillis)));
-        }
+        updateState(channelId, new DateTimeType(Instant.ofEpochMilli(epochMillis)));
     }
 
     protected void updateDecimalChannel(String channelId, @Nullable Number value) {
-        if (value != null && hasChannel(channelId)) {
-            updateState(channelId, new DecimalType(java.math.BigDecimal.valueOf(value.doubleValue())));
-        }
+        updateState(channelId,
+                value == null ? UnDefType.NULL : new DecimalType(BigDecimal.valueOf(value.doubleValue())));
     }
 
     protected void updateContactChannel(String channelId, @Nullable Boolean isOpen) {
-        if (isOpen != null && hasChannel(channelId)) {
-            updateState(channelId, isOpen ? OpenClosedType.OPEN : OpenClosedType.CLOSED);
-        }
+        updateState(channelId, isOpen == null ? UnDefType.NULL : isOpen ? OpenClosedType.OPEN : OpenClosedType.CLOSED);
     }
 }

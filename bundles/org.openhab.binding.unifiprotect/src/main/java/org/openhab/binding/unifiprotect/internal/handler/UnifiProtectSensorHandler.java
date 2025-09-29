@@ -43,6 +43,15 @@ public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler
     }
 
     @Override
+    public void handleCommand(ChannelUID channelUID, Command command) {
+        String id = channelUID.getId();
+        if (command instanceof RefreshType) {
+            refreshState(id);
+            return;
+        }
+    }
+
+    @Override
     public void handleEvent(BaseEvent event, WSEventType eventType) {
         if (event.type == null) {
             return;
@@ -166,44 +175,6 @@ public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler
         }
         if (getThing().getStatus() != ThingStatus.ONLINE) {
             updateStatus(ThingStatus.ONLINE);
-        }
-    }
-
-    @Override
-    public void handleCommand(ChannelUID channelUID, Command command) {
-        String id = channelUID.getId();
-        if (command instanceof RefreshType) {
-            Sensor s = device;
-            if (s == null) {
-                return;
-            }
-            switch (id) {
-                case UnifiProtectBindingConstants.CHANNEL_BATTERY:
-                    if (s.batteryStatus != null && s.batteryStatus.percentage != null) {
-                        updateDecimalChannel(id, s.batteryStatus.percentage);
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_CONTACT:
-                    updateContactChannel(id, s.isOpened);
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_TEMPERATURE:
-                    if (s.stats != null && s.stats.temperature != null) {
-                        updateDecimalChannel(id, s.stats.temperature.value);
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_HUMIDITY:
-                    if (s.stats != null && s.stats.humidity != null) {
-                        updateDecimalChannel(id, s.stats.humidity.value);
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_ILLUMINANCE:
-                    if (s.stats != null && s.stats.light != null) {
-                        updateDecimalChannel(id, s.stats.light.value);
-                    }
-                    return;
-                default:
-                    return;
-            }
         }
     }
 }

@@ -95,55 +95,8 @@ public class UnifiProtectLightHandler extends UnifiProtectAbstractDeviceHandler<
     public void handleCommand(ChannelUID channelUID, Command command) {
         String id = channelUID.getId();
         if (command instanceof RefreshType) {
-            Light l = device;
-            if (l == null) {
-                return;
-            }
-            switch (id) {
-                case UnifiProtectBindingConstants.CHANNEL_LIGHT:
-                    updateBooleanChannel(id, l.isLightOn);
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_IS_DARK:
-                    updateBooleanChannel(id, l.isDark);
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_LAST_MOTION:
-                    if (l.lastMotion != null) {
-                        updateDateTimeChannel(id, l.lastMotion);
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_LIGHT_MODE:
-                    if (l.lightModeSettings != null && l.lightModeSettings.mode != null) {
-                        updateStringChannel(id, l.lightModeSettings.mode.getApiValue());
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_ENABLE_AT:
-                    if (l.lightModeSettings != null && l.lightModeSettings.enableAt != null) {
-                        updateStringChannel(id, l.lightModeSettings.enableAt.getApiValue());
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_INDICATOR_ENABLED:
-                    if (l.lightDeviceSettings != null) {
-                        updateBooleanChannel(id, l.lightDeviceSettings.isIndicatorEnabled);
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_PIR_DURATION:
-                    if (l.lightDeviceSettings != null) {
-                        updateIntegerChannel(id, l.lightDeviceSettings.pirDuration);
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_PIR_SENSITIVITY:
-                    if (l.lightDeviceSettings != null) {
-                        updateIntegerChannel(id, l.lightDeviceSettings.pirSensitivity);
-                    }
-                    return;
-                case UnifiProtectBindingConstants.CHANNEL_LED_LEVEL:
-                    if (l.lightDeviceSettings != null) {
-                        updateIntegerChannel(id, l.lightDeviceSettings.ledLevel);
-                    }
-                    return;
-                default:
-                    return;
-            }
+            refreshState(id);
+            return;
         }
 
         UniFiProtectApiClient api = getApiClient();

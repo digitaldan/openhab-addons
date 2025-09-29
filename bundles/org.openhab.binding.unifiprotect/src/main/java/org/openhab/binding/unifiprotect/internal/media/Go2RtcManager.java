@@ -128,7 +128,7 @@ public class Go2RtcManager {
         ProcessBuilder pb = new ProcessBuilder(cmd).directory(workDir.toFile()).redirectErrorStream(true);
         // Ensure ffmpeg is on PATH so go2rtc can invoke it directly
         Path ffmpeg = ffmpegPathSupplier.get();
-        if (ffmpeg != null && ffmpeg.getParent() != null) {
+        if (ffmpeg.getParent() != null) {
             String ffmpegDir = ffmpeg.getParent().toString();
             Map<String, String> env = pb.environment();
             String pathKey = env.containsKey("Path") ? "Path" : (env.containsKey("PATH") ? "PATH" : "PATH");
