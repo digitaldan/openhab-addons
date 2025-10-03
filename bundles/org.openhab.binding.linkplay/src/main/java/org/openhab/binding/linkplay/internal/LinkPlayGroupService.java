@@ -50,11 +50,21 @@ public class LinkPlayGroupService {
         participants.clear();
     }
 
+    /**
+     * Register a potential group participant (a player)`
+     * 
+     * @param participant
+     */
     public void registerParticipant(LinkPlayGroupParticipant participant) {
         participants.put(participant.getIpAddress(), participant);
         participants.values().forEach(listener -> listener.groupParticipantsUpdated(participants.values()));
     }
 
+    /**
+     * Unregister a participant
+     * 
+     * @param participant
+     */
     public void unregisterParticipant(LinkPlayGroupParticipant participant) {
         groups.remove(participant.getIpAddress());
         participants.remove(participant.getIpAddress());
@@ -62,10 +72,18 @@ public class LinkPlayGroupService {
         groupStateCache.remove(participant.getIpAddress());
     }
 
+    /**
+     * Get the leader of a group
+     * 
+     * @param member
+     * @return the leader of the group (which could also be the member)
+     */
     public @Nullable LinkPlayGroupParticipant getLeader(LinkPlayGroupParticipant member) {
+        // member is the leader
         if (groups.containsKey(member.getIpAddress())) {
             return member;
         }
+        // member is a slave
         for (Map.Entry<String, List<Slave>> entry : groups.entrySet()) {
             if (entry.getValue().stream().anyMatch(slave -> slave.ip.equals(member.getIpAddress()))) {
                 return participants.get(entry.getKey());
@@ -74,6 +92,12 @@ public class LinkPlayGroupService {
         return null;
     }
 
+    /**
+     * Join a member to a group
+     * 
+     * @param member
+     * @param leaderIpAddress the IP address of the leader
+     */
     public void joinGroup(LinkPlayGroupParticipant member, String leaderIpAddress) {
         // first remove the member from any existing group, including their own
         LinkPlayGroupParticipant oldLeader = getLeader(member);
@@ -91,6 +115,11 @@ public class LinkPlayGroupService {
         }
     }
 
+    /**
+     * Remove the member from participating in a group
+     * 
+     * @param member
+     */
     public void unGroup(LinkPlayGroupParticipant member) {
         LinkPlayGroupParticipant leader = getLeader(member);
         try {
@@ -103,13 +132,25 @@ public class LinkPlayGroupService {
         }
     }
 
-    public void addRemoveMember(LinkPlayGroupParticipant leader, String memberIpAddress) {
+    /**
+     * Adds or moves a member to a group
+     * 
+     * @param leader
+     * @param memberIpAddress
+     */
+    public void addOrMoveMember(LinkPlayGroupParticipant leader, String memberIpAddress) {
         LinkPlayGroupParticipant member = participants.get(memberIpAddress);
         if (member != null) {
-            addRemoveMember(leader, member);
+            addOrMoveMember(leader, member);
+            refreshMemberSlaveList(leader);
         }
     }
 
+    /**
+     * Adds all registered players to a single group (play everywhere)
+     * 
+     * @param leader
+     */
     public void addAllMembers(LinkPlayGroupParticipant leader) {
         // unregisterGroup(leader);
         if (!groups.containsKey(leader.getIpAddress())) {
@@ -119,14 +160,16 @@ public class LinkPlayGroupService {
             if (leader.equals(participant)) {
                 return;
             }
-            try {
-                participant.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get();
-            } catch (InterruptedException | ExecutionException e) {
-                logger.error("Error adding member:{} to group:{}", participant.getGroupParticipantLabel(),
-                        leader.getGroupParticipantLabel(), e);
-            }
-            refreshMemberSlaveList(leader);
+            // try {
+            // participant.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get();
+            // } catch (InterruptedException | ExecutionException e) {
+            // logger.error("Error adding member:{} to group:{}", participant.getGroupParticipantLabel(),
+            // leader.getGroupParticipantLabel(), e);
+            // }
+            // refreshMemberSlaveList(leader);
+            addOrMoveMember(leader, participant.getIpAddress());
         });
+        refreshMemberSlaveList(leader);
     }
 
     public void updateGroupState(LinkPlayGroupParticipant leader, String channelId, State state) {
@@ -144,6 +187,12 @@ public class LinkPlayGroupService {
         });
     }
 
+    /**
+     * Get the list of slaves in a group
+     * 
+     * @param member
+     * @return the list of slaves in the group
+     */
     public List<Slave> getGroupList(LinkPlayGroupParticipant member) {
         LinkPlayGroupParticipant leader = getLeader(member);
         if (leader != null) {
@@ -152,7 +201,12 @@ public class LinkPlayGroupService {
         return List.of();
     }
 
-    // to be called when we get the UPNP event "Slave"
+    /**
+     * Refresh the list of slaves in a group
+     * to be called when we get the UPNP event "Slave"
+     * 
+     * @param member
+     */
     public void refreshMemberSlaveList(LinkPlayGroupParticipant member) {
         try {
             SlaveListResponse slaveList = member.getApiClient().multiroomGetSlaveList().get();
@@ -205,7 +259,7 @@ public class LinkPlayGroupService {
         groupStateCache.remove(leader.getIpAddress());
     }
 
-    private void addRemoveMember(LinkPlayGroupParticipant leader, LinkPlayGroupParticipant member) {
+    private void addOrMoveMember(LinkPlayGroupParticipant leader, LinkPlayGroupParticipant member) {
         try {
             List<Slave> slaves = groups.get(leader.getIpAddress());
             if (slaves != null) {
@@ -218,6 +272,5 @@ public class LinkPlayGroupService {
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error adding member: {}", e.getMessage(), e);
         }
-        refreshMemberSlaveList(leader);
     }
 }

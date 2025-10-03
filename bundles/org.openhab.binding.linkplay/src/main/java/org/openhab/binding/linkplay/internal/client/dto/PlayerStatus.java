@@ -35,11 +35,9 @@ public class PlayerStatus {
         BUFFERING
     }
 
-    @SerializedName("status")
     public PlaybackStatus status;
 
     /** Type of stream currently playing. */
-    @SerializedName("type")
     public String type;
 
     /** Channel (Left/Right/Stereo). */
@@ -47,19 +45,15 @@ public class PlayerStatus {
     public String channel;
 
     /** Source input mode. */
-    @SerializedName("mode")
     public String mode;
 
     /** Repeat / shuffle loop mode. */
-    @SerializedName("loop")
     public String loop;
 
     /** Name of EQ preset applied. */
-    @SerializedName("eq")
     public String eq;
 
     /** Vendor string reported by firmware. */
-    @SerializedName("vendor")
     public String vendor;
 
     /** Current track position (seconds). */
@@ -67,7 +61,6 @@ public class PlayerStatus {
     public String currentPosition;
 
     /** Offset PTS (used for video lip-sync). */
-    @SerializedName("offset_pts")
     public String offsetPts;
 
     /** Total track length (seconds). */
@@ -91,7 +84,6 @@ public class PlayerStatus {
     public String volume;
 
     /** Mute flag (1 / 0). */
-    @SerializedName("mute")
     public String mute;
 
     /** Alarm clock active flag. */

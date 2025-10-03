@@ -60,7 +60,7 @@ public class LinkPlayBindingConstants {
     public static final String CHANNEL_PLAYBACK_STATE = "state";
     public static final String CHANNEL_TRACK_POSITION = "position";
     public static final String CHANNEL_TRACK_DURATION = "duration";
-    public static final String CHANNEL_REPEAT_SHUFFLE_MODE = "repeatShuffleMode";
+    public static final String CHANNEL_REPEAT_SHUFFLE_MODE = "repeat-shuffle-mode";
     public static final String CHANNEL_EQ_PRESET = "eq-preset";
     public static final String CHANNEL_VOLUME = "volume";
     public static final String CHANNEL_MUTE = "mute";

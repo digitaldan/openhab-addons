@@ -12,15 +12,18 @@
  */
 package org.openhab.binding.linkplay.internal.client.dto;
 
+import com.google.gson.annotations.SerializedName;
+
 /**
  * Equalizer status response.
  * 
  * @author Dan Cunningham - Initial contribution
  */
 public class EQStatResponse {
-    public String EQStat;
+    @SerializedName("EQStat")
+    public String eqStat;
 
     public boolean isOn() {
-        return "On".equalsIgnoreCase(EQStat);
+        return "On".equalsIgnoreCase(eqStat);
     }
 }

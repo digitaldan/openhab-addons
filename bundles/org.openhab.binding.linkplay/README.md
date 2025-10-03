@@ -1,95 +1,423 @@
 # LinkPlay Binding
 
-_Give some details about what this binding is meant for - a protocol, system, specific device._
-
-_If possible, provide some resources like pictures (only PNG is supported currently), a video, etc. to give an impression of what can be done with this binding._
-_You can place such resources into a `doc` folder next to this README.md._
-
-_Put each sentence in a separate line to improve readability of diffs._
+This binding integrates audio devices based on the LinkPlay platform.
+LinkPlay is a popular Wi-Fi audio module used by many manufacturers to enable streaming capabilities in their speakers and audio devices.
+The binding allows you to control playback, adjust volume, switch inputs, configure equalizer settings, and create multi-room audio groups.
 
 ## Supported Things
 
-_Please describe the different supported things / devices including their ThingTypeUID within this section._
-_Which different types are supported, which models were tested etc.?_
-_Note that it is planned to generate some part of this based on the XML files within ```src/main/resources/OH-INF/thing``` of your binding._
+This binding supports the following thing type:
 
-- `bridge`: Short description of the Bridge, if any
-- `sample`: Short description of the Thing with the ThingTypeUID `sample`
+- `player` - Represents a single LinkPlay-based audio player (Thing Type UID: `linkplay:player`)
+
+LinkPlay modules are used by various manufacturers including Arylic, August, iEast, Rakoit, and others.
+The binding should work with any device using the LinkPlay platform, regardless of the manufacturer.
 
 ## Discovery
 
-_Describe the available auto-discovery features here._
-_Mention for what it works and what needs to be kept in mind when using it._
+The binding supports automatic discovery of LinkPlay devices via UPnP.
+Devices are discovered on the local network if they advertise themselves as UPnP MediaRenderer/MediaServer devices with AVTransport and RenderingControl services.
+
+Discovery will automatically detect:
+- Device IP address
+- Unique Device Name (UDN)
+- Device model and manufacturer information
+- Friendly name
 
 ## Binding Configuration
 
-_If your binding requires or supports general configuration settings, please create a folder ```cfg``` and place the configuration file ```<bindingId>.cfg``` inside it._
-_In this section, you should link to this file and provide some information about the options._
-_The file could e.g. look like:_
-
-```
-# Configuration for the LinkPlay Binding
-#
-# Default secret key for the pairing of the LinkPlay Thing.
-# It has to be between 10-40 (alphanumeric) characters.
-# This may be changed by the user for security reasons.
-secret=openHABSecret
-```
-
-_Note that it is planned to generate some part of this based on the information that is available within ```src/main/resources/OH-INF/binding``` of your binding._
-
-_If your binding does not offer any generic configurations, you can remove this section completely._
+This binding does not require any binding-level configuration.
+All configuration is done at the thing level.
 
 ## Thing Configuration
 
-_Describe what is needed to manually configure a thing, either through the UI or via a thing-file._
-_This should be mainly about its mandatory and optional configuration parameters._
+### `player` Thing Configuration
 
-_Note that it is planned to generate some part of this based on the XML files within ```src/main/resources/OH-INF/thing``` of your binding._
-
-### `sample` Thing Configuration
+The LinkPlay player thing can be configured either through automatic discovery or manually.
 
 | Name            | Type    | Description                           | Default | Required | Advanced |
 |-----------------|---------|---------------------------------------|---------|----------|----------|
-| hostname        | text    | Hostname or IP address of the device  | N/A     | yes      | no       |
-| password        | text    | Password to access the device         | N/A     | yes      | no       |
-| refreshInterval | integer | Interval the device is polled in sec. | 600     | no       | yes      |
+| ipAddress       | text    | IP address of the device              | N/A     | yes      | no       |
+| udn             | text    | Unique Device Name (UDN)              | N/A     | yes      | no       |
+| refreshInterval | integer | Polling interval in seconds           | 30      | no       | yes      |
+
+The UDN is used as the unique identifier for the device and is typically auto-populated during discovery.
 
 ## Channels
 
-_Here you should provide information about available channel types, what their meaning is and how they can be used._
+The binding provides the following channel groups and channels:
 
-_Note that it is planned to generate some part of this based on the XML files within ```src/main/resources/OH-INF/thing``` of your binding._
+### Playback Channel Group
 
-| Channel | Type   | Read/Write | Description                 |
-|---------|--------|------------|-----------------------------|
-| control | Switch | RW         | This is the control channel |
+Controls and monitors playback state and volume.
+
+| Channel ID         | Item Type    | Read/Write | Description                                          |
+|--------------------|--------------|------------|------------------------------------------------------|
+| control            | Player       | RW         | Control playback (PLAY, PAUSE, NEXT, PREVIOUS)       |
+| state              | String       | R          | Current playback state (PLAYING, PAUSED, STOPPED, BUFFERING) |
+| position           | Number:Time  | R          | Current track position                               |
+| duration           | Number:Time  | R          | Total track duration                                 |
+| repeat-shuffle-mode| Number       | RW         | Loop, shuffle or single-track mode (-1=Off, 0=Repeat One, 1=Repeat All, 2=Shuffle All) |
+| eq-preset          | String       | R          | Name of the active EQ preset                         |
+| volume             | Dimmer       | RW         | Main volume (0-100%)                                 |
+| mute               | Switch       | RW         | Mutes or unmutes the device                          |
+
+### Track Metadata Channel Group
+
+Displays information about the currently playing track.
+
+| Channel ID         | Item Type    | Read/Write | Description                                          |
+|--------------------|--------------|------------|------------------------------------------------------|
+| track-title        | String       | R          | Current track title                                  |
+| track-artist       | String       | R          | Current track artist                                 |
+| track-album        | String       | R          | Current track album                                  |
+| album-art-url      | String       | R          | URL of the current album artwork                     |
+| album-art          | Image        | R          | Album artwork image                                  |
+| sample-rate        | Number       | R          | Sample rate of the playing track (Hz)                |
+| bit-depth          | Number       | R          | Bit depth of the playing track                       |
+| bit-rate           | Number       | R          | Bit rate of the playing track (kbps)                 |
+
+### Source Selection Channel Group
+
+Manages input sources and connections.
+
+| Channel ID             | Item Type | Read/Write | Description                                       |
+|------------------------|-----------|------------|---------------------------------------------------|
+| source                 | String    | RW         | Active input source (wifi, bluetooth, line-in, optical, udisk, HDMI) |
+| bluetooth-connected    | Switch    | R          | Indicates if a Bluetooth device is connected      |
+| bluetooth-paired-device| String    | R          | MAC address of the paired Bluetooth device        |
+| line-in-active         | Switch    | R          | True when line-in source is selected              |
+
+### Equalizer & Output Channel Group
+
+Controls equalizer settings and audio output configuration.
+
+| Channel ID              | Item Type | Read/Write | Description                                       |
+|-------------------------|-----------|------------|---------------------------------------------------|
+| enabled                 | Switch    | RW         | Equalizer on/off                                  |
+| preset                  | String    | R          | Name of the active EQ preset                      |
+| band                    | Number    | RW         | Gain value of an EQ frequency band (-12 to 12 dB) |
+| output-hardware-mode    | String    | R          | Active audio output (SPDIF, AUX, COAX)            |
+| channel-balance         | Number    | RW         | Stereo balance (-1.0 left to 1.0 right)           |
+| spdif-switch-delay-ms   | Number    | RW         | SPDIF sample-rate switch delay (0-3000ms)         |
+
+### Multi-room Channel Group
+
+Enables multi-room audio grouping features.
+
+| Channel ID | Item Type | Read/Write | Description                                          |
+|------------|-----------|------------|------------------------------------------------------|
+| volume     | Dimmer    | RW         | Volume level for all grouped devices                 |
+| mute       | Switch    | RW         | Mutes or unmutes all grouped devices                 |
+| active     | Switch    | R          | Indicates if the device is part of a group           |
+| leader     | Switch    | R          | Indicates if the device is a leader of a group       |
+| join       | String    | W          | Join another player's group (send player UDN)        |
+| leave      | String    | W          | Leave this player's group                            |
+| manage     | String    | W          | Add or remove members from this player's group       |
+| ungroup    | Switch    | W          | Ungroup all devices                                  |
+
+### Device Channel Group
+
+Controls device-specific settings.
+
+| Channel ID          | Item Type    | Read/Write | Description                                       |
+|---------------------|--------------|------------|---------------------------------------------------|
+| led-enabled         | Switch       | RW         | Enables or disables the status LED                |
+| touch-keys-enabled  | Switch       | RW         | Enables or disables touch controls                |
+| shutdown-timer      | Number:Time  | RW         | Seconds until automatic shutdown                  |
+| reboot              | Switch       | W          | Sends a reboot command (ON to trigger)            |
+| factory-reset       | Switch       | W          | Restores factory defaults (ON to trigger)         |
+
+### Presets Channel Group
+
+Manages stored presets (stations, playlists, etc.).
+
+| Channel ID | Item Type | Read/Write | Description                                          |
+|------------|-----------|------------|------------------------------------------------------|
+| count      | Number    | R          | Number of presets stored on the device               |
+| play       | Number    | W          | Play the chosen preset number (1-12)                 |
+
+### Preset1-12 Channel Groups
+
+Each preset (1-12) has the following channels:
+
+| Channel ID | Item Type | Read/Write | Description                                          |
+|------------|-----------|------------|------------------------------------------------------|
+| name       | String    | R          | Name of the stored preset                            |
+| url        | String    | R          | URL associated with the preset                       |
+| source     | String    | R          | Source type of the preset (e.g., tunein, udisk)      |
+| pic-url    | String    | R          | Artwork URL for the preset                           |
+| pic        | Image     | R          | Artwork image for the preset                         |
+| play       | Switch    | W          | Play the preset (ON to trigger)                      |
 
 ## Full Example
-
-_Provide a full usage example based on textual configuration files._
-_*.things, *.items examples are mandatory as textual configuration is well used by many users._
-_*.sitemap examples are optional._
 
 ### Thing Configuration
 
 ```java
-Example thing configuration goes here.
+Thing linkplay:player:living_room "Living Room Speaker" [ ipAddress="192.168.1.100", udn="uuid:1234567890", refreshInterval=30 ]
+Thing linkplay:player:bedroom "Bedroom Speaker" [ ipAddress="192.168.1.101", udn="uuid:0987654321", refreshInterval=30 ]
 ```
 
 ### Item Configuration
 
 ```java
-Example item configuration goes here.
+// Playback controls
+Player          LivingRoom_Control           "Control"                { channel="linkplay:player:living_room:playback#control" }
+String          LivingRoom_State             "Playback State [%s]"    { channel="linkplay:player:living_room:playback#state" }
+Dimmer          LivingRoom_Volume            "Volume [%d %%]"         { channel="linkplay:player:living_room:playback#volume" }
+Switch          LivingRoom_Mute              "Mute"                   { channel="linkplay:player:living_room:playback#mute" }
+Number          LivingRoom_RepeatMode        "Repeat Mode"            { channel="linkplay:player:living_room:playback#repeat-shuffle-mode" }
+
+// Track metadata
+String          LivingRoom_TrackTitle        "Title [%s]"             { channel="linkplay:player:living_room:metadata#track-title" }
+String          LivingRoom_TrackArtist       "Artist [%s]"            { channel="linkplay:player:living_room:metadata#track-artist" }
+String          LivingRoom_TrackAlbum        "Album [%s]"             { channel="linkplay:player:living_room:metadata#track-album" }
+Image           LivingRoom_AlbumArt          "Album Art"              { channel="linkplay:player:living_room:metadata#album-art" }
+Number          LivingRoom_SampleRate        "Sample Rate [%d Hz]"    { channel="linkplay:player:living_room:metadata#sample-rate" }
+
+// Source selection
+String          LivingRoom_Source            "Input Source [%s]"      { channel="linkplay:player:living_room:input#source" }
+Switch          LivingRoom_BTConnected       "Bluetooth Connected"    { channel="linkplay:player:living_room:input#bluetooth-connected" }
+
+// Equalizer
+Switch          LivingRoom_EQEnabled         "EQ Enabled"             { channel="linkplay:player:living_room:equalizer#enabled" }
+String          LivingRoom_EQPreset          "EQ Preset [%s]"         { channel="linkplay:player:living_room:equalizer#preset" }
+
+// Multi-room
+Switch          LivingRoom_MRActive          "Multi-room Active"      { channel="linkplay:player:living_room:multiroom#active" }
+Switch          LivingRoom_MRLeader          "Multi-room Leader"      { channel="linkplay:player:living_room:multiroom#leader" }
+String          LivingRoom_JoinGroup         "Join Group"             { channel="linkplay:player:living_room:multiroom#join" }
+Switch          LivingRoom_Ungroup           "Ungroup"                { channel="linkplay:player:living_room:multiroom#ungroup" }
+
+// Device
+Switch          LivingRoom_LED               "Status LED"             { channel="linkplay:player:living_room:device#led-enabled" }
+Switch          LivingRoom_TouchKeys         "Touch Controls"         { channel="linkplay:player:living_room:device#touch-keys-enabled" }
+
+// Presets
+Number          LivingRoom_PresetCount       "Preset Count [%d]"      { channel="linkplay:player:living_room:presets#count" }
+Number          LivingRoom_PlayPreset        "Play Preset"            { channel="linkplay:player:living_room:presets#play" }
+String          LivingRoom_Preset1Name       "Preset 1 [%s]"          { channel="linkplay:player:living_room:preset1#name" }
+Switch          LivingRoom_Preset1Play       "Play Preset 1"          { channel="linkplay:player:living_room:preset1#play" }
 ```
 
 ### Sitemap Configuration
 
 ```perl
-Optional Sitemap configuration goes here.
-Remove this section, if not needed.
+sitemap linkplay label="LinkPlay Audio" {
+    Frame label="Living Room Speaker" {
+        Default item=LivingRoom_Control
+        Text item=LivingRoom_State
+        Slider item=LivingRoom_Volume
+        Switch item=LivingRoom_Mute
+        
+        Text label="Now Playing" {
+            Text item=LivingRoom_TrackTitle
+            Text item=LivingRoom_TrackArtist
+            Text item=LivingRoom_TrackAlbum
+            Image item=LivingRoom_AlbumArt
+            Text item=LivingRoom_SampleRate
+        }
+        
+        Selection item=LivingRoom_Source mappings=[wifi="WiFi", bluetooth="Bluetooth", "line-in"="Line-in", optical="Optical"]
+        
+        Text label="Equalizer" {
+            Switch item=LivingRoom_EQEnabled
+            Text item=LivingRoom_EQPreset
+        }
+        
+        Text label="Multi-room" {
+            Text item=LivingRoom_MRActive
+            Text item=LivingRoom_MRLeader
+            Switch item=LivingRoom_Ungroup
+        }
+        
+        Text label="Presets" {
+            Text item=LivingRoom_PresetCount
+            Switch item=LivingRoom_Preset1Play label="Play Preset 1: [%s]" icon="soundvolume"
+        }
+    }
+}
 ```
 
-## Any custom content here!
+## Multi-room Audio (Grouping)
 
-_Feel free to add additional sections for whatever you think should also be mentioned about your binding!_
+LinkPlay devices support multi-room audio grouping, allowing you to play synchronized audio across multiple speakers.
+Groups use a leader/member architecture where one device acts as the group leader and controls playback for all members.
+
+### Group Architecture
+
+- **Leader**: The device that controls playback for the entire group. Only one leader per group.
+- **Members** (also called "slaves" in the LinkPlay protocol): Devices that follow the leader's playback state.
+- A device can be a leader of its own group, a member of another group, or standalone (not in any group).
+
+### Group Status Channels
+
+| Channel | Description |
+|---------|-------------|
+| `multiroom#active` | Read-only. Indicates if the device is part of a group (as leader or member) |
+| `multiroom#leader` | Read-only. Indicates if the device is the leader of a group |
+
+### Creating and Managing Groups
+
+#### Dynamic Command Options in Main UI
+
+The binding automatically populates the `join` and `manage` channels with labeled options for all discovered LinkPlay devices, allowing you to select devices by their friendly names to add or remove from a group.
+
+![Group Management UI](doc/group_menu.png)
+
+The command options are dynamically updated as:
+- New devices are discovered
+- Devices join or leave groups
+- Device names change
+
+For the **`join` channel**: Available devices that are not currently in a group are shown with their friendly names.
+
+For the **`manage` channel**: The binding provides context-aware options:
+- `"-- Add all players --"` - Add all discovered devices to this group
+- `"-- Remove all players --"` - Remove all members and disband the group (shown only when leading a group)
+- `"Add: [Device Name]"` - Add a specific device to the group
+- `"Remove: [Device Name]"` - Remove a specific device from the group (shown only for current members)
+
+#### 1. Join a Group (Using the `join` Channel)
+
+To have one player join another player's group, send the **IP address** of the leader to the joining device's `multiroom#join` channel:
+
+```java
+// Make bedroom speaker join living room's group
+rule "Join Living Room Group"
+when
+    Item JoinButton changed to ON
+then
+    Bedroom_JoinGroup.sendCommand("192.168.1.100")  // IP address of living room speaker
+end
+```
+
+**Note**: In the Main UI, you can select from a dropdown of available devices instead of entering IP addresses manually.
+
+Special command:
+- `"LEAVE"` - Leave the current group
+
+#### 2. Manage Members (Using the `manage` Channel)
+
+The `manage` channel provides advanced group management from the leader's perspective:
+
+```java
+// Add a specific member to this leader's group
+LivingRoom_ManageGroup.sendCommand("192.168.1.101")  // IP address of device to add
+
+// Remove a member (if already in the group, it gets kicked out)
+LivingRoom_ManageGroup.sendCommand("192.168.1.101")  // Toggles membership
+
+// Add ALL discovered LinkPlay devices to this group (Play Everywhere)
+LivingRoom_ManageGroup.sendCommand("ADD_ALL")
+
+// Leave/disband the group
+LivingRoom_ManageGroup.sendCommand("LEAVE")
+```
+
+#### 3. Leave a Group (Using the `leave` or `ungroup` Channels)
+
+Any device can leave its current group:
+
+```java
+// Using the leave channel (String type)
+Bedroom_LeaveGroup.sendCommand("LEAVE")
+
+// Using the ungroup channel (Switch type) - triggers on any command
+Bedroom_Ungroup.sendCommand(ON)
+```
+
+When a leader leaves/ungroups, the entire group is disbanded.
+
+### Playback Synchronization
+
+When devices are in a group:
+
+1. **Playback Control**: Only the leader's playback controls are active. Member devices mirror the leader's state.
+2. **Synchronized Channels**: The following channels are automatically synchronized from leader to all members:
+   - `playback#control` - Player control commands
+   - `playback#state` - Playback state (PLAYING, PAUSED, etc.)
+   - `playback#position` - Track position
+   - `playback#duration` - Track duration
+   - `playback#repeat-shuffle-mode` - Repeat/shuffle mode
+   - `metadata#track-title` - Track title
+   - `metadata#track-artist` - Track artist
+   - `metadata#track-album` - Track album
+   - `metadata#album-art-url` - Album art URL
+   - `metadata#album-art` - Album art image
+   - `metadata#sample-rate` - Sample rate
+   - `metadata#bit-depth` - Bit depth
+   - `metadata#bit-rate` - Bit rate
+
+3. **Independent Channels**: Each device maintains its own settings for:
+   - Individual volume (`playback#volume`)
+   - Individual mute (`playback#mute`)
+   - Device settings (LED, touch controls, etc.)
+
+### Group Volume Control
+
+The leader device provides special channels to control volume for all grouped devices simultaneously:
+
+| Channel | Type | Description |
+|---------|------|-------------|
+| `multiroom#volume` | Dimmer | Set volume level (0-100%) for all members in the group |
+| `multiroom#mute` | Switch | Mute or unmute all members in the group |
+
+```java
+// Set volume for all speakers in the group to 50%
+LivingRoom_MRVolume.sendCommand(50)
+
+// Mute all speakers in the group
+LivingRoom_MRMute.sendCommand(ON)
+```
+
+### Example: Creating a Whole-House Audio System
+
+```java
+// Items
+String  LivingRoom_JoinGroup     "Join Group"      { channel="linkplay:player:living_room:multiroom#join" }
+String  LivingRoom_ManageGroup   "Manage Members"  { channel="linkplay:player:living_room:multiroom#manage" }
+Switch  LivingRoom_MRActive      "In Group"        { channel="linkplay:player:living_room:multiroom#active" }
+Switch  LivingRoom_MRLeader      "Is Leader"       { channel="linkplay:player:living_room:multiroom#leader" }
+Dimmer  LivingRoom_MRVolume      "Group Volume"    { channel="linkplay:player:living_room:multiroom#volume" }
+Switch  LivingRoom_MRMute        "Group Mute"      { channel="linkplay:player:living_room:multiroom#mute" }
+
+String  Bedroom_JoinGroup        "Join Group"      { channel="linkplay:player:bedroom:multiroom#join" }
+String  Kitchen_JoinGroup        "Join Group"      { channel="linkplay:player:kitchen:multiroom#join" }
+
+// Rules
+rule "Play Everywhere"
+when
+    Item PlayEverywhereButton changed to ON
+then
+    // Make living room the leader and add all devices
+    LivingRoom_ManageGroup.sendCommand("ADD_ALL")
+end
+
+rule "Group Living Room and Bedroom"
+when
+    Item GroupLRBedroomButton changed to ON
+then
+    // Make bedroom join living room's group
+    Bedroom_JoinGroup.sendCommand("192.168.1.100")  // Living room IP
+end
+
+rule "Separate All Speakers"
+when
+    Item UngroupAllButton changed to ON
+then
+    // Each device leaves its group
+    Bedroom_JoinGroup.sendCommand("LEAVE")
+    Kitchen_JoinGroup.sendCommand("LEAVE")
+    LivingRoom_ManageGroup.sendCommand("LEAVE")
+end
+
+rule "Set Party Mode Volume"
+when
+    Item PartyModeButton changed to ON
+then
+    // Set volume for all grouped speakers at once
+    LivingRoom_MRVolume.sendCommand(70)
+end
+```

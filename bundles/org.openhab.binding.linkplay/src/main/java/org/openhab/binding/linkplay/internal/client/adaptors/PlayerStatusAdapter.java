@@ -15,34 +15,40 @@ package org.openhab.binding.linkplay.internal.client.adaptors;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.linkplay.internal.client.dto.PlayerStatus;
 
+import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 
 /**
- * Custom Gson deserializer for {@link PlayerStatus}. It converts the hex encoded
- * "Title", "Artist" and "Album" values into UTF-8 strings so consumers only deal with
- * decoded values.
- *
- * This avoids the need for additional get*Decoded() helper methods on the DTO.
+ * Custom Gson deserializer for PlayerStatus. It converts the hex encoded
+ * "Title", "Artist" and "Album" values into UTF-8 strings
  * 
  * @author Dan Cunningham - Initial contribution
  */
+@NonNullByDefault
 public class PlayerStatusAdapter implements JsonDeserializer<PlayerStatus> {
 
-    private static final Gson GSON_INTERNAL = new Gson();
+    private static final Gson GSON_INTERNAL = new GsonBuilder()
+            .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
 
     @Override
-    public PlayerStatus deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
-            throws JsonParseException {
+    public @Nullable PlayerStatus deserialize(@Nullable JsonElement json, @Nullable Type typeOfT,
+            @Nullable JsonDeserializationContext context) throws JsonParseException {
+        if (json == null) {
+            throw new JsonParseException("Expected JSON object for PlayerStatus");
+        }
+        @Nullable
         PlayerStatus ps = GSON_INTERNAL.fromJson(json, PlayerStatus.class);
-
         if (ps == null) {
-            return null;
+            throw new JsonParseException("Failed to deserialize PlayerStatus");
         }
 
         ps.title = decodeHexSafe(ps.title);
@@ -53,7 +59,7 @@ public class PlayerStatusAdapter implements JsonDeserializer<PlayerStatus> {
     }
 
     private static String decodeHexSafe(String hex) {
-        if (hex == null || hex.length() % 2 != 0) {
+        if (hex.length() % 2 != 0) {
             return hex;
         }
         try {

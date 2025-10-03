@@ -15,6 +15,8 @@ package org.openhab.binding.linkplay.internal.client.dto;
 /**
  * Repeat/shuffle play modes reported by UPnP AVTransport events.
  * 
+ * The API is inconsistant in the name it uses, hence the duplicate mapped values
+ * 
  * @author Dan Cunningham - Initial contribution
  */
 public enum PlayMode {

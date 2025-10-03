@@ -12,14 +12,8 @@
  */
 package org.openhab.binding.linkplay.internal.client.dto;
 
-import com.google.gson.annotations.SerializedName;
-
 /**
  * Representation of the JSON returned by /getAlarmClock:{n}.
- * <p>
- * Only the fields documented in the API specification are modeled here. All
- * values are transmitted as strings by the device, therefore they are mapped
- * to {@code String} for convenience.
  * 
  * @author Dan Cunningham - Initial contribution
  */
@@ -38,7 +32,6 @@ public class AlarmClockInfo {
     public String date;
 
     /** Week day bitmask / value depending on trigger */
-    @SerializedName("week_day")
     public String weekDay;
 
     /** Day-of-month for monthly alarms (trigger==5) */

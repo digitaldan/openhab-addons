@@ -29,9 +29,7 @@ public class Slave {
     public int channel;
     public int volume;
     public int mute;
-    @SerializedName("battery_percent")
     public int batteryPercent;
-    @SerializedName("battery_charging")
     public int batteryCharging;
 
     @Override

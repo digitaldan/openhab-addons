@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  *
- * @author Mark Herwege - Initial contribution
+ * @author Dan Cunningham - Initial contribution
  */
 @Component(service = { DynamicCommandDescriptionProvider.class, LinkPlayCommandDescriptionProvider.class })
 @NonNullByDefault

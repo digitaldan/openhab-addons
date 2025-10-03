@@ -12,9 +12,7 @@
  */
 package org.openhab.binding.linkplay.internal;
 
-import static org.openhab.binding.linkplay.internal.LinkPlayBindingConstants.GROUP_PROXY_CHANNELS;
-import static org.openhab.binding.linkplay.internal.LinkPlayBindingConstants.PROPERTY_DEVICE_NAME;
-import static org.openhab.binding.linkplay.internal.LinkPlayBindingConstants.PROPERTY_GROUP_NAME;
+import static org.openhab.binding.linkplay.internal.LinkPlayBindingConstants.*;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -92,8 +90,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
             SERVICE_RENDERING_CONTROL);
 
     private static final int SUBSCRIPTION_DURATION = 1800; // this is the maxAgeSeconds for the device
-    private static final int COMMAND_TIMEOUT = 30; // seconds
-    private @Nullable LinkPlayConfiguration config;
+    private LinkPlayConfiguration config = new LinkPlayConfiguration();
     private final HttpClient httpClient;
     private @Nullable ScheduledFuture<?> pollJobFast;
     private @Nullable ScheduledFuture<?> pollJobSlow;
@@ -105,8 +102,6 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
     private final LinkPlayGroupService linkPlayGroupService;
     private final LinkPlayCommandDescriptionProvider linkPlayCommandDescriptionProvider;
     private @Nullable String previousAlbumArtUri;
-    private volatile @Nullable RemoteDevice device;
-    private @Nullable String deviceUUID;
     private final Object upnpLock = new Object();
     private Map<String, Boolean> subscriptionState = new HashMap<>();
     private boolean inGroup = false;
@@ -143,11 +138,6 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
     public void initialize() {
         config = getConfigAs(LinkPlayConfiguration.class);
         logger.debug("{}: initialize: {}", deviceName, config);
-        // try {
-        // httpClient.start();
-        // } catch (Exception e) {
-        // throw new IllegalStateException("Could not create HTTP client", e);
-        // }
         apiClient.setHostname(config.ipAddress);
         upnpIOService.registerParticipant(this);
         linkPlayGroupService.registerParticipant(this);
@@ -166,11 +156,6 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
         removeSubscription();
         upnpIOService.removeStatusListener(this);
         upnpIOService.unregisterParticipant(this);
-        // try {
-        // httpClient.stop();
-        // } catch (Exception e) {
-        // logger.debug("Failed to stop HTTP client: {}", e.getMessage(), e);
-        // }
     }
 
     @Override
@@ -284,7 +269,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
                                 linkPlayGroupService.addAllMembers(this);
                                 break;
                             default:
-                                linkPlayGroupService.addRemoveMember(this, stringType.toString());
+                                linkPlayGroupService.addOrMoveMember(this, stringType.toString());
                                 break;
                         }
                     }
@@ -292,8 +277,6 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
                 case LinkPlayBindingConstants.CHANNEL_MULTIROOM_UNGROUP:
                     linkPlayGroupService.unGroup(this);
                     break;
-
-                // ---------------- Additional commandable channels ----------------
 
                 case LinkPlayBindingConstants.CHANNEL_REPEAT_SHUFFLE_MODE:
                     if (command instanceof DecimalType decimalType) {
@@ -481,7 +464,6 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
      */
     public synchronized void updateDeviceConfig(RemoteDevice device) {
         logger.debug("{}: updateDeviceConfig: {}", deviceName, device.getIdentity().getUdn().getIdentifierString());
-        this.device = device;
         int maxAgeSeconds = device.getIdentity().getMaxAgeSeconds();
         logger.debug("{}: maxAgeSeconds: {} {}", deviceName, device.getIdentity().getUdn().getIdentifierString(),
                 maxAgeSeconds);
@@ -635,7 +617,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
             updateState(LinkPlayBindingConstants.GROUP_METADATA, LinkPlayBindingConstants.CHANNEL_TRACK_ALBUM,
                     stateOrNull(md.album, StringType.class));
 
-            updateAlbumArtChannels(md.albumArtURI);
+            updateAlbumArtChannels(md.albumArtUri);
 
             updateState(LinkPlayBindingConstants.GROUP_METADATA, LinkPlayBindingConstants.CHANNEL_SAMPLE_RATE,
                     stateOrNull(md.sampleRate, DecimalType.class));

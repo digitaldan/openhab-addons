@@ -14,8 +14,6 @@ package org.openhab.binding.linkplay.internal.client.dto;
 
 import java.util.List;
 
-import com.google.gson.annotations.SerializedName;
-
 /**
  * Response from /multiroom:getSlaveList
  * 
@@ -24,10 +22,8 @@ import com.google.gson.annotations.SerializedName;
 public class SlaveListResponse {
 
     public int slaves;
-    @SerializedName("wmrm_version")
     public String wmrmVersion;
     public int surround;
-    @SerializedName("slave_list")
     public List<Slave> slaveList = List.of();
 
     /**

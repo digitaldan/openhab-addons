@@ -4,7 +4,50 @@
 	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
 	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
 
-	<!-- ======================== CHANNEL-TYPE DEFINITIONS ======================== -->
+	<thing-type id="player">
+		<label>LinkPlay Player</label>
+		<description>Represents a single LinkPlay-based audio player</description>
+		<channel-groups>
+			<channel-group id="playback" typeId="playback"/>
+			<channel-group id="metadata" typeId="metadata"/>
+			<channel-group id="input" typeId="input"/>
+			<channel-group id="equalizer" typeId="equalizer"/>
+			<channel-group id="network" typeId="network"/>
+			<channel-group id="multiroom" typeId="multiroom"/>
+			<channel-group id="device" typeId="device"/>
+			<channel-group id="presets" typeId="presets"/>
+			<channel-group id="preset1" typeId="preset"/>
+			<channel-group id="preset2" typeId="preset"/>
+			<channel-group id="preset3" typeId="preset"/>
+			<channel-group id="preset4" typeId="preset"/>
+			<channel-group id="preset5" typeId="preset"/>
+			<channel-group id="preset6" typeId="preset"/>
+			<channel-group id="preset7" typeId="preset"/>
+			<channel-group id="preset8" typeId="preset"/>
+			<channel-group id="preset9" typeId="preset"/>
+			<channel-group id="preset10" typeId="preset"/>
+			<channel-group id="preset11" typeId="preset"/>
+			<channel-group id="preset12" typeId="preset"/>
+		</channel-groups>
+		<representation-property>udn</representation-property>
+		<config-description>
+			<parameter name="ipAddress" type="text" required="true">
+				<context>network-address</context>
+				<label>IP Address</label>
+				<description>IP address of the device</description>
+			</parameter>
+			<parameter name="udn" type="text" required="true">
+				<label>UDN</label>
+				<description>Unique Device Name (UDN)</description>
+			</parameter>
+			<parameter name="refreshInterval" type="integer" unit="s" min="1">
+				<label>Refresh Interval</label>
+				<description>Polling interval in seconds</description>
+				<default>30</default>
+				<advanced>true</advanced>
+			</parameter>
+		</config-description>
+	</thing-type>
 
 	<!-- Playback & Player Status -->
 	<channel-type id="playerControl">
@@ -158,7 +201,6 @@
 		<label>EQ Enabled</label>
 		<description>Equaliser on/off</description>
 	</channel-type>
-	<!-- Five generic band channels share the same type definition -->
 	<channel-type id="eqBand">
 		<item-type>Number</item-type>
 		<label>EQ Band</label>
@@ -234,6 +276,7 @@
 		<label>Ungroup</label>
 		<description>Ungroup all devices</description>
 	</channel-type>
+
 	<!-- Device & System -->
 	<channel-type id="ledEnabled">
 		<item-type>Switch</item-type>
@@ -310,7 +353,7 @@
 		<description>Play the preset (ON to trigger)</description>
 	</channel-type>
 
-	<!-- ======================== CHANNEL-GROUP-TYPE DEFINITIONS ======================== -->
+	<!-- Channel groups -->
 	<channel-group-type id="playback">
 		<label>Playback</label>
 		<description>Playback control and status</description>
@@ -399,7 +442,6 @@
 			<channel id="play" typeId="playPreset"/>
 		</channels>
 	</channel-group-type>
-	<!-- Generic preset group containing details of a single preset -->
 	<channel-group-type id="preset">
 		<label>Preset</label>
 		<description>Information stored for a single device preset</description>
@@ -412,59 +454,4 @@
 			<channel id="play" typeId="presetPlay"/>
 		</channels>
 	</channel-group-type>
-
-	<!-- ======================== THING-TYPE DEFINITIONS ======================== -->
-	<thing-type id="player">
-		<label>LinkPlay Player</label>
-		<description>Represents a single LinkPlay-based audio player</description>
-
-		<channel-groups>
-			<channel-group id="playback" typeId="playback"/>
-
-			<channel-group id="metadata" typeId="metadata"/>
-
-			<channel-group id="input" typeId="input"/>
-
-			<channel-group id="equalizer" typeId="equalizer"/>
-
-			<channel-group id="network" typeId="network"/>
-
-			<channel-group id="multiroom" typeId="multiroom"/>
-
-			<channel-group id="device" typeId="device"/>
-
-			<channel-group id="presets" typeId="presets"/>
-
-			<channel-group id="preset1" typeId="preset"/>
-			<channel-group id="preset2" typeId="preset"/>
-			<channel-group id="preset3" typeId="preset"/>
-			<channel-group id="preset4" typeId="preset"/>
-			<channel-group id="preset5" typeId="preset"/>
-			<channel-group id="preset6" typeId="preset"/>
-			<channel-group id="preset7" typeId="preset"/>
-			<channel-group id="preset8" typeId="preset"/>
-			<channel-group id="preset9" typeId="preset"/>
-			<channel-group id="preset10" typeId="preset"/>
-			<channel-group id="preset11" typeId="preset"/>
-			<channel-group id="preset12" typeId="preset"/>
-		</channel-groups>
-		<representation-property>udn</representation-property>
-		<config-description>
-			<parameter name="ipAddress" type="text" required="true">
-				<context>network-address</context>
-				<label>IP Address</label>
-				<description>IP address of the device</description>
-			</parameter>
-			<parameter name="udn" type="text" required="true">
-				<label>UDN</label>
-				<description>Unique Device Name (UDN)</description>
-			</parameter>
-			<parameter name="refreshInterval" type="integer" unit="s" min="1">
-				<label>Refresh Interval</label>
-				<description>Polling interval in seconds</description>
-				<default>30</default>
-				<advanced>true</advanced>
-			</parameter>
-		</config-description>
-	</thing-type>
 </thing:thing-descriptions>

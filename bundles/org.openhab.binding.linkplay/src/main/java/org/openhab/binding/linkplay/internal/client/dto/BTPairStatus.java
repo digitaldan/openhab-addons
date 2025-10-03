@@ -18,5 +18,34 @@ package org.openhab.binding.linkplay.internal.client.dto;
  * @author Dan Cunningham - Initial contribution
  */
 public class BTPairStatus {
-    public int result; // 0 not paired, 1 disconnected, 2 connecting, 3 connected
+
+    public Result result;
+
+    public enum Result {
+        NOT_PAIRED(0),
+        DISCONNECTED(1),
+        CONNECTING(2),
+        CONNECTED(3);
+
+        public final int code;
+
+        Result(int code) {
+            this.code = code;
+        }
+
+        public static Result fromCode(int code) {
+            switch (code) {
+                case 0:
+                    return NOT_PAIRED;
+                case 1:
+                    return DISCONNECTED;
+                case 2:
+                    return CONNECTING;
+                case 3:
+                    return CONNECTED;
+                default:
+                    return NOT_PAIRED;
+            }
+        }
+    }
 }

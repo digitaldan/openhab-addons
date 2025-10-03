@@ -104,10 +104,8 @@ public class LinkPlayHandlerFactory extends BaseThingHandlerFactory implements R
             LinkPlayHandler handler = new LinkPlayHandler(thing, httpClient, upnpIOService, upnpService,
                     linkPlayGroupService, linkPlayCommandDescriptionProvider);
             String udn = handler.getUDN();
-            if (udn != null) {
-                handlers.put(udn, handler);
-                remoteDeviceUpdated(null, devices.get(udn));
-            }
+            handlers.put(udn, handler);
+            remoteDeviceUpdated(null, devices.get(udn));
             return handler;
         }
 

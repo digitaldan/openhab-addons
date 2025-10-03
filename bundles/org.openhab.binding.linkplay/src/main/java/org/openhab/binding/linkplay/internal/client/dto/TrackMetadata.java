@@ -31,7 +31,7 @@ public class TrackMetadata {
         public String artist;
 
         @SerializedName("albumArtURI")
-        public String albumArtURI;
+        public String albumArtUri;
 
         public String sampleRate;
         public String bitDepth;
@@ -41,7 +41,7 @@ public class TrackMetadata {
         @Override
         public String toString() {
             return "MetaData{" + "album='" + album + '\'' + ", title='" + title + '\'' + ", subtitle='" + subtitle
-                    + '\'' + ", artist='" + artist + '\'' + ", albumArtURI='" + albumArtURI + '\'' + ", sampleRate='"
+                    + '\'' + ", artist='" + artist + '\'' + ", albumArtUri='" + albumArtUri + '\'' + ", sampleRate='"
                     + sampleRate + '\'' + ", bitDepth='" + bitDepth + '\'' + ", bitRate='" + bitRate + '\''
                     + ", trackId='" + trackId + '\'' + '}';
         }

@@ -22,10 +22,8 @@ import com.google.gson.annotations.SerializedName;
  * @author Dan Cunningham - Initial contribution
  */
 public class PresetList {
-    @SerializedName("preset_num")
     public int presetNum;
 
-    @SerializedName("preset_list")
     public List<Preset> presetList;
 
     public static class Preset {

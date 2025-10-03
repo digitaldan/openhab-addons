@@ -23,7 +23,6 @@ import com.google.gson.annotations.SerializedName;
  */
 public class BluetoothDeviceList {
     public int num;
-    @SerializedName("scan_status")
     public int scanStatus;
     public List<BluetoothDevice> list;
 

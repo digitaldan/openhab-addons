@@ -20,8 +20,10 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
+import org.openhab.binding.linkplay.internal.client.adaptors.BtPairStatusAdapter;
 import org.openhab.binding.linkplay.internal.client.adaptors.PlayerStatusAdapter;
 import org.openhab.binding.linkplay.internal.client.dto.AlarmClockInfo;
 import org.openhab.binding.linkplay.internal.client.dto.AudioOutputHardwareMode;
@@ -41,6 +43,7 @@ import org.openhab.binding.linkplay.internal.client.dto.WlanConnectState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -54,8 +57,9 @@ public class LinkPlayHTTPClient {
 
     private final HttpClient httpClient;
     private String hostname;
-    private final Gson gson = new GsonBuilder().registerTypeAdapter(PlayerStatus.class, new PlayerStatusAdapter())
-            .create();
+    private final Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+            .registerTypeAdapter(PlayerStatus.class, new PlayerStatusAdapter())
+            .registerTypeAdapter(BTPairStatus.class, new BtPairStatusAdapter()).create();
     private final Logger logger = LoggerFactory.getLogger(LinkPlayHTTPClient.class);
 
     public LinkPlayHTTPClient(HttpClient httpClient, String hostname) {
@@ -97,13 +101,14 @@ public class LinkPlayHTTPClient {
                         T casted = (T) payload;
                         return casted;
                     }
-                    if (payload.equals("Failed")) {
-                        throw new RuntimeException("Response Failed");
+                    if ("Failed".equals(payload)) {
+                        throw new LinkPlayClientException("Response Failed");
                     }
 
+                    @Nullable
                     T result = gson.fromJson(payload, responseType);
                     if (result == null) {
-                        throw new RuntimeException("Response is null");
+                        throw new LinkPlayClientException("Response is null");
                     }
                     return result;
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -114,7 +119,8 @@ public class LinkPlayHTTPClient {
             }
 
             // If we reach here, all attempts failed.
-            throw new RuntimeException("Failed to execute request after trying multiple endpoints", lastException);
+            throw new LinkPlayClientException("Failed to execute request after trying multiple endpoints",
+                    lastException);
         }, executor);
     }
 
