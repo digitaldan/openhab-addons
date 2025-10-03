@@ -263,7 +263,7 @@ Groups use a leader/member architecture where one device acts as the group leade
 #### Dynamic Command Options in Main UI
 
 The binding automatically populates the `join` and `manage` channels with labeled options for all discovered LinkPlay devices, allowing you to select devices by their friendly names to add or remove from a group.
-In the MainUI this allows you to use an Item tied to a `join` or `manage` channel to display an options menu to select from (use the "Command Options" action type).
+In the MainUI this allows you to use an Item tied to a `join` or `manage` channel to display an options menu to select from (use the "Command Options" action type) thats automatically populated with available players.
 
 ![Group Management UI](doc/group_menu.png)
 
@@ -280,9 +280,9 @@ For the **`manage` channel**: The binding also provides these additional options
 - `"Add: [Device Name]"` - Add a specific device to the group
 - `"Remove: [Device Name]"` - Remove a specific device from the group (shown only for current members)
 
-#### 1. Join a Group (Using the `join` Channel)
+#### Join a Group (Using the `join` Channel) using rules
 
-To have one player join another player's group, send the **IP address** of the leader to the joining device's `multiroom#join` channel:
+In addition to using the MainUI to provide selectable options, you can use rules to have one player join another player's group, send the **IP address** of the leader to the joining device's `multiroom#join` channel:
 
 ```java
 // Make bedroom speaker join living room's group
@@ -299,7 +299,7 @@ end
 Special command:
 - `"LEAVE"` - Leave the current group
 
-#### 2. Manage Members (Using the `manage` Channel)
+#### Manage Members (Using the `manage` Channel) Rule
 
 The `manage` channel provides advanced group management from the leader's perspective:
 
@@ -317,7 +317,7 @@ LivingRoom_ManageGroup.sendCommand("ADD_ALL")
 LivingRoom_ManageGroup.sendCommand("LEAVE")
 ```
 
-#### 3. Leave a Group (Using the `leave` or `ungroup` Channels)
+#### Leave a Group (Using the `leave` or `ungroup` Channels) Rule
 
 Any device can leave its current group:
 
@@ -365,14 +365,6 @@ The leader device provides special channels to control volume for all grouped de
 | `multiroom#volume` | Dimmer | Set volume level (0-100%) for all members in the group |
 | `multiroom#mute` | Switch | Mute or unmute all members in the group |
 
-```java
-// Set volume for all speakers in the group to 50%
-LivingRoom_MRVolume.sendCommand(50)
-
-// Mute all speakers in the group
-LivingRoom_MRMute.sendCommand(ON)
-```
-
 ### Example: Creating a Whole-House Audio System
 
 ```java
@@ -387,7 +379,7 @@ Switch  LivingRoom_MRMute        "Group Mute"      { channel="linkplay:player:li
 String  Bedroom_JoinGroup        "Join Group"      { channel="linkplay:player:bedroom:multiroom#join" }
 String  Kitchen_JoinGroup        "Join Group"      { channel="linkplay:player:kitchen:multiroom#join" }
 
-// Rules
+// Rules (if not using the Main UI to provide a command option menu)
 rule "Play Everywhere"
 when
     Item PlayEverywhereButton changed to ON
