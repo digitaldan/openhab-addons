@@ -18,6 +18,7 @@ import java.util.List;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.linkplay.internal.client.LinkPlayHTTPClient;
 import org.openhab.binding.linkplay.internal.client.dto.Slave;
+import org.openhab.core.thing.ThingUID;
 import org.openhab.core.types.State;
 
 /**
@@ -38,6 +39,8 @@ public interface LinkPlayGroupParticipant {
     String getGroupParticipantLabel();
 
     String getIpAddress();
+
+    ThingUID getThingUID();
 
     LinkPlayHTTPClient getApiClient();
 }

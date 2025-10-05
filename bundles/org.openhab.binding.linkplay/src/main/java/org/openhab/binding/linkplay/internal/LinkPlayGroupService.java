@@ -16,11 +16,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.linkplay.internal.client.dto.Slave;
 import org.openhab.binding.linkplay.internal.client.dto.SlaveListResponse;
+import org.openhab.core.thing.ThingUID;
 import org.openhab.core.types.State;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -38,10 +40,9 @@ import org.slf4j.LoggerFactory;
 public class LinkPlayGroupService {
 
     private final Logger logger = LoggerFactory.getLogger(LinkPlayGroupService.class);
-    private final Map<String, List<Slave>> groups = new ConcurrentHashMap<>();
-    private final Map<String, Map<String, State>> groupStateCache = new ConcurrentHashMap<>();
-
-    private final Map<String, LinkPlayGroupParticipant> participants = new ConcurrentHashMap<>();
+    private final Map<ThingUID, List<Slave>> groups = new ConcurrentHashMap<>();
+    private final Map<ThingUID, Map<String, State>> groupStateCache = new ConcurrentHashMap<>();
+    private final Map<ThingUID, LinkPlayGroupParticipant> participants = new ConcurrentHashMap<>();
 
     @Deactivate
     public void deactivate() {
@@ -56,8 +57,8 @@ public class LinkPlayGroupService {
      * @param participant
      */
     public void registerParticipant(LinkPlayGroupParticipant participant) {
-        participants.put(participant.getIpAddress(), participant);
-        participants.values().forEach(listener -> listener.groupParticipantsUpdated(participants.values()));
+        participants.put(participant.getThingUID(), participant);
+        notifyAllParticipantsUpdated();
     }
 
     /**
@@ -66,10 +67,11 @@ public class LinkPlayGroupService {
      * @param participant
      */
     public void unregisterParticipant(LinkPlayGroupParticipant participant) {
-        groups.remove(participant.getIpAddress());
-        participants.remove(participant.getIpAddress());
-        participants.values().forEach(listener -> listener.groupParticipantsUpdated(participants.values()));
-        groupStateCache.remove(participant.getIpAddress());
+        ThingUID uid = participant.getThingUID();
+        groups.remove(uid);
+        participants.remove(uid);
+        groupStateCache.remove(uid);
+        notifyAllParticipantsUpdated();
     }
 
     /**
@@ -80,12 +82,13 @@ public class LinkPlayGroupService {
      */
     public @Nullable LinkPlayGroupParticipant getLeader(LinkPlayGroupParticipant member) {
         // member is the leader
-        if (groups.containsKey(member.getIpAddress())) {
+        if (groups.containsKey(member.getThingUID())) {
             return member;
         }
         // member is a slave
-        for (Map.Entry<String, List<Slave>> entry : groups.entrySet()) {
-            if (entry.getValue().stream().anyMatch(slave -> slave.ip.equals(member.getIpAddress()))) {
+        String memberIp = member.getIpAddress();
+        for (Map.Entry<ThingUID, List<Slave>> entry : groups.entrySet()) {
+            if (entry.getValue().stream().anyMatch(slave -> slave.ip.equals(memberIp))) {
                 return participants.get(entry.getKey());
             }
         }
@@ -96,21 +99,21 @@ public class LinkPlayGroupService {
      * Join a member to a group
      * 
      * @param member
-     * @param leaderIpAddress the IP address of the leader
+     * @param leaderThingUID the ThingUID of the leader
      */
-    public void joinGroup(LinkPlayGroupParticipant member, String leaderIpAddress) {
+    public void joinGroup(LinkPlayGroupParticipant member, ThingUID leaderThingUID) {
         // first remove the member from any existing group, including their own
         LinkPlayGroupParticipant oldLeader = getLeader(member);
         if (oldLeader != null) {
             unGroup(oldLeader);
         }
-        try {
-            member.getApiClient().multiroomJoinGroupMaster(leaderIpAddress).get();
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Error joining group: {}", e.getMessage(), e);
-        }
-        LinkPlayGroupParticipant leader = participants.get(leaderIpAddress);
+        LinkPlayGroupParticipant leader = participants.get(leaderThingUID);
         if (leader != null) {
+            try {
+                member.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get();
+            } catch (InterruptedException | ExecutionException e) {
+                logger.error("Error joining group: {}", e.getMessage(), e);
+            }
             refreshMemberSlaveList(leader);
         }
     }
@@ -136,10 +139,10 @@ public class LinkPlayGroupService {
      * Adds or moves a member to a group
      * 
      * @param leader
-     * @param memberIpAddress
+     * @param memberThingUID
      */
-    public void addOrMoveMember(LinkPlayGroupParticipant leader, String memberIpAddress) {
-        LinkPlayGroupParticipant member = participants.get(memberIpAddress);
+    public void addOrMoveMember(LinkPlayGroupParticipant leader, ThingUID memberThingUID) {
+        LinkPlayGroupParticipant member = participants.get(memberThingUID);
         if (member != null) {
             addOrMoveMember(leader, member);
             refreshMemberSlaveList(leader);
@@ -152,39 +155,30 @@ public class LinkPlayGroupService {
      * @param leader
      */
     public void addAllMembers(LinkPlayGroupParticipant leader) {
-        // unregisterGroup(leader);
-        if (!groups.containsKey(leader.getIpAddress())) {
+        if (!groups.containsKey(leader.getThingUID())) {
             unGroup(leader);
         }
         participants.values().forEach(participant -> {
             if (leader.equals(participant)) {
                 return;
             }
-            // try {
-            // participant.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get();
-            // } catch (InterruptedException | ExecutionException e) {
-            // logger.error("Error adding member:{} to group:{}", participant.getGroupParticipantLabel(),
-            // leader.getGroupParticipantLabel(), e);
-            // }
-            // refreshMemberSlaveList(leader);
-            addOrMoveMember(leader, participant.getIpAddress());
+            addOrMoveMember(leader, participant.getThingUID());
         });
         refreshMemberSlaveList(leader);
     }
 
     public void updateGroupState(LinkPlayGroupParticipant leader, String channelId, State state) {
         logger.debug("{}: Updating state {} {}", leader.getGroupParticipantLabel(), channelId, state);
-        groupStateCache.computeIfAbsent(leader.getIpAddress(), k -> new ConcurrentHashMap<String, State>())
-                .put(channelId, state);
-        groups.getOrDefault(leader.getIpAddress(), List.of()).forEach(slave -> {
-            if (slave.ip.equals(leader.getIpAddress())) {
-                return;
-            }
-            LinkPlayGroupParticipant participant = participants.get(slave.ip);
-            if (participant != null) {
-                participant.groupProxyUpdateState(channelId, state);
-            }
-        });
+        Map<String, State> cache = groupStateCache.computeIfAbsent(leader.getThingUID(),
+                k -> new ConcurrentHashMap<>());
+        if (cache != null) {
+            cache.put(channelId, state);
+        }
+
+        // Notify all group members except the leader
+        String leaderIp = leader.getIpAddress();
+        groups.getOrDefault(leader.getThingUID(), List.of()).stream().filter(slave -> !slave.ip.equals(leaderIp))
+                .forEach(slave -> notifyParticipant(slave.ip, p -> p.groupProxyUpdateState(channelId, state)));
     }
 
     /**
@@ -196,7 +190,7 @@ public class LinkPlayGroupService {
     public List<Slave> getGroupList(LinkPlayGroupParticipant member) {
         LinkPlayGroupParticipant leader = getLeader(member);
         if (leader != null) {
-            return groups.getOrDefault(leader.getIpAddress(), List.of());
+            return groups.getOrDefault(leader.getThingUID(), List.of());
         }
         return List.of();
     }
@@ -217,60 +211,88 @@ public class LinkPlayGroupService {
                 return;
             }
 
-            List<Slave> oldSlaves = groups.put(member.getIpAddress(), slaves);
-            if (oldSlaves != null) {
-                oldSlaves.forEach(slave -> {
-                    if (!slaves.stream().anyMatch(s -> s.ip.equals(slave.ip))) {
-                        LinkPlayGroupParticipant listener = participants.get(slave.ip);
-                        if (listener != null) {
-                            listener.removedFromGroup(member);
-                        }
-                    }
-                });
-            }
-            slaves.forEach(slave -> {
-                LinkPlayGroupParticipant listener = participants.get(slave.ip);
-                if (listener != null) {
-                    listener.addedToOrUpdatedGroup(member, slaves);
-                }
-                groupStateCache.computeIfAbsent(member.getIpAddress(), k -> new ConcurrentHashMap<String, State>())
-                        .forEach((channelId, state) -> {
-                            listener.groupProxyUpdateState(channelId, state);
-                        });
-            });
-            member.addedToOrUpdatedGroup(member, slaves);
+            ThingUID leaderUID = member.getThingUID();
+            List<Slave> oldSlaves = groups.put(leaderUID, slaves);
 
+            // Notify participants that were removed from the group
+            if (oldSlaves != null) {
+                oldSlaves.stream().filter(slave -> slaves.stream().noneMatch(s -> s.ip.equals(slave.ip)))
+                        .forEach(slave -> notifyParticipant(slave.ip, p -> p.removedFromGroup(member)));
+            }
+
+            // Notify participants that are now in the group and apply cached states
+            Map<String, State> cachedStates = groupStateCache.computeIfAbsent(leaderUID,
+                    k -> new ConcurrentHashMap<>());
+            slaves.forEach(slave -> {
+                LinkPlayGroupParticipant participant = findParticipantByIp(slave.ip);
+                if (participant != null) {
+                    participant.addedToOrUpdatedGroup(member, slaves);
+                    if (cachedStates != null) {
+                        cachedStates.forEach((channelId, state) -> participant.groupProxyUpdateState(channelId, state));
+                    }
+                }
+            });
+
+            member.addedToOrUpdatedGroup(member, slaves);
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error getting slave list: {}", e.getMessage(), e);
         }
     }
 
     private void unregisterGroup(LinkPlayGroupParticipant leader) {
-        List<Slave> slaves = groups.remove(leader.getIpAddress());
+        ThingUID leaderUID = leader.getThingUID();
+        List<Slave> slaves = groups.remove(leaderUID);
         if (slaves != null) {
-            slaves.forEach(slave -> {
-                LinkPlayGroupParticipant listener = participants.get(slave.ip);
-                if (listener != null) {
-                    listener.removedFromGroup(leader);
-                }
-            });
+            slaves.forEach(slave -> notifyParticipant(slave.ip, p -> p.removedFromGroup(leader)));
             leader.removedFromGroup(leader);
         }
-        groupStateCache.remove(leader.getIpAddress());
+        groupStateCache.remove(leaderUID);
     }
 
     private void addOrMoveMember(LinkPlayGroupParticipant leader, LinkPlayGroupParticipant member) {
         try {
-            List<Slave> slaves = groups.get(leader.getIpAddress());
+            String memberIp = member.getIpAddress();
+            String leaderIp = leader.getIpAddress();
+            List<Slave> slaves = groups.get(leader.getThingUID());
             if (slaves != null) {
-                if (slaves.stream().anyMatch(slave -> slave.ip.equals(member.getIpAddress()))) {
-                    leader.getApiClient().multiroomSlaveKickout(member.getIpAddress()).get();
+                if (slaves.stream().anyMatch(slave -> slave.ip.equals(memberIp))) {
+                    leader.getApiClient().multiroomSlaveKickout(memberIp).get();
                     return;
                 }
             }
-            member.getApiClient().multiroomJoinGroupMaster(leader.getIpAddress()).get();
+            member.getApiClient().multiroomJoinGroupMaster(leaderIp).get();
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error adding member: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * Find a participant by IP address (used internally for API operations)
+     * 
+     * @param ipAddress
+     * @return the participant with the given IP address, or null if not found
+     */
+    private @Nullable LinkPlayGroupParticipant findParticipantByIp(String ipAddress) {
+        return participants.values().stream().filter(p -> p.getIpAddress().equals(ipAddress)).findFirst().orElse(null);
+    }
+
+    /**
+     * Find a participant by IP and execute an action if found
+     * 
+     * @param ipAddress the IP address to find
+     * @param action the action to perform on the participant if found
+     */
+    private void notifyParticipant(String ipAddress, Consumer<LinkPlayGroupParticipant> action) {
+        LinkPlayGroupParticipant participant = findParticipantByIp(ipAddress);
+        if (participant != null) {
+            action.accept(participant);
+        }
+    }
+
+    /**
+     * Notify all participants that the participant list has been updated
+     */
+    private void notifyAllParticipantsUpdated() {
+        participants.values().forEach(p -> p.groupParticipantsUpdated(participants.values()));
     }
 }

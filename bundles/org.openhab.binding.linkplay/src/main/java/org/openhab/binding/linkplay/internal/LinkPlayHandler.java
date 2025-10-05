@@ -60,6 +60,7 @@ import org.openhab.core.library.types.StringType;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
+import org.openhab.core.thing.ThingUID;
 import org.openhab.core.thing.binding.BaseThingHandler;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.CommandDescription;
@@ -252,7 +253,8 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
                         if (stringType.toString().equals("LEAVE")) {
                             linkPlayGroupService.unGroup(this);
                         } else {
-                            linkPlayGroupService.joinGroup(this, stringType.toString());
+                            ThingUID leaderUID = new ThingUID(stringType.toString());
+                            linkPlayGroupService.joinGroup(this, leaderUID);
                         }
                     }
                     break;
@@ -269,7 +271,8 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
                                 linkPlayGroupService.addAllMembers(this);
                                 break;
                             default:
-                                linkPlayGroupService.addOrMoveMember(this, stringType.toString());
+                                ThingUID memberUID = new ThingUID(stringType.toString());
+                                linkPlayGroupService.addOrMoveMember(this, memberUID);
                                 break;
                         }
                     }
@@ -363,7 +366,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
     @Override
     public void onValueReceived(@Nullable String variable, @Nullable String value, @Nullable String service) {
         logger.debug("{}: onValueReceived: {} {} {}", deviceName, variable, value, service);
-        if (value == null) {
+        if (value == null || service == null) {
             return;
         }
         switch (service) {
@@ -394,6 +397,11 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
     }
 
     // LinkPlayGroupService methods
+    @Override
+    public ThingUID getThingUID() {
+        return getThing().getUID();
+    }
+
     @Override
     public String getIpAddress() {
         return config.ipAddress;
@@ -499,8 +507,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
             return;
         }
         try {
-            LinkPlayHTTPClient apiClient = this.apiClient;
-            if (apiClient == null || httpClient.isStopped()) {
+            if (httpClient.isStopped()) {
                 return;
             }
             sendDeviceSearchRequest();
@@ -537,8 +544,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
     }
 
     private void pollSlow() {
-        LinkPlayHTTPClient apiClient = this.apiClient;
-        if (apiClient == null || httpClient.isStopped()) {
+        if (httpClient.isStopped()) {
             return;
         }
         try {
@@ -633,7 +639,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
 
     public void updatePresetInfo() throws InterruptedException, ExecutionException, TimeoutException {
         PresetList presetInfo = apiClient.getPresetInfo().get();
-        if (presetInfo != null && presetInfo.presetList != null) {
+        if (presetInfo.presetList != null) {
             updateState(LinkPlayBindingConstants.GROUP_PRESETS, LinkPlayBindingConstants.CHANNEL_PRESET_COUNT,
                     stateOrNull(presetInfo.presetNum, DecimalType.class));
             List<CommandOption> commandOptions = new ArrayList<>();
@@ -990,8 +996,8 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
         // filter out ourself and participants that are in a group
         allParticipants.stream()
                 .filter(participant -> !participant.equals(this) && linkPlayGroupService.getLeader(participant) == null)
-                .forEach(participant -> commandOptions
-                        .add(new CommandOption(participant.getIpAddress(), participant.getGroupParticipantLabel())));
+                .forEach(participant -> commandOptions.add(new CommandOption(participant.getThingUID().toString(),
+                        participant.getGroupParticipantLabel())));
 
         updateCommandDescription(new ChannelUID(getThing().getUID(), LinkPlayBindingConstants.GROUP_MULTIROOM,
                 LinkPlayBindingConstants.CHANNEL_MULTIROOM_JOIN), commandOptions);
@@ -1008,7 +1014,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
         if (slaves == null) {
             slaves = linkPlayGroupService.getGroupList(this);
         }
-        logger.info("{}: Slaves: {}", deviceName, slaves);
+        logger.debug("{}: Slaves: {}", deviceName, slaves);
         if (isLeader && !slaves.isEmpty()) {
             commandOptions.add(new CommandOption("LEAVE", "-- Remove all players --"));
         }
@@ -1018,10 +1024,10 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
                 continue;
             }
             if (isLeader && slaves.stream().anyMatch(slave -> slave.ip.equals(participant.getIpAddress()))) {
-                commandOptions.add(new CommandOption(participant.getIpAddress(),
+                commandOptions.add(new CommandOption(participant.getThingUID().toString(),
                         "Remove: " + participant.getGroupParticipantLabel()));
             } else {
-                commandOptions.add(new CommandOption(participant.getIpAddress(),
+                commandOptions.add(new CommandOption(participant.getThingUID().toString(),
                         "Add: " + participant.getGroupParticipantLabel()));
             }
         }

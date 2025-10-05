@@ -68,6 +68,8 @@ public class LinkPlayHandlerFactory extends BaseThingHandlerFactory implements R
         this.upnpService = upnpService;
         this.linkPlayCommandDescriptionProvider = linkPlayCommandDescriptionProvider;
         upnpService.getRegistry().addListener(this);
+
+        // share a single http client for all handlers
         httpClient = new HttpClient(new SslContextFactory.Client(true));
         httpClient.setConnectTimeout(30000);
         httpClient.setName("LinkPlayHTTPClient");
@@ -80,7 +82,7 @@ public class LinkPlayHandlerFactory extends BaseThingHandlerFactory implements R
     }
 
     @Deactivate
-    protected void deActivate() {
+    protected void deactivate() {
         upnpService.getRegistry().removeListener(this);
         devices.clear();
         handlers.clear();

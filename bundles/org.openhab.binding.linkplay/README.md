@@ -19,6 +19,7 @@ The binding supports automatic discovery of LinkPlay devices via UPnP.
 Devices are discovered on the local network if they advertise themselves as UPnP MediaRenderer/MediaServer devices with AVTransport and RenderingControl services.
 
 Discovery will automatically detect:
+
 - Device IP address
 - Unique Device Name (UDN)
 - Device model and manufacturer information
@@ -111,7 +112,7 @@ Enables multi-room audio grouping features.
 | mute       | Switch    | RW         | Mutes or unmutes all grouped devices                 |
 | active     | Switch    | R          | Indicates if the device is part of a group           |
 | leader     | Switch    | R          | Indicates if the device is a leader of a group       |
-| join       | String    | W          | Join another player's group (send player UDN)        |
+| join       | String    | W          | Join another player's group (send player Thing UID)  |
 | leave      | String    | W          | Leave this player's group                            |
 | manage     | String    | W          | Add or remove members from this player's group       |
 | ungroup    | Switch    | W          | Ungroup all devices                                  |
@@ -268,6 +269,7 @@ In the MainUI this allows you to use an Item tied to a `join` or `manage` channe
 ![Group Management UI](doc/group_menu.png)
 
 The command options are dynamically updated as:
+
 - New devices are discovered
 - Devices join or leave groups
 - Device names change
@@ -275,6 +277,7 @@ The command options are dynamically updated as:
 For the **`join` channel**: Available devices that are not currently in a group are shown with their friendly names.
 
 For the **`manage` channel**: The binding also provides these additional options:
+
 - `"-- Add all players --"` - Add all discovered devices to this group
 - `"-- Remove all players --"` - Remove all members and disband the group (shown only when leading a group)
 - `"Add: [Device Name]"` - Add a specific device to the group
@@ -282,7 +285,7 @@ For the **`manage` channel**: The binding also provides these additional options
 
 #### Join a Group (Using the `join` Channel) using rules
 
-In addition to using the MainUI to provide selectable options, you can use rules to have one player join another player's group, send the **IP address** of the leader to the joining device's `multiroom#join` channel:
+In addition to using the MainUI to provide selectable options, you can use rules to have one player join another player's group, send the **Thing UID** of the leader to the joining device's `multiroom#join` channel:
 
 ```java
 // Make bedroom speaker join living room's group
@@ -290,13 +293,14 @@ rule "Join Living Room Group"
 when
     Item JoinButton changed to ON
 then
-    Bedroom_JoinGroup.sendCommand("192.168.1.100")  // IP address of living room speaker
+    Bedroom_JoinGroup.sendCommand("linkplay:player:living_room")  // Thing UID of living room speaker
 end
 ```
 
-**Note**: In the Main UI, you can select from a dropdown of available devices instead of entering IP addresses manually.
+**Note**: In the Main UI, you can select from a dropdown of available devices instead of entering Thing UIDs manually.
 
 Special command:
+
 - `"LEAVE"` - Leave the current group
 
 #### Manage Members (Using the `manage` Channel) Rule
@@ -305,10 +309,10 @@ The `manage` channel provides advanced group management from the leader's perspe
 
 ```java
 // Add a specific member to this leader's group
-LivingRoom_ManageGroup.sendCommand("192.168.1.101")  // IP address of device to add
+LivingRoom_ManageGroup.sendCommand("linkplay:player:bedroom")  // Thing UID of device to add
 
 // Remove a member (if already in the group, it gets kicked out)
-LivingRoom_ManageGroup.sendCommand("192.168.1.101")  // Toggles membership
+LivingRoom_ManageGroup.sendCommand("linkplay:player:bedroom")  // Toggles membership
 
 // Add ALL discovered LinkPlay devices to this group (Play Everywhere)
 LivingRoom_ManageGroup.sendCommand("ADD_ALL")
@@ -393,7 +397,7 @@ when
     Item GroupLRBedroomButton changed to ON
 then
     // Make bedroom join living room's group
-    Bedroom_JoinGroup.sendCommand("192.168.1.100")  // Living room IP
+    Bedroom_JoinGroup.sendCommand("linkplay:player:living_room")  // Living room Thing UID
 end
 
 rule "Separate All Speakers"
