@@ -23,6 +23,7 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 public class LinkPlayConfiguration {
 
     public String ipAddress = "";
+    public int port = 443;
     public int refreshInterval = 30;
     public String udn = "";
 }

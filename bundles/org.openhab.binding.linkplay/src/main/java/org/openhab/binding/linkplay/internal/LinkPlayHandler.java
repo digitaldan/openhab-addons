@@ -128,7 +128,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
         // Get this in constructor, so the UDN and IP is immediately available from the config. The concrete classes
         // should update the config from the initialize method.
         config = getConfigAs(LinkPlayConfiguration.class);
-        apiClient = new LinkPlayHTTPClient(httpClient, config.ipAddress);
+        apiClient = new LinkPlayHTTPClient(httpClient, config.ipAddress, config.port);
         groupName = getThing().getProperties().getOrDefault(PROPERTY_GROUP_NAME,
                 Objects.requireNonNullElse(getThing().getLabel(), getThing().getUID().getAsString()));
         deviceName = getThing().getProperties().getOrDefault(PROPERTY_DEVICE_NAME,
@@ -140,6 +140,7 @@ public class LinkPlayHandler extends BaseThingHandler implements UpnpIOParticipa
         config = getConfigAs(LinkPlayConfiguration.class);
         logger.debug("{}: initialize: {}", deviceName, config);
         apiClient.setHostname(config.ipAddress);
+        apiClient.setPort(config.port);
         upnpIOService.registerParticipant(this);
         linkPlayGroupService.registerParticipant(this);
         pollJobFast = scheduler.scheduleWithFixedDelay(this::pollFast, 0, Math.max(5, config.refreshInterval),

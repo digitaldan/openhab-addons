@@ -33,7 +33,6 @@ public class LinkPlayBindingConstants {
     public static final ThingTypeUID THING_TYPE_PLAYER = new ThingTypeUID(BINDING_ID, "player");
     public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Collections.singleton(THING_TYPE_PLAYER);
 
-    public static final String PROPERTY_UDN = "udn";
     public static final String PROPERTY_FIRMWARE = "firmwareVersion";
     public static final String PROPERTY_MODEL = "model";
     public static final String PROPERTY_IP = "ipAddress";
@@ -42,6 +41,7 @@ public class LinkPlayBindingConstants {
     public static final String PROPERTY_DEVICE_NAME = "deviceName";
     public static final String PROPERTY_GROUP_NAME = "groupName";
     public static final String CONFIG_IP_ADDRESS = "ipAddress";
+    public static final String CONFIG_PORT = "port";
     public static final String CONFIG_UDN = "udn";
     public static final String CONFIG_REFRESH_INTERVAL = "refreshInterval";
 

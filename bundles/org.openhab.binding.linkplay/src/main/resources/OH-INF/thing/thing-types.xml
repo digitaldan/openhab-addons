@@ -36,6 +36,11 @@
 				<label>IP Address</label>
 				<description>IP address of the device</description>
 			</parameter>
+			<parameter name="port" type="integer" required="true">
+				<label>Port</label>
+				<description>Port of the device</description>
+				<default>443</default>
+			</parameter>
 			<parameter name="udn" type="text" required="true">
 				<label>UDN</label>
 				<description>Unique Device Name (UDN)</description>

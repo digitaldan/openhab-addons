@@ -57,18 +57,24 @@ public class LinkPlayHTTPClient {
 
     private final HttpClient httpClient;
     private String hostname;
+    private int port;
     private final Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
             .registerTypeAdapter(PlayerStatus.class, new PlayerStatusAdapter())
             .registerTypeAdapter(BTPairStatus.class, new BtPairStatusAdapter()).create();
     private final Logger logger = LoggerFactory.getLogger(LinkPlayHTTPClient.class);
 
-    public LinkPlayHTTPClient(HttpClient httpClient, String hostname) {
+    public LinkPlayHTTPClient(HttpClient httpClient, String hostname, int port) {
         this.hostname = hostname;
         this.httpClient = httpClient;
+        this.port = port;
     }
 
     public void setHostname(String hostname) {
         this.hostname = hostname;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
     }
 
     /**
@@ -83,44 +89,32 @@ public class LinkPlayHTTPClient {
     private <T> CompletableFuture<T> sendGetRequest(String command, Class<T> responseType) {
         Executor executor = httpClient.getExecutor();
         return CompletableFuture.supplyAsync(() -> {
-            Exception lastException = null;
-
-            String[] urls = new String[] {
-                    String.format("https://%s:%d/httpapi.asp?command=%s", hostname, 443, command),
-                    String.format("https://%s:%d/httpapi.asp?command=%s", hostname, 4443, command),
-                    String.format("http://%s:%d/httpapi.asp?command=%s", hostname, 80, command) };
-
-            for (String url : urls) {
-                try {
-                    logger.trace("Sending GET request to {}", url);
-                    ContentResponse response = httpClient.GET(url);
-                    String payload = response.getContentAsString();
-                    logger.trace("Response: {}", payload);
-                    if (responseType == String.class) {
-                        @SuppressWarnings("unchecked")
-                        T casted = (T) payload;
-                        return casted;
-                    }
-                    if ("Failed".equals(payload)) {
-                        throw new LinkPlayClientException("Response Failed");
-                    }
-
-                    @Nullable
-                    T result = gson.fromJson(payload, responseType);
-                    if (result == null) {
-                        throw new LinkPlayClientException("Response is null");
-                    }
-                    return result;
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                    logger.trace("Failed to send GET request to {}: {}", url, e.getMessage());
-                    // Remember and try next candidate.
-                    lastException = e;
+            String url = String.format("%s://%s:%d/httpapi.asp?command=%s",
+                    String.valueOf(port).endsWith("443") ? "https" : "http", hostname, port, command);
+            try {
+                logger.trace("Sending GET request to {}", url);
+                ContentResponse response = httpClient.GET(url);
+                String payload = response.getContentAsString();
+                logger.trace("Response: {}", payload);
+                if (responseType == String.class) {
+                    @SuppressWarnings("unchecked")
+                    T casted = (T) payload;
+                    return casted;
                 }
-            }
+                if ("Failed".equals(payload)) {
+                    throw new LinkPlayClientException("Response Failed");
+                }
 
-            // If we reach here, all attempts failed.
-            throw new LinkPlayClientException("Failed to execute request after trying multiple endpoints",
-                    lastException);
+                @Nullable
+                T result = gson.fromJson(payload, responseType);
+                if (result == null) {
+                    throw new LinkPlayClientException("Response is null");
+                }
+                return result;
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                logger.trace("Failed to send GET request to {}: {}", url, e.getMessage());
+                throw new LinkPlayClientException("Failed to send GET request to " + url, e);
+            }
         }, executor);
     }
 

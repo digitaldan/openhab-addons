@@ -27,7 +27,6 @@ import org.jupnp.model.types.ServiceId;
 import org.jupnp.model.types.UDAServiceId;
 import org.openhab.binding.linkplay.internal.LinkPlayBindingConstants;
 import org.openhab.binding.linkplay.internal.client.LinkPlayHTTPClient;
-import org.openhab.binding.linkplay.internal.client.dto.DeviceStatus;
 import org.openhab.core.config.discovery.DiscoveryResult;
 import org.openhab.core.config.discovery.DiscoveryResultBuilder;
 import org.openhab.core.config.discovery.upnp.UpnpDiscoveryParticipant;
@@ -41,15 +40,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A UPnP discovery participant for LinkPlay devices.
- * 
- * Discovery workflow:
- * 1. Detects UPnP devices with MediaRenderer/MediaServer capabilities
- * 2. Validates required UPnP services (AVTransport, RenderingControl)
- * 3. Extracts device IP and performs HTTP validation
- * 4. Creates Thing discovery result if validation succeeds
  *
- * @author Michael Cumming - Initial contribution
- * @author Dan Cunningham - Refactored
+ * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
 @Component(service = UpnpDiscoveryParticipant.class)
@@ -57,7 +49,7 @@ public class LinkPlayUpnpDiscoveryParticipant implements UpnpDiscoveryParticipan
 
     private final Logger logger = LoggerFactory.getLogger(LinkPlayUpnpDiscoveryParticipant.class);
 
-    private static final int DISCOVERY_RESULT_TTL_SECONDS = 300;
+    private static final int TTL_SECONDS = 300;
     private static final ServiceId SERVICE_ID_AV_TRANSPORT = new UDAServiceId("AVTransport");
     private static final ServiceId SERVICE_ID_RENDERING_CONTROL = new UDAServiceId("RenderingControl");
 
@@ -89,37 +81,15 @@ public class LinkPlayUpnpDiscoveryParticipant implements UpnpDiscoveryParticipan
 
     @Override
     public @Nullable ThingUID getThingUID(RemoteDevice device) {
-        try {
-            if (!hasRequiredServices(device)) {
-                logger.trace("Device {} does not have required UPnP services", device.getDetails().getFriendlyName());
-                return null;
-            }
-
-            String host = device.getIdentity().getDescriptorURL().getHost();
-
-            if (host == null || host.isEmpty()) {
-                logger.trace("no host for device {}", device.getDetails().getFriendlyName());
-                return null;
-            }
-
-            try {
-                LinkPlayHTTPClient httpClient = new LinkPlayHTTPClient(this.httpClient, host);
-                DeviceStatus deviceStatus = httpClient.getStatusEx().get(5000, TimeUnit.MILLISECONDS);
-                if (deviceStatus.uuid != null) {
-                    String deviceId = device.getIdentity().getUdn().getIdentifierString();
-                    deviceId = deviceId.replace("uuid:", "").replace("-", "");
-                    logger.debug("Creating ThingUID with deviceId: {}", deviceId);
-                    ThingUID thingUID = new ThingUID(LinkPlayBindingConstants.THING_TYPE_PLAYER, deviceId);
-                    return thingUID;
-                }
-            } catch (Exception e) {
-                logger.trace("Could not validate device at {}: {}", host, e.getMessage());
-            }
-            return null;
-        } catch (Exception e) {
-            logger.debug("Discovery error for device {}: {}", device.getDetails().getFriendlyName(), e.getMessage());
+        if (!hasRequiredServices(device)) {
             return null;
         }
+        String udnIdentifier = device.getIdentity().getUdn().getIdentifierString();
+        if (udnIdentifier == null || udnIdentifier.isEmpty()) {
+            return null;
+        }
+        String udn = udnIdentifier.replace("uuid:", "").replace("-", "");
+        return new ThingUID(LinkPlayBindingConstants.THING_TYPE_PLAYER, udn);
     }
 
     @Override
@@ -129,27 +99,47 @@ public class LinkPlayUpnpDiscoveryParticipant implements UpnpDiscoveryParticipan
             return null;
         }
 
-        String ipAddress = device.getIdentity().getDescriptorURL().getHost();
-        String friendlyName = device.getDetails().getFriendlyName();
-        String manufacturer = device.getDetails().getManufacturerDetails().getManufacturer();
-        String modelName = device.getDetails().getModelDetails().getModelName();
-        String deviceUDN = device.getIdentity().getUdn().getIdentifierString();
-        String normalizedUDN = deviceUDN.replace("uuid:", "");
+        String host = device.getIdentity().getDescriptorURL().getHost();
 
-        Map<String, Object> properties = new HashMap<>();
-        properties.put(LinkPlayBindingConstants.CONFIG_IP_ADDRESS, ipAddress);
-        properties.put(LinkPlayBindingConstants.CONFIG_UDN, normalizedUDN);
-        properties.put(LinkPlayBindingConstants.PROPERTY_DEVICE_NAME, friendlyName);
-        properties.put(LinkPlayBindingConstants.PROPERTY_MODEL, modelName);
-        properties.put(LinkPlayBindingConstants.PROPERTY_MANUFACTURER, manufacturer);
-        properties.put(LinkPlayBindingConstants.PROPERTY_UDN, normalizedUDN);
+        if (host == null || host.isEmpty()) {
+            logger.trace("no host for device {}", device.getDetails().getFriendlyName());
+            return null;
+        }
+        // Linkplay devices can use 443, 4443, or 80 depending on the vendor
+        int[] ports = { 443, 4443, 80 };
+        LinkPlayHTTPClient client = new LinkPlayHTTPClient(this.httpClient, host, ports[0]);
+        for (int port : ports) {
+            try {
+                client.setPort(port);
+                logger.trace("Trying port {} for device at {}", port, host);
+                // test that the device is reachable on the given port
+                client.getStatusEx().get(5000, TimeUnit.MILLISECONDS);
+                String friendlyName = device.getDetails().getFriendlyName();
+                String manufacturer = device.getDetails().getManufacturerDetails().getManufacturer();
+                String modelName = device.getDetails().getModelDetails().getModelName();
+                String deviceUDN = device.getIdentity().getUdn().getIdentifierString().replace("uuid:", "");
 
-        String label = String.format("LinkPlay: %s", friendlyName);
-        logger.debug("Building discovery result for {}: label={}, properties={}", thingUID, label, properties);
+                Map<String, Object> properties = new HashMap<>();
+                properties.put(LinkPlayBindingConstants.CONFIG_PORT, port);
+                properties.put(LinkPlayBindingConstants.CONFIG_IP_ADDRESS, host);
+                properties.put(LinkPlayBindingConstants.CONFIG_UDN, deviceUDN);
+                properties.put(LinkPlayBindingConstants.PROPERTY_DEVICE_NAME, friendlyName);
+                properties.put(LinkPlayBindingConstants.PROPERTY_MODEL, modelName);
+                properties.put(LinkPlayBindingConstants.PROPERTY_MANUFACTURER, manufacturer);
 
-        return DiscoveryResultBuilder.create(thingUID).withLabel(label).withProperties(properties)
-                .withRepresentationProperty(LinkPlayBindingConstants.CONFIG_UDN).withTTL(DISCOVERY_RESULT_TTL_SECONDS)
-                .build();
+                String label = String.format("LinkPlay: %s", friendlyName);
+                logger.debug("Building discovery result for {}: label={}, properties={}", thingUID, label, properties);
+
+                return DiscoveryResultBuilder.create(thingUID).withLabel(label).withProperties(properties)
+                        .withRepresentationProperty(LinkPlayBindingConstants.CONFIG_UDN).withTTL(TTL_SECONDS).build();
+
+            } catch (Exception e) {
+                logger.trace("Could not validate device at {}:{} - {}", host, port, e.getMessage());
+                // Continue to next port
+            }
+        }
+        // no valid port found
+        return null;
     }
 
     private boolean hasRequiredServices(@Nullable RemoteDevice device) {
