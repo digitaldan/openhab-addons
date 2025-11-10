@@ -37,6 +37,13 @@ export class ColorDeviceType extends BaseDeviceType {
             colorTempPhysicalMaxMireds,
         );
 
+        if (clusterValues.options === undefined) {
+            clusterValues.options = {
+                executeIfOff: false,
+                coupleColorTempToLevel: false,
+            };
+        }
+
         const endpoint = new Endpoint(
             ExtendedColorLightDevice.with(
                 // set OnOff Locally to ensure moveToHueAndSaturationLogic gets triggered when the
