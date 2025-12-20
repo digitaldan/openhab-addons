@@ -255,7 +255,11 @@ export class DeviceNode {
 
     public async removeFabric(fabricIndex: number) {
         const fabricManager = this.#getStartedServer().env.get(FabricManager);
-        await fabricManager.removeFabric(FabricIndex(fabricIndex));
+        const fabric = fabricManager.maybeFor(FabricIndex(fabricIndex));
+        if(!fabric) {
+            throw new Error(`Fabric ${fabricIndex} not found`);
+        }
+        await fabric.leave();
     }
 
     //private methods

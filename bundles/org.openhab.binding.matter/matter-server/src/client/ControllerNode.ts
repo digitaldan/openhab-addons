@@ -1,5 +1,5 @@
 // Include this first to auto-register Crypto, Network and Time Node.js implementations
-import { Environment, Logger, StorageContext } from "@matter/general";
+import { Environment, Logger, StorageContext, StorageService } from "@matter/general";
 import { NodeId } from "@matter/types";
 import { CommissioningController, ControllerStore } from "@project-chip/matter.js";
 import { Endpoint, NodeStates, PairedNode } from "@project-chip/matter.js/device";
@@ -64,14 +64,14 @@ export class ControllerNode {
             autoConnect: false,
             adminFabricLabel: fabricLabel,
         });
-        await this.commissioningController.initializeControllerStore();
-
-        const controllerStore = this.commissioningController.env.get(ControllerStore);
+        
+        const storageService = this.commissioningController.env.get(StorageService);
         // TODO: Implement resetStorage
         // if (resetStorage) {
-        //     await controllerStore.erase();
+        //     await this.commissioningController.node.erase();
         // }
-        this.storageContext = controllerStore.storage.createContext("Node");
+        this.storageContext = (await storageService.open(id)).createContext("Node");
+
 
         if (await this.Store.has("ControllerFabricLabel")) {
             await this.commissioningController.updateFabricLabel(
@@ -107,7 +107,7 @@ export class ControllerNode {
 
                 if (connectionTimeout && connectionTimeout > 0) {
                     timeoutId = setTimeout(() => {
-                        logger.info(`Node ${node?.nodeId} state: ${node?.connectionState}`);
+                        logger.info(`Node ${node?.nodeId} state: ${node?.state}`);
                         if (
                             node?.connectionState === NodeStates.Disconnected ||
                             node?.connectionState === NodeStates.WaitingForDeviceDiscovery ||
@@ -217,7 +217,6 @@ export class ControllerNode {
         if (this.commissioningController === undefined) {
             throw new Error("CommissioningController not initialized");
         }
-        //const node = await this.commissioningController.connectNode(NodeId(BigInt(nodeId)))
         const node = this.nodes.get(NodeId(BigInt(nodeId)));
         if (node === undefined) {
             throw new Error(`Node ${nodeId} not connected`);
