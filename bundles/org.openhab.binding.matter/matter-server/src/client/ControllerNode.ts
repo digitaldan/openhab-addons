@@ -1,7 +1,7 @@
 // Include this first to auto-register Crypto, Network and Time Node.js implementations
 import { Environment, Logger, StorageContext, StorageService } from "@matter/general";
 import { NodeId } from "@matter/types";
-import { CommissioningController, ControllerStore } from "@project-chip/matter.js";
+import { CommissioningController } from "@project-chip/matter.js";
 import { Endpoint, NodeStates, PairedNode } from "@project-chip/matter.js/device";
 import { WebSocketSession } from "../app";
 import { EventType, NodeState } from "../MessageTypes";
