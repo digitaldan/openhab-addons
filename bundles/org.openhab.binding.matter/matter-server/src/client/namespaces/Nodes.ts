@@ -291,4 +291,24 @@ export class Nodes {
         console.log("Logging structure of Node ", node.nodeId.toString());
         node.logStructure();
     }
+
+    async checkForUpdates(nodeId: number | string) {
+        const node = this.controllerNode.getNode(nodeId);
+        const nodeDetails = this.controllerNode.commissioningController?.getCommissionedNodesDetails().find(nd => nd.nodeId === node.nodeId);
+        const basicInfo = nodeDetails?.deviceData?.basicInformation;
+        if (!basicInfo) {
+            throw new Error(`Node ${nodeId} has no basic information available`);
+        }
+        if (
+            basicInfo.vendorId === undefined ||
+            basicInfo.productId === undefined ||
+            basicInfo.softwareVersion === undefined
+        ) {
+            throw new Error(
+                `Node ${nodeId} is missing required basic information for OTA check`,
+            );
+        }
+
+        console.log(`Checking for OTA updates for node ${nodeId}...`);
+    }
 }

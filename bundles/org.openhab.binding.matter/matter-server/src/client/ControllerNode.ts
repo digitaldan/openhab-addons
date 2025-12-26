@@ -1,11 +1,13 @@
 // Include this first to auto-register Crypto, Network and Time Node.js implementations
-import { Environment, Logger, StorageContext, StorageService } from "@matter/general";
+import { Environment, Logger, ObserverGroup, SharedEnvironmentServices, StorageContext, StorageService } from "@matter/general";
 import { NodeId } from "@matter/types";
 import { CommissioningController } from "@project-chip/matter.js";
 import { Endpoint, NodeStates, PairedNode } from "@project-chip/matter.js/device";
 import { WebSocketSession } from "../app";
 import { EventType, NodeState } from "../MessageTypes";
 import { printError } from "../util/error";
+import { SoftwareUpdateManager } from "@matter/node";
+import { DclOtaUpdateService } from "@matter/main/protocol";
 const logger = Logger.get("ControllerNode");
 
 /**
@@ -16,7 +18,8 @@ export class ControllerNode {
     private storageContext?: StorageContext;
     private nodes: Map<NodeId, PairedNode> = new Map();
     commissioningController?: CommissioningController;
-
+    private observers?: ObserverGroup;
+    #services?: SharedEnvironmentServices;
     constructor(
         private readonly storageLocation: string,
         private readonly controllerName: string,
@@ -30,6 +33,20 @@ export class ControllerNode {
             throw new Error("Storage uninitialized");
         }
         return this.storageContext;
+    }
+
+    get otaService() {
+        if (!this.environment.has(DclOtaUpdateService)) {
+            new DclOtaUpdateService(this.environment); // Adds itself to the environment
+        }
+        return this.services.get(DclOtaUpdateService);
+    }
+
+    protected get services() {
+        if (!this.#services) {
+            this.#services = this.environment.asDependent();
+        }
+        return this.#services;
     }
 
     /**
@@ -63,6 +80,7 @@ export class ControllerNode {
             },
             autoConnect: false,
             adminFabricLabel: fabricLabel,
+            enableOtaProvider: true
         });
         
         const storageService = this.commissioningController.env.get(StorageService);
@@ -80,6 +98,24 @@ export class ControllerNode {
         }
 
         await this.commissioningController.start();
+
+        this.observers = this.observers ?? new ObserverGroup(this.environment.runtime);
+        const updateManagerEvents = this.commissioningController.otaProvider.eventsOf(SoftwareUpdateManager);
+        this.observers.on(updateManagerEvents.updateAvailable, (peer, details) => {
+            logger.info(`Update available for peer `, peer, `:`, details);
+            const nodeId = peer?.nodeId.toString();
+            if(!nodeId) {
+                logger.error(`Node ID not found for peer `, peer);
+                return;
+            }
+            this.ws.sendEvent(EventType.UpdateAvailable, {
+                ...details,
+                nodeId: nodeId,
+            });
+        });
+        this.observers.on(updateManagerEvents.updateDone, peer => {
+            logger.info(`Update done for peer `, peer);
+        });
     }
 
     /**

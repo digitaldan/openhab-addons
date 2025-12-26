@@ -41,6 +41,7 @@ import org.openhab.binding.matter.internal.client.dto.ws.BridgeEventMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.EventTriggeredMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.NodeDataMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.NodeStateMessage;
+import org.openhab.binding.matter.internal.client.dto.ws.UpdateAvailableMessage;
 import org.openhab.binding.matter.internal.config.ControllerConfiguration;
 import org.openhab.binding.matter.internal.controller.MatterControllerClient;
 import org.openhab.binding.matter.internal.discovery.MatterDiscoveryHandler;
@@ -245,6 +246,17 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
     public void onEvent(NodeDataMessage message) {
         logger.debug("NodeDataMessage onEvent: node {} is {}", message.node.id, message.node);
         updateNode(message.node);
+    }
+
+    @Override
+    public void onEvent(UpdateAvailableMessage message) {
+        logger.debug("UpdateAvailableMessage onEvent: node {} is {}", message.nodeId, message);
+        NodeHandler handler = linkedNodes.get(message.nodeId);
+        if (handler == null) {
+            logger.debug("No handler found for node {}", message.nodeId);
+            return;
+        }
+        handler.onEvent(message);
     }
 
     @Override
