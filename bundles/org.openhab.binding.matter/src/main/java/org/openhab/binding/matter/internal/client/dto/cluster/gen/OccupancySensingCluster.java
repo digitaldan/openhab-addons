@@ -57,11 +57,10 @@ public class OccupancySensingCluster extends BaseCluster {
     public OccupancySensorTypeBitmap occupancySensorTypeBitmap; // 2 OccupancySensorTypeBitmap R V
     /**
      * This attribute shall specify the time delay, in seconds, before the sensor changes to its unoccupied state after
-     * the last detection of occupancy in the sensed area. This is equivalent to the legacy
-     * OccupiedToUnoccupiedDelay attributes.
-     * The value of HoldTime shall be within the limits provided in the HoldTimeLimits attribute, i.e. HoldTimeMin
-     * &lt;&#x3D; HoldTime &lt;&#x3D; HoldTimeMax Low values of HoldTime SHOULD be avoided since they could lead to many
-     * reporting messages. A value 0 for HoldTime shall NOT be used.
+     * the last detection of occupancy in the sensed area. This is equivalent to the legacy *OccupiedToUnoccupiedDelay
+     * attributes.
+     * Low values of HoldTime SHOULD be avoided since they could lead to many reporting messages. A value 0 for HoldTime
+     * shall NOT be used.
      * The figure below illustrates this with an example of how this attribute is used for a PIR sensor. It uses
      * threshold detection to generate an &quot;internal detection&quot; signal, which needs post-processing to become
      * usable for transmission (traffic shaping). The bit in the Occupancy attribute will be set to 1 when the internal
@@ -252,7 +251,7 @@ public class OccupancySensingCluster extends BaseCluster {
         public boolean physicalContact;
         /**
          * 
-         * Supports sensing using Active InfraRed measurement (e.g. time-of-flight or transflective/reflec tive IR
+         * Supports sensing using Active InfraRed measurement (e.g. time-of-flight or transflective/reflective IR
          * sensing)
          */
         public boolean activeInfrared;
@@ -263,7 +262,7 @@ public class OccupancySensingCluster extends BaseCluster {
         public boolean radar;
         /**
          * 
-         * Supports sensing based on RF signal analysis
+         * Supports sensing using analysis of radio signals, e.g.: RSSI, CSI and/or any other metric from the signal
          */
         public boolean rfSensing;
         /**

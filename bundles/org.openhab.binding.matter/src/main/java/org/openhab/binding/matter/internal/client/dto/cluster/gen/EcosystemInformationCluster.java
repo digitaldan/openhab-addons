@@ -50,6 +50,26 @@ public class EcosystemInformationCluster extends BaseCluster {
     public List<EcosystemLocationStruct> locationDirectory; // 1 list R F M
 
     // Structs
+    /**
+     * The device type and revision define endpoint conformance to a release of a device type definition. See the Data
+     * Model specification for more information.
+     */
+    public static class DeviceTypeStruct {
+        /**
+         * This shall indicate the device type definition.
+         */
+        public Integer deviceType; // devtype-id
+        /**
+         * This is the implemented revision of the device type definition.
+         */
+        public Integer revision; // uint16
+
+        public DeviceTypeStruct(Integer deviceType, Integer revision) {
+            this.deviceType = deviceType;
+            this.revision = revision;
+        }
+    }
+
     public static class EcosystemDeviceStruct {
         /**
          * This field shall indicate the device’s name, which is provided externally if the user consents. (For example,
@@ -57,7 +77,6 @@ public class EcosystemInformationCluster extends BaseCluster {
          */
         public String deviceName; // string
         /**
-         * This field shall be present and set if the DeviceName field is present.
          * This field shall indicate the timestamp of when the DeviceName was last modified.
          */
         public BigInteger deviceNameLastEdit; // epoch-us
@@ -78,7 +97,7 @@ public class EcosystemInformationCluster extends BaseCluster {
          * associated with this EcosystemDeviceStruct entry.
          * This field shall contain a list of valid device type ids.
          */
-        public List<DescriptorCluster.DeviceTypeStruct> deviceTypes; // list
+        public List<DeviceTypeStruct> deviceTypes; // list
         /**
          * This field shall specify the EcosystemLocationStruct entries in the LocationDirectory attribute associated
          * with this EcosystemDeviceStruct.
@@ -86,8 +105,7 @@ public class EcosystemInformationCluster extends BaseCluster {
         public List<String> uniqueLocationIDs; // list
         /**
          * This field shall indicate the timestamp of when the UniqueLocationIDs was last modified.
-         * &gt; [!NOTE]
-         * &gt; If multiple server instances update the UniqueLocationIDs field at the same time, it is possible one of
+         * NOTE If multiple server instances update the UniqueLocationIDs field at the same time, it is possible one of
          * the updates will be missed. This is considered an acceptable limitation to reduce the complexity of the
          * design. Since this is meant to be provided from user input, it is unlikely these signals would be happening
          * at one time.
@@ -96,8 +114,8 @@ public class EcosystemInformationCluster extends BaseCluster {
         public Integer fabricIndex; // FabricIndex
 
         public EcosystemDeviceStruct(String deviceName, BigInteger deviceNameLastEdit, Integer bridgedEndpoint,
-                Integer originalEndpoint, List<DescriptorCluster.DeviceTypeStruct> deviceTypes,
-                List<String> uniqueLocationIDs, BigInteger uniqueLocationIDsLastEdit, Integer fabricIndex) {
+                Integer originalEndpoint, List<DeviceTypeStruct> deviceTypes, List<String> uniqueLocationIDs,
+                BigInteger uniqueLocationIDsLastEdit, Integer fabricIndex) {
             this.deviceName = deviceName;
             this.deviceNameLastEdit = deviceNameLastEdit;
             this.bridgedEndpoint = bridgedEndpoint;
@@ -130,8 +148,9 @@ public class EcosystemInformationCluster extends BaseCluster {
          */
         public String uniqueLocationId; // string
         /**
-         * This field shall indicate the location (e.g. living room, driveway) and associated metadata that is provided
-         * externally if the user consents. (For example, provided by the user in an ecosystem specific interface.)
+         * This field shall indicate the location (e.g. living room, driveway) and associated metadata that is
+         * provided externally if the user consents. (For example, provided by the user in an ecosystem specific
+         * interface.)
          * &quot;Location&quot; in this context is typically used by the user’s grouping into rooms, areas or other
          * logical groupings of how devices are used. So a device might be part of multiple such &quot;Locations&quot;s.
          */

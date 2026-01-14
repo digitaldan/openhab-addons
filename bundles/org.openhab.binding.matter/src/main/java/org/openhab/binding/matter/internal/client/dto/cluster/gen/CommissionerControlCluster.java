@@ -51,17 +51,20 @@ public class CommissionerControlCluster extends BaseCluster {
      * &gt; The approval is valid for a period determined by the manufacturer and characteristics of the node presenting
      * the Commissioner Control Cluster. Clients SHOULD send the CommissionNode command immediately upon receiving a
      * CommissioningRequestResult event.
+     * 11.26.7.2. RequestID / ClientNodeID Fields The RequestID shall match the RequestID provided to
+     * RequestCommissioningApproval and the ClientNodeID shall match the NodeID of the client which generated the
+     * RequestCommissioningApproval command.
      */
     public static class CommissioningRequestResult {
         public BigInteger requestId; // uint64
-        public BigInteger clientNodeID; // node-id
+        public BigInteger clientNodeId; // node-id
         public Integer statusCode; // status
         public Integer fabricIndex; // FabricIndex
 
-        public CommissioningRequestResult(BigInteger requestId, BigInteger clientNodeID, Integer statusCode,
+        public CommissioningRequestResult(BigInteger requestId, BigInteger clientNodeId, Integer statusCode,
                 Integer fabricIndex) {
             this.requestId = requestId;
-            this.clientNodeID = clientNodeID;
+            this.clientNodeId = clientNodeId;
             this.statusCode = statusCode;
             this.fabricIndex = fabricIndex;
         }

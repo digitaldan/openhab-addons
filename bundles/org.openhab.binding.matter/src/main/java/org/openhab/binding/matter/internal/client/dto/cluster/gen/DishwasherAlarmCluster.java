@@ -64,7 +64,7 @@ public class DishwasherAlarmCluster extends BaseCluster {
 
     // Structs
     /**
-     * This event shall be generated when one or more alarms change state, and shall have these fields:
+     * This event shall be generated when one or more alarms change state.
      */
     public static class Notify {
         /**

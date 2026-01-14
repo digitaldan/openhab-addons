@@ -115,9 +115,9 @@ public class ContentControlCluster extends BaseCluster {
      * Indicates whether the playback of unrated content is allowed when the Content Control feature is activated. If
      * this attribute equals FALSE, then playback of unrated content shall be permitted. Otherwise, the media device
      * shall prevent the playback of unrated content.
-     * When this attribute changes, the device SHOULD make the user aware of any limits of this feature.
-     * For example, if the feature does not control content within apps, then the device should make this clear to the
-     * user when the attribute changes.
+     * When this attribute changes, the device SHOULD make the user aware of any limits of this feature. For example, if
+     * the feature does not control content within apps, then the device should make this clear to the user when the
+     * attribute changes.
      */
     public Boolean blockUnrated; // 7 bool R V
     /**
@@ -210,7 +210,8 @@ public class ContentControlCluster extends BaseCluster {
 
     public static class AppInfoStruct {
         /**
-         * This field shall indicate the CSA-issued vendor ID for the catalog. The DIAL registry shall use value 0x0000.
+         * This field shall indicate the Connectivity Standards Alliance-issued vendor ID for the catalog. The DIAL
+         * registry shall use value 0x0000.
          * Content App Platform providers will have their own catalog vendor ID (set to their own Vendor ID) and will
          * assign an ApplicationID to each Content App.
          */
@@ -496,7 +497,7 @@ public class ContentControlCluster extends BaseCluster {
     /**
      * The purpose of this command is to specify whether programs with no Content rating must be blocked by this media
      * device.
-     * Upon receipt of the UnblockUnratedContent command, the media device shall set the BlockUnrated attribute to
+     * Upon receipt of the UnblockUnratedContent command, the media device shall set the BlockUn rated attribute to
      * FALSE.
      */
     public static ClusterCommand unblockUnratedContent() {

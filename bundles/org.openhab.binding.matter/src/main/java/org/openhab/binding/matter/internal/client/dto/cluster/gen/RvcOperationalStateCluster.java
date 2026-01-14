@@ -92,8 +92,8 @@ public class RvcOperationalStateCluster extends BaseCluster {
     public OperationalStateEnum operationalState; // 4 OperationalStateEnum R V
     /**
      * This attribute shall specify the details of any current error condition being experienced on the device when the
-     * OperationalState attribute is populated with Error. Please see ErrorStateStruct for general requirements on the
-     * population of this attribute.
+     * OperationalState attribute is populated with Error. See Section 1.14.4.4, “ErrorStateStruct Type” for general
+     * requirements on the population of this attribute.
      * When there is no error detected, this shall have an ErrorStateID of NoError.
      */
     public ErrorStateStruct operationalError; // 5 ErrorStateStruct R V
@@ -157,9 +157,8 @@ public class RvcOperationalStateCluster extends BaseCluster {
          */
         public OperationalStateEnum operationalStateId; // OperationalStateEnum
         /**
-         * This field shall be present if the OperationalStateID is from the set reserved for Manufacturer Specific
-         * States, otherwise it shall NOT be present. If present, this shall contain a human-readable description of the
-         * operational state.
+         * This field is present when the OperationalStateID is from the set reserved for Manufacturer Specific States.
+         * If present, this shall contain a human-readable description of the operational state.
          */
         public String operationalStateLabel; // string
 
@@ -175,10 +174,8 @@ public class RvcOperationalStateCluster extends BaseCluster {
          */
         public ErrorStateEnum errorStateId; // ErrorStateEnum
         /**
-         * This field shall be present if the ErrorStateID is from the set reserved for Manufacturer Specific Errors,
-         * otherwise it shall NOT be present. If present, this shall contain a human-readable description of the
-         * ErrorStateID; e.g. for a manufacturer specific ErrorStateID of &quot;0x80&quot; the ErrorStateLabel may
-         * contain &quot;My special error&quot;.
+         * This field is present when the ErrorStateID is from the set reserved for Manufacturer Specific errors. If
+         * present, this shall contain a human-readable description of the error state.
          */
         public String errorStateLabel; // string
         /**
@@ -216,7 +213,11 @@ public class RvcOperationalStateCluster extends BaseCluster {
         ERROR(3, "Error"),
         SEEKING_CHARGER(64, "Seeking Charger"),
         CHARGING(65, "Charging"),
-        DOCKED(66, "Docked");
+        DOCKED(66, "Docked"),
+        EMPTYING_DUST_BIN(67, "Emptying Dust Bin"),
+        CLEANING_MOP(68, "Cleaning Mop"),
+        FILLING_WATER_TANK(69, "Filling Water Tank"),
+        UPDATING_MAPS(70, "Updating Maps");
 
         private final Integer value;
         private final String label;
@@ -253,7 +254,14 @@ public class RvcOperationalStateCluster extends BaseCluster {
         WATER_TANK_EMPTY(68, "Water Tank Empty"),
         WATER_TANK_MISSING(69, "Water Tank Missing"),
         WATER_TANK_LID_OPEN(70, "Water Tank Lid Open"),
-        MOP_CLEANING_PAD_MISSING(71, "Mop Cleaning Pad Missing");
+        MOP_CLEANING_PAD_MISSING(71, "Mop Cleaning Pad Missing"),
+        LOW_BATTERY(72, "Low Battery"),
+        CANNOT_REACH_TARGET_AREA(73, "Cannot Reach Target Area"),
+        DIRTY_WATER_TANK_FULL(74, "Dirty Water Tank Full"),
+        DIRTY_WATER_TANK_MISSING(75, "Dirty Water Tank Missing"),
+        WHEELS_JAMMED(76, "Wheels Jammed"),
+        BRUSH_JAMMED(77, "Brush Jammed"),
+        NAVIGATION_SENSOR_OBSCURED(78, "Navigation Sensor Obscured");
 
         private final Integer value;
         private final String label;

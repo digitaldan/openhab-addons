@@ -76,8 +76,7 @@ public class TotalVolatileOrganicCompoundsConcentrationMeasurementCluster extend
      */
     public Float averageMeasuredValue; // 5 single R V
     /**
-     * This attribute shall represent the window of time used for determining the AverageMeasuredValue. The value is in
-     * seconds.
+     * Indicates the window of time used for determining the AverageMeasuredValue. The value is in seconds.
      */
     public Integer averageMeasuredValueWindow; // 6 elapsed-s R V
     /**
@@ -90,7 +89,7 @@ public class TotalVolatileOrganicCompoundsConcentrationMeasurementCluster extend
      */
     public MeasurementUnitEnum measurementUnit; // 8 MeasurementUnitEnum R V
     /**
-     * Indicates the medium in which MeasuredValue is being measured. See MeasurementMediumEnum.
+     * Indicates the medium in which MeasuredValue or LevelValue is being measured. See MeasurementMediumEnum.
      */
     public MeasurementMediumEnum measurementMedium; // 9 MeasurementMediumEnum R V
     /**
@@ -190,7 +189,7 @@ public class TotalVolatileOrganicCompoundsConcentrationMeasurementCluster extend
         public boolean numericMeasurement;
         /**
          * 
-         * Cluster supports basic level indication for substance using the ConcentrationLev el enum
+         * Cluster supports basic level indication for substance using the ConcentrationLevel enum
          */
         public boolean levelIndication;
         /**

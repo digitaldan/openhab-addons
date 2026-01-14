@@ -46,6 +46,12 @@ public class WaterHeaterModeCluster extends BaseCluster {
      * item in this list represents a unique mode as indicated by the Mode field of the ModeOptionStruct.
      * Each entry in this list shall have a unique value for the Mode field. Each entry in this list shall have a unique
      * value for the Label field.
+     * The set of ModeTags listed in each entry in this list shall be distinct from the sets of ModeTags listed in the
+     * other entries. This comparison shall NOT depend on the order of the ModeTags in the lists. Two sets shall be
+     * considered distinct if one of them contains an element that the other one does not. Note that the two sets could
+     * have a non-empty intersection, or one could be a subset of the other, and still be distinct.
+     * Simplified examples of allowed ModeTags lists:
+     * Simplified examples of disallowed ModeTags lists:
      */
     public List<ModeOptionStruct> supportedModes; // 0 list R V
     /**
@@ -60,8 +66,8 @@ public class WaterHeaterModeCluster extends BaseCluster {
     /**
      * Indicates the desired startup mode for the server when it is supplied with power.
      * If this attribute is not null, the CurrentMode attribute shall be set to the StartUpMode value, when the server
-     * is powered up, except in the case when the OnMode attribute overrides the StartUpMode attribute (see
-     * OnModeWithPowerUp).
+     * is powered up, except in the case when the OnMode attribute overrides the StartUpMode attribute (see Section
+     * 1.10.6.4.1, “OnMode with Power Up”).
      * This behavior does not apply to reboots associated with OTA. After an OTA restart, the CurrentMode attribute
      * shall return to its value prior to the restart.
      * The value of this field shall match the Mode field of one of the entries in the SupportedModes attribute.
@@ -129,6 +135,8 @@ public class WaterHeaterModeCluster extends BaseCluster {
          * standard tag or a manufacturer specific tag, as defined in each ModeTagStruct list entry.
          * A mode option may have more than one mode tag. A mode option may be associated with a mixture of standard and
          * manufacturer specific mode tags. A mode option shall be associated with at least one standard mode tag.
+         * Each mode tag in this field shall be distinct from other mode tags in this field. For example, a simplified
+         * list containing [Auto, Auto] would not be allowed.
          * A few examples are provided below.
          * • A mode named &quot;100%&quot; can have both the High (manufacturer specific) and Max (standard) mode tag.
          * Clients seeking the mode for either High or Max will find the same mode in this case.

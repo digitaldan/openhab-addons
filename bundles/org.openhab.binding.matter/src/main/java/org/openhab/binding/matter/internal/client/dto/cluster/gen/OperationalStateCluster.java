@@ -92,8 +92,8 @@ public class OperationalStateCluster extends BaseCluster {
     public OperationalStateEnum operationalState; // 4 OperationalStateEnum R V
     /**
      * This attribute shall specify the details of any current error condition being experienced on the device when the
-     * OperationalState attribute is populated with Error. Please see ErrorStateStruct for general requirements on the
-     * population of this attribute.
+     * OperationalState attribute is populated with Error. See Section 1.14.4.4, “ErrorStateStruct Type” for general
+     * requirements on the population of this attribute.
      * When there is no error detected, this shall have an ErrorStateID of NoError.
      */
     public ErrorStateStruct operationalError; // 5 ErrorStateStruct R V
@@ -157,9 +157,8 @@ public class OperationalStateCluster extends BaseCluster {
          */
         public OperationalStateEnum operationalStateId; // OperationalStateEnum
         /**
-         * This field shall be present if the OperationalStateID is from the set reserved for Manufacturer Specific
-         * States, otherwise it shall NOT be present. If present, this shall contain a human-readable description of the
-         * operational state.
+         * This field is present when the OperationalStateID is from the set reserved for Manufacturer Specific States.
+         * If present, this shall contain a human-readable description of the operational state.
          */
         public String operationalStateLabel; // string
 
@@ -175,10 +174,8 @@ public class OperationalStateCluster extends BaseCluster {
          */
         public ErrorStateEnum errorStateId; // ErrorStateEnum
         /**
-         * This field shall be present if the ErrorStateID is from the set reserved for Manufacturer Specific Errors,
-         * otherwise it shall NOT be present. If present, this shall contain a human-readable description of the
-         * ErrorStateID; e.g. for a manufacturer specific ErrorStateID of &quot;0x80&quot; the ErrorStateLabel may
-         * contain &quot;My special error&quot;.
+         * This field is present when the ErrorStateID is from the set reserved for Manufacturer Specific errors. If
+         * present, this shall contain a human-readable description of the error state.
          */
         public String errorStateLabel; // string
         /**

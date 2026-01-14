@@ -62,7 +62,7 @@ public class GeneralDiagnosticsCluster extends BaseCluster {
      * The UpTime attribute shall indicate a best-effort assessment of the length of time, in seconds, since the Node’s
      * last reboot. This attribute SHOULD be incremented to account for the periods of time that a Node is in a
      * low-power or sleep state. This attribute shall only be reset upon a device reboot. This attribute shall be based
-     * on the same System Time source as those used to fulfill any usage of the system-us and system-ms data types
+     * on the same System Time source as those used to fulfill any usage of the systime-us and systime-ms data types
      * within the server.
      */
     public BigInteger upTime; // 2 uint64 R V
@@ -110,9 +110,10 @@ public class GeneralDiagnosticsCluster extends BaseCluster {
     /**
      * The TestEventTriggersEnabled attribute shall indicate whether the Node has any TestEventTrigger configured. When
      * this attribute is true, the Node has been configured with one or more test event triggers by virtue of the
-     * internally programmed EnableKey value (see TestEventTrigger) being set to a non-zero value. This attribute can be
-     * used by Administrators to detect if a device was inadvertently commissioned with test event trigger mode enabled,
-     * and take appropriate action (e.g. warn the user and/or offer to remove all fabrics on the Node).
+     * internally programmed EnableKey value (see Section 11.12.7.1, “TestEventTrigger Command”) being set to a non-zero
+     * value. This attribute can be used by Administrators to detect if a device was inadvertently commissioned with
+     * test event trigger mode enabled, and take appropriate action (e.g. warn the user and/or offer to remove all
+     * fabrics on the Node).
      */
     public Boolean testEventTriggersEnabled; // 8 bool R V
 

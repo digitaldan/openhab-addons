@@ -68,8 +68,6 @@ public class WaterHeaterManagementCluster extends BaseCluster {
      * ### Energy required to
      * heat the water to 60°C &#x3D; 4182 x 40 x 100 &#x3D; 16,728,000 J
      * Converting Joules in to Wh of heat (divide by 3600):
-     * &#x3D; 16,728,000 J / 3600
-     * &#x3D; 4647 Wh (4.65kWh)
      * If the TankPercent feature is supported, then this estimate shall also take into account the percentage of the
      * water in the tank which is already hot.
      * &gt; [!NOTE]
@@ -103,7 +101,7 @@ public class WaterHeaterManagementCluster extends BaseCluster {
     public Integer tankPercentage; // 4 percent R V
     /**
      * Indicates whether the Boost, as triggered by a Boost command, is currently Active or Inactive.
-     * See Boost and CancelBoost commands for more details.
+     * See Section 9.5.8.1, “Boost Command” and Section 9.5.8.2, “CancelBoost Command” for more details.
      */
     public BoostStateEnum boostState; // 5 BoostStateEnum R V
 

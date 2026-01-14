@@ -107,13 +107,13 @@ export class ControllerNode {
 
                 if (connectionTimeout && connectionTimeout > 0) {
                     timeoutId = setTimeout(() => {
-                        logger.info(`Node ${node?.nodeId} state: ${node?.state}`);
+                        logger.info(`Node ${node?.nodeId} state: ${node?.connectionState}`);
                         if (
-                            node?.state === NodeStates.Disconnected ||
-                            node?.state === NodeStates.WaitingForDeviceDiscovery ||
-                            node?.state === NodeStates.Reconnecting
+                            node?.connectionState === NodeStates.Disconnected ||
+                            node?.connectionState === NodeStates.WaitingForDeviceDiscovery ||
+                            node?.connectionState === NodeStates.Reconnecting
                         ) {
-                            reject(new Error(`Node ${node?.nodeId} reconnection failed: ${NodeStates[node?.state]}`));
+                            reject(new Error(`Node ${node?.nodeId} reconnection failed: ${NodeStates[node?.connectionState]}`));
                         } else {
                             reject(new Error(`Node ${node?.nodeId} reconnection timed out`));
                         }
@@ -191,10 +191,10 @@ export class ControllerNode {
                     });
 
                     if (
-                        node?.state === NodeStates.Disconnected ||
-                        node?.state === NodeStates.WaitingForDeviceDiscovery
+                        node?.connectionState === NodeStates.Disconnected ||
+                        node?.connectionState === NodeStates.WaitingForDeviceDiscovery
                     ) {
-                        reject(new Error(`Node ${node.nodeId} connection failed: ${NodeStates[node.state]}`));
+                        reject(new Error(`Node ${node.nodeId} connection failed: ${NodeStates[node.connectionState]}`));
                     } else {
                         reject(new Error(`Node ${node.nodeId} connection timed out`));
                     }

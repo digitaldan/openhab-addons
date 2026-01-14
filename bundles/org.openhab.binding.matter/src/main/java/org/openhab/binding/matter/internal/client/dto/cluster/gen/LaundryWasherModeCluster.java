@@ -46,6 +46,12 @@ public class LaundryWasherModeCluster extends BaseCluster {
      * item in this list represents a unique mode as indicated by the Mode field of the ModeOptionStruct.
      * Each entry in this list shall have a unique value for the Mode field. Each entry in this list shall have a unique
      * value for the Label field.
+     * The set of ModeTags listed in each entry in this list shall be distinct from the sets of ModeTags listed in the
+     * other entries. This comparison shall NOT depend on the order of the ModeTags in the lists. Two sets shall be
+     * considered distinct if one of them contains an element that the other one does not. Note that the two sets could
+     * have a non-empty intersection, or one could be a subset of the other, and still be distinct.
+     * Simplified examples of allowed ModeTags lists:
+     * Simplified examples of disallowed ModeTags lists:
      */
     public List<ModeOptionStruct> supportedModes; // 0 list R V
     /**
@@ -60,8 +66,8 @@ public class LaundryWasherModeCluster extends BaseCluster {
     /**
      * Indicates the desired startup mode for the server when it is supplied with power.
      * If this attribute is not null, the CurrentMode attribute shall be set to the StartUpMode value, when the server
-     * is powered up, except in the case when the OnMode attribute overrides the StartUpMode attribute (see
-     * OnModeWithPowerUp).
+     * is powered up, except in the case when the OnMode attribute overrides the StartUpMode attribute (see Section
+     * 1.10.6.4.1, “OnMode with Power Up”).
      * This behavior does not apply to reboots associated with OTA. After an OTA restart, the CurrentMode attribute
      * shall return to its value prior to the restart.
      * The value of this field shall match the Mode field of one of the entries in the SupportedModes attribute.
@@ -104,7 +110,7 @@ public class LaundryWasherModeCluster extends BaseCluster {
     }
 
     /**
-     * The table below lists the changes relative to the Mode Base cluster for the fields of the ModeOptionStruct type.
+     * The table below lists the changes relative to the Mode Base cluster for the fields of the ModeOption Struct type.
      * A blank field indicates no change.
      */
     public static class ModeOptionStruct {

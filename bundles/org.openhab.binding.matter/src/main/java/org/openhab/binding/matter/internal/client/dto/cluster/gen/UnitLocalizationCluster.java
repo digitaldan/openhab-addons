@@ -15,6 +15,7 @@
 package org.openhab.binding.matter.internal.client.dto.cluster.gen;
 
 import java.math.BigInteger;
+import java.util.List;
 
 import org.eclipse.jdt.annotation.NonNull;
 
@@ -31,15 +32,23 @@ public class UnitLocalizationCluster extends BaseCluster {
     public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_TEMPERATURE_UNIT = "temperatureUnit";
+    public static final String ATTRIBUTE_SUPPORTED_TEMPERATURE_UNITS = "supportedTemperatureUnits";
 
     public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
-     * The TemperatureUnit attribute shall indicate the unit for the Node to use only when conveying temperature in
-     * communication to the user. If provided, this value shall take priority over any unit implied through the
-     * ActiveLocale Attribute.
+     * Indicates the unit for the Node to use only when conveying temperature in communication to the user, for example
+     * such as via a user interface on the device. If provided, this value shall take priority over any unit implied
+     * through the ActiveLocale Attribute.
+     * An attempt to write to this attribute with a value not included in the SupportedTemperatureUnits attribute list
+     * shall result in a CONSTRAINT_ERROR.
      */
     public TempUnitEnum temperatureUnit; // 0 TempUnitEnum RW VM
+    /**
+     * Indicates a list of units supported by the Node to be used when writing the TemperatureUnit attribute of this
+     * cluster. Each entry in the list shall be unique.
+     */
+    public List<TempUnitEnum> supportedTemperatureUnits; // 1 list R V
 
     // Enums
     public enum TempUnitEnum implements MatterEnum {
@@ -93,6 +102,7 @@ public class UnitLocalizationCluster extends BaseCluster {
         str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "temperatureUnit : " + temperatureUnit + "\n";
+        str += "supportedTemperatureUnits : " + supportedTemperatureUnits + "\n";
         return str;
     }
 }

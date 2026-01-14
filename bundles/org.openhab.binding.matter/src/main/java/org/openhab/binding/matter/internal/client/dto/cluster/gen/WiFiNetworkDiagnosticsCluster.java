@@ -48,62 +48,59 @@ public class WiFiNetworkDiagnosticsCluster extends BaseCluster {
     public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
-     * The BSSID attribute shall indicate the BSSID for which the Wi-Fi network the Node is currently connected.
+     * Indicates the BSSID for which the Wi-Fi network the Node is currently connected.
      */
     public OctetString bssid; // 0 octstr R V
     /**
-     * The SecurityType attribute shall indicate the current type of Wi-Fi security used.
+     * Indicates the current type of Wi-Fi security used.
      */
     public SecurityTypeEnum securityType; // 1 SecurityTypeEnum R V
     /**
-     * The WiFiVersion attribute shall indicate the current 802.11 standard version in use by the Node, per the table
-     * below.
+     * Indicates the current IEEE 802.11 standard version in use by the Node, per the table below.
      */
     public WiFiVersionEnum wiFiVersion; // 2 WiFiVersionEnum R V
     /**
-     * The ChannelNumber attribute shall indicate the channel that Wi-Fi communication is currently operating on.
+     * Indicates the channel that Wi-Fi communication is currently operating on.
      */
     public Integer channelNumber; // 3 uint16 R V
     /**
-     * The RSSI attribute shall indicate the current RSSI of the Node’s Wi-Fi radio in dBm.
+     * Indicates the current RSSI of the Node’s Wi-Fi radio in dBm.
      */
     public Integer rssi; // 4 int8 R V
     /**
-     * The BeaconLostCount attribute shall indicate the count of the number of missed beacons the Node has detected. If
-     * the Node does not have an ability to count beacons expected and not received, this value may remain set to zero.
+     * Indicates the count of the number of missed beacons the Node has detected. If the Node does not have an ability
+     * to count beacons expected and not received, this value may remain set to zero.
      */
     public Integer beaconLostCount; // 5 uint32 R V
     /**
-     * The BeaconRxCount attribute shall indicate the count of the number of received beacons. The total number of
-     * expected beacons that could have been received during the interval since association SHOULD match the sum of
-     * BeaconRxCount and BeaconLostCount. If the Node does not have an ability to report count of beacons received, this
-     * value may remain set to zero.
+     * Indicates the count of the number of received beacons. The total number of expected beacons that could have been
+     * received during the interval since association SHOULD match the sum of BeaconRxCount and BeaconLostCount. If the
+     * Node does not have an ability to report count of beacons received, this value may remain set to zero.
      */
     public Integer beaconRxCount; // 6 uint32 R V
     /**
-     * The PacketMulticastRxCount attribute shall indicate the number of multicast packets received by the Node.
+     * Indicates the number of multicast packets received by the Node.
      */
     public Integer packetMulticastRxCount; // 7 uint32 R V
     /**
-     * The PacketMulticastTxCount attribute shall indicate the number of multicast packets transmitted by the Node.
+     * Indicates the number of multicast packets transmitted by the Node.
      */
     public Integer packetMulticastTxCount; // 8 uint32 R V
     /**
-     * The PacketUnicastRxCount attribute shall indicate the number of unicast packets received by the Node.
+     * Indicates the number of unicast packets received by the Node.
      */
     public Integer packetUnicastRxCount; // 9 uint32 R V
     /**
-     * The PacketUnicastTxCount attribute shall indicate the number of unicast packets transmitted by the Node.
+     * Indicates the number of unicast packets transmitted by the Node.
      */
     public Integer packetUnicastTxCount; // 10 uint32 R V
     /**
-     * The CurrentMaxRate attribute shall indicate the current maximum PHY rate of transfer of data in bits-per-second.
+     * Indicates the current maximum PHY rate of transfer of data in bits-per-second.
      */
     public BigInteger currentMaxRate; // 11 uint64 R V
     /**
-     * The OverrunCount attribute shall indicate the number of packets dropped either at ingress or egress, due to lack
-     * of buffer memory to retain all packets on the network interface. The OverrunCount attribute shall be reset to 0
-     * upon a reboot of the Node.
+     * Indicates the number of packets dropped either at ingress or egress, due to lack of buffer memory to retain all
+     * packets on the network interface. The attribute shall be reset to 0 upon a reboot of the Node.
      */
     public BigInteger overrunCount; // 12 uint64 R V
 
@@ -299,6 +296,7 @@ public class WiFiNetworkDiagnosticsCluster extends BaseCluster {
 
     // commands
     /**
+     * This command is used to reset the count attributes.
      * Reception of this command shall reset the following attributes to 0:
      * • BeaconLostCount
      * • BeaconRxCount
@@ -306,7 +304,6 @@ public class WiFiNetworkDiagnosticsCluster extends BaseCluster {
      * • PacketMulticastTxCount
      * • PacketUnicastRxCount
      * • PacketUnicastTxCount
-     * This command has no associated data.
      */
     public static ClusterCommand resetCounts() {
         return new ClusterCommand("resetCounts");

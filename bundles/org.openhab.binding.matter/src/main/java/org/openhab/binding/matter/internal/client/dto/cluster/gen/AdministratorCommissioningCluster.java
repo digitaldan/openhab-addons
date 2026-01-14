@@ -52,7 +52,7 @@ public class AdministratorCommissioningCluster extends BaseCluster {
     /**
      * When the WindowStatus attribute is not set to WindowNotOpen, this attribute shall indicate the FabricIndex
      * associated with the Fabric scoping of the Administrator that opened the window. This may be used to
-     * cross-reference in the Fabrics attribute of the Node Operational Credentials cluster.
+     * cross-reference in the Fabrics attribute of the Operational Credentials cluster.
      * If, during an open commissioning window, the fabric for the Administrator that opened the window is removed, then
      * this attribute shall be set to null.
      * When the WindowStatus attribute is set to WindowNotOpen, this attribute shall be set to null.

@@ -64,9 +64,9 @@ public class ThreadNetworkDirectoryCluster extends BaseCluster {
      */
     public List<ThreadNetworkStruct> threadNetworks; // 1 list R V
     /**
-     * This attribute shall indicate the maximum number of entries that can be held in the ThreadNetworks list; it shall
-     * be at least 2 times the number of SupportedFabrics advertised in the Operational Credentials Cluster on the root
-     * endpoint of this node.
+     * Indicates the maximum number of entries that can be held in the ThreadNetworks list; it shall be at least 2 times
+     * the number of SupportedFabrics advertised in the Operational Credentials Cluster on the root endpoint of this
+     * node.
      */
     public Integer threadNetworkTableSize; // 2 uint8 R V
 

@@ -68,8 +68,8 @@ public class EnergyEvseCluster extends BaseCluster {
      * &gt; [!NOTE]
      * &gt; SessionEnding is not really a state but a transition. However, the transition period may take a few seconds
      * and is useful for some clean up purposes.
-     * The Fault state is used to indicate that the FaultState attribute is not NoError. A null value shall indicate
-     * that the state cannot be determined.
+     * The Fault state is used to indicate that the FaultState attribute is not NoError.
+     * A null value shall indicate that the state cannot be determined.
      */
     public StateEnum state; // 0 StateEnum R V
     /**
@@ -108,8 +108,8 @@ public class EnergyEvseCluster extends BaseCluster {
      */
     public BigInteger circuitCapacity; // 5 amperage-mA R V
     /**
-     * Indicates the minimum current that can be delivered by the EVSE to the EV. The attribute can be set using the
-     * EnableCharging command.
+     * Indicates the minimum current that can be delivered by the EVSE to the EV.
+     * The attribute can be set using the EnableCharging command.
      */
     public BigInteger minimumChargeCurrent; // 6 amperage-mA R V
     /**
@@ -455,8 +455,8 @@ public class EnergyEvseCluster extends BaseCluster {
          * If the EVSE does not support the SOC feature or cannot obtain the SoC of the vehicle:
          * • the AddedEnergy field shall take precedence over the TargetSoC field, and if the EVSE does not support the
          * SOC feature then the TargetSoC field may only take the values null or 100%.
-         * • if the AddedEnergy field has not been provided, the EVSE SHOULD assume the vehicle is empty and charge
-         * until the vehicle stops demanding a charge.
+         * • if the AddedEnergy field has not been provided, the EVSE SHOULD assume the vehicle is empty
+         * and charge until the vehicle stops demanding a charge.
          */
         public Integer targetSoC; // percent
         /**

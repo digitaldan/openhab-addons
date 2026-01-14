@@ -50,9 +50,9 @@ public class FixedLabelCluster extends BaseCluster {
         public String label; // string
         /**
          * The Label or Value semantic is not defined here. The Value is a discriminator for a Label that may have
-         * multiple instances. Label:Value examples: &quot;room&quot;:&quot;bedroom 2&quot;,
-         * &quot;orientation&quot;:&quot;North&quot;, &quot;floor&quot;:&quot;2&quot;,
-         * &quot;direction&quot;:&quot;up&quot;
+         * multiple instances.
+         * Label:Value examples: &quot;room&quot;:&quot;bedroom 2&quot;, &quot;orientation&quot;:&quot;North&quot;,
+         * &quot;floor&quot;:&quot;2&quot;, &quot;direction&quot;:&quot;up&quot;
          */
         public String value; // string
 

@@ -74,7 +74,7 @@ public class PowerSourceCluster extends BaseCluster {
     /**
      * Indicates the relative preference with which the Node will select this source to provide power. A source with a
      * lower order shall be selected by the Node to provide power before any other source with a higher order, if the
-     * lower order source is available (see Status).
+     * lower order source is available (see Section 11.7.7.1, “Status Attribute”).
      * Note, Order is read-only and therefore NOT intended to allow clients control over power source selection.
      */
     public Integer order; // 1 uint8 R V
@@ -168,7 +168,7 @@ public class PowerSourceCluster extends BaseCluster {
      */
     public Boolean batReplacementNeeded; // 15 bool R V
     /**
-     * This attribute shall indicate the replaceability of the battery as specified in BatReplaceabilityEnum.
+     * Indicates the replaceability of the battery as specified in BatReplaceabilityEnum.
      */
     public BatReplaceabilityEnum batReplaceability; // 16 BatReplaceabilityEnum R V
     /**
@@ -259,8 +259,10 @@ public class PowerSourceCluster extends BaseCluster {
      * A cluster instance with a non-empty list shall include the endpoint, upon which the cluster instance resides.
      * The above rules allow that some endpoints can have an unknown power source, and therefore would not be indicated
      * by any instance of this cluster.
+     * ### Empty list examples
      * Typically, there is one power source for the node. Also common is mains power for the node with battery backup
      * power for the node. In both these common cases, for each cluster instance described, the list is empty.
+     * ### Populated list example
      * A node has a mains power source with Order as 0 (zero), but some application endpoints (not all) have a battery
      * back up source with Order as 1, which means this list is empty for the Power Source cluster associated with the
      * mains power, because it indicates the entire node, but the Power Source cluster instance associated with the

@@ -82,9 +82,9 @@ public class BooleanStateConfigurationCluster extends BaseCluster {
      */
     public AlarmModeBitmap alarmsSuppressed; // 4 AlarmModeBitmap R V
     /**
-     * Indicates the alarm modes that will be emitted if the sensor is triggered.
-     * If an alarm mode is not supported, the bit indicating this alarm mode shall always be 0. A bit shall indicate
-     * whether the alarm mode is enabled or disabled:
+     * Indicates the alarm modes that will be emitted if the sensor is triggered. If an alarm mode is not supported, the
+     * bit indicating this alarm mode shall always be 0.
+     * A bit shall indicate whether the alarm mode is enabled or disabled:
      * • 0 &#x3D; Disabled
      * • 1 &#x3D; Enabled
      */

@@ -41,7 +41,7 @@ public class WiFiNetworkManagementCluster extends BaseCluster {
      * &gt; [!NOTE]
      * &gt; The SSID in Wi-Fi is a collection of 1-32 bytes, the text encoding of which is not specified.
      * Implementations must be careful to support transferring these byte strings without requiring a particular
-     * encoding. The most common encoding is UTF- 8, however this is just a convention. Some configurations may use
+     * encoding. The most common encoding is UTF-8, however this is just a convention. Some configurations may use
      * Latin-1 or other character sets.
      */
     public OctetString ssid; // 0 octstr R V

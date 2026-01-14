@@ -87,7 +87,7 @@ public class ThreadBorderRouterManagementCluster extends BaseCluster {
          * by setting a pending dataset.
          * &gt; [!NOTE]
          * &gt; This feature flag can be used to protect an already-configured network from accidental configuration
-         * change, e.g. when the Thread Border Router serves non- Matter devices that do not support PAN change for an
+         * change, e.g. when the Thread Border Router serves non-Matter devices that do not support PAN change for an
          * implementation-specific reason.
          */
         public boolean panChange;

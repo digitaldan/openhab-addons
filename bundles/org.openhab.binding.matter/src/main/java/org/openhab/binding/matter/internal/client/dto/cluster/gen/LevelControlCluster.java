@@ -79,8 +79,7 @@ public class LevelControlCluster extends BaseCluster {
      */
     public Integer maxLevel; // 3 uint8 R V
     /**
-     * This attribute shall indicate the frequency at which the device is at CurrentLevel. A CurrentFrequency of 0 is
-     * unknown.
+     * Indicates the frequency at which the device is at CurrentLevel. A CurrentFrequency of 0 is unknown.
      * Changes to this attribute shall only be marked as reportable in the following cases:
      * • At most once per second, or
      * • At the start of the movement/transition, or
@@ -237,7 +236,7 @@ public class LevelControlCluster extends BaseCluster {
         public boolean lighting;
         /**
          * 
-         * Supports frequency attributes and behavior.
+         * NOTE The Frequency feature is provisional.
          */
         public boolean frequency;
 

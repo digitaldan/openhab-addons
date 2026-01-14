@@ -147,7 +147,7 @@ public class ContentLauncherCluster extends BaseCluster {
         /**
          * This field shall indicate the color, in RGB or RGBA, used for styling different Video Player sections like
          * Logo, Watermark, etc. The value shall conform to the 6-digit or 8-digit format defined for CSS sRGB
-         * hexadecimal color notation. Examples:
+         * hexadecimal color notation [https://www.w3.org/TR/css-color-4/#hex-notation]. Examples:
          * • #76DE19 for R&#x3D;0x76, G&#x3D;0xDE, B&#x3D;0x19, A absent
          * • #76DE1980 for R&#x3D;0x76, G&#x3D;0xDE, B&#x3D;0x19, A&#x3D;0x80
          */

@@ -60,6 +60,11 @@ public class WindowCoveringCluster extends BaseCluster {
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute shall identify the type of window covering.
+     * If the window covering supports the LF feature and not the TL feature, the following types shall be used as the
+     * constraint for this attribute:
+     * If the window covering supports the TL feature and not the LF feature, the following types shall be used as the
+     * constraint for this attribute:
+     * If the window covering supports both the LF and TL features, the following types are allowed to be used:
      */
     public TypeEnum type; // 0 TypeEnum R V
     /**
@@ -121,6 +126,11 @@ public class WindowCoveringCluster extends BaseCluster {
     /**
      * This attribute SHOULD provide more detail about the product type than can be determined from the main category
      * indicated by the Type attribute.
+     * If the window covering supports the LF feature and not the TL feature, the following types shall be used as the
+     * constraint for this attribute:
+     * If the window covering supports the TL feature and not the LF feature, the following types shall be used as the
+     * constraint for this attribute:
+     * If the window covering supports both the LF and TL features, the following types are allowed to be used:
      * The table below helps to match the EndProductType attribute with the Type attribute.
      */
     public EndProductTypeEnum endProductType; // 13 EndProductTypeEnum R V
@@ -544,6 +554,10 @@ public class WindowCoveringCluster extends BaseCluster {
         return new ClusterCommand("stopMotion");
     }
 
+    /**
+     * This command is used to set the target lift position of the window covering to the value specified in the
+     * command.
+     */
     public static ClusterCommand goToLiftValue(Integer liftValue) {
         Map<String, Object> map = new LinkedHashMap<>();
         if (liftValue != null) {
@@ -553,6 +567,8 @@ public class WindowCoveringCluster extends BaseCluster {
     }
 
     /**
+     * This command is used to set the target lift position of the window covering to the percentage value specified in
+     * the command.
      * Upon receipt of this command, the server will adjust the window covering to the lift/slide percentage specified
      * in the payload of this command.
      * If the command includes LiftPercent100thsValue, then TargetPositionLiftPercent100ths attribute shall be set to
@@ -573,6 +589,10 @@ public class WindowCoveringCluster extends BaseCluster {
         return new ClusterCommand("goToLiftPercentage", map);
     }
 
+    /**
+     * This command is used to set the target tilt position of the window covering to the value specified in the
+     * command.
+     */
     public static ClusterCommand goToTiltValue(Integer tiltValue) {
         Map<String, Object> map = new LinkedHashMap<>();
         if (tiltValue != null) {
@@ -582,6 +602,8 @@ public class WindowCoveringCluster extends BaseCluster {
     }
 
     /**
+     * This command is used to set the target tilt position of the window covering to the percentage value specified in
+     * the command.
      * Upon receipt of this command, the server will adjust the window covering to the tilt percentage specified in the
      * payload of this command.
      * If the command includes TiltPercent100thsValue, then TargetPositionTiltPercent100ths attribute shall be set to
