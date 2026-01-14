@@ -32,14 +32,12 @@ public class DishwasherModeCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0059;
     public static final String CLUSTER_NAME = "DishwasherMode";
     public static final String CLUSTER_PREFIX = "dishwasherMode";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_SUPPORTED_MODES = "supportedModes";
     public static final String ATTRIBUTE_CURRENT_MODE = "currentMode";
     public static final String ATTRIBUTE_START_UP_MODE = "startUpMode";
     public static final String ATTRIBUTE_ON_MODE = "onMode";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute shall contain the list of supported modes that may be selected for the CurrentMode attribute. Each
@@ -256,7 +254,6 @@ public class DishwasherModeCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "supportedModes : " + supportedModes + "\n";
         str += "currentMode : " + currentMode + "\n";

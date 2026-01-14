@@ -32,7 +32,6 @@ public class TimeSynchronizationCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0038;
     public static final String CLUSTER_NAME = "TimeSynchronization";
     public static final String CLUSTER_PREFIX = "timeSynchronization";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_UTC_TIME = "utcTime";
     public static final String ATTRIBUTE_GRANULARITY = "granularity";
@@ -48,7 +47,6 @@ public class TimeSynchronizationCluster extends BaseCluster {
     public static final String ATTRIBUTE_DST_OFFSET_LIST_MAX_SIZE = "dstOffsetListMaxSize";
     public static final String ATTRIBUTE_SUPPORTS_DNS_RESOLVE = "supportsDnsResolve";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * If the node has achieved time synchronization, this attribute shall indicate the current time as a UTC epoch-us
@@ -589,7 +587,6 @@ public class TimeSynchronizationCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "utcTime : " + utcTime + "\n";
         str += "granularity : " + granularity + "\n";

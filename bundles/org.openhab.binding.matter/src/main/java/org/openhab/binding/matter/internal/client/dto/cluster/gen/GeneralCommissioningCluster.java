@@ -31,7 +31,6 @@ public class GeneralCommissioningCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0030;
     public static final String CLUSTER_NAME = "GeneralCommissioning";
     public static final String CLUSTER_PREFIX = "generalCommissioning";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_BREADCRUMB = "breadcrumb";
     public static final String ATTRIBUTE_BASIC_COMMISSIONING_INFO = "basicCommissioningInfo";
@@ -44,7 +43,6 @@ public class GeneralCommissioningCluster extends BaseCluster {
     public static final String ATTRIBUTE_TC_ACKNOWLEDGEMENTS_REQUIRED = "tcAcknowledgementsRequired";
     public static final String ATTRIBUTE_TC_UPDATE_DEADLINE = "tcUpdateDeadline";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute allows for the storage of a client-provided small payload which Administrators and Commissioners
@@ -475,7 +473,6 @@ public class GeneralCommissioningCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "breadcrumb : " + breadcrumb + "\n";
         str += "basicCommissioningInfo : " + basicCommissioningInfo + "\n";

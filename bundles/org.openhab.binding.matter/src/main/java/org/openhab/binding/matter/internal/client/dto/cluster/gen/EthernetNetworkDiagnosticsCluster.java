@@ -29,7 +29,6 @@ public class EthernetNetworkDiagnosticsCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0037;
     public static final String CLUSTER_NAME = "EthernetNetworkDiagnostics";
     public static final String CLUSTER_PREFIX = "ethernetNetworkDiagnostics";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_PHY_RATE = "phyRate";
     public static final String ATTRIBUTE_FULL_DUPLEX = "fullDuplex";
@@ -41,7 +40,6 @@ public class EthernetNetworkDiagnosticsCluster extends BaseCluster {
     public static final String ATTRIBUTE_CARRIER_DETECT = "carrierDetect";
     public static final String ATTRIBUTE_TIME_SINCE_RESET = "timeSinceReset";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the current nominal, usable speed at the top of the physical layer of the Node. A value of null shall
@@ -166,7 +164,6 @@ public class EthernetNetworkDiagnosticsCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "phyRate : " + phyRate + "\n";
         str += "fullDuplex : " + fullDuplex + "\n";

@@ -28,7 +28,6 @@ public class OccupancySensingCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0406;
     public static final String CLUSTER_NAME = "OccupancySensing";
     public static final String CLUSTER_PREFIX = "occupancySensing";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_OCCUPANCY = "occupancy";
     public static final String ATTRIBUTE_OCCUPANCY_SENSOR_TYPE = "occupancySensorType";
@@ -45,7 +44,6 @@ public class OccupancySensingCluster extends BaseCluster {
     public static final String ATTRIBUTE_PHYSICAL_CONTACT_UNOCCUPIED_TO_OCCUPIED_DELAY = "physicalContactUnoccupiedToOccupiedDelay";
     public static final String ATTRIBUTE_PHYSICAL_CONTACT_UNOCCUPIED_TO_OCCUPIED_THRESHOLD = "physicalContactUnoccupiedToOccupiedThreshold";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the sensed (processed) status of occupancy. For compatibility reasons this is expressed as a bitmap
@@ -295,7 +293,6 @@ public class OccupancySensingCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "occupancy : " + occupancy + "\n";
         str += "occupancySensorType : " + occupancySensorType + "\n";

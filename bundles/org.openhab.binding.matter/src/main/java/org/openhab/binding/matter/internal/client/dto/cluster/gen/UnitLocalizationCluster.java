@@ -29,12 +29,10 @@ public class UnitLocalizationCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x002D;
     public static final String CLUSTER_NAME = "UnitLocalization";
     public static final String CLUSTER_PREFIX = "unitLocalization";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_TEMPERATURE_UNIT = "temperatureUnit";
     public static final String ATTRIBUTE_SUPPORTED_TEMPERATURE_UNITS = "supportedTemperatureUnits";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the unit for the Node to use only when conveying temperature in communication to the user, for example
@@ -99,7 +97,6 @@ public class UnitLocalizationCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "temperatureUnit : " + temperatureUnit + "\n";
         str += "supportedTemperatureUnits : " + supportedTemperatureUnits + "\n";

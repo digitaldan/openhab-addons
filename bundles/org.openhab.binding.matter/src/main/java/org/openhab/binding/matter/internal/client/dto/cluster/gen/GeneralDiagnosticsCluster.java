@@ -32,7 +32,6 @@ public class GeneralDiagnosticsCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0033;
     public static final String CLUSTER_NAME = "GeneralDiagnostics";
     public static final String CLUSTER_PREFIX = "generalDiagnostics";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_NETWORK_INTERFACES = "networkInterfaces";
     public static final String ATTRIBUTE_REBOOT_COUNT = "rebootCount";
@@ -44,7 +43,6 @@ public class GeneralDiagnosticsCluster extends BaseCluster {
     public static final String ATTRIBUTE_ACTIVE_NETWORK_FAULTS = "activeNetworkFaults";
     public static final String ATTRIBUTE_TEST_EVENT_TRIGGERS_ENABLED = "testEventTriggersEnabled";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * The NetworkInterfaces attribute shall be a list of NetworkInterface structs. Each logical network interface on
@@ -470,7 +468,6 @@ public class GeneralDiagnosticsCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "networkInterfaces : " + networkInterfaces + "\n";
         str += "rebootCount : " + rebootCount + "\n";

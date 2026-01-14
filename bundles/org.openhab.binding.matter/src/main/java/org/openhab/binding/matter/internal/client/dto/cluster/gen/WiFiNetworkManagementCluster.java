@@ -29,11 +29,9 @@ public class WiFiNetworkManagementCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0451;
     public static final String CLUSTER_NAME = "WiFiNetworkManagement";
     public static final String CLUSTER_PREFIX = "wiFiNetworkManagement";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_SSID = "ssid";
     public static final String ATTRIBUTE_PASSPHRASE_SURROGATE = "passphraseSurrogate";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * Indicates the SSID of the primary Wi-Fi network provided by this device.
      * A value of null shall indicate that no primary Wi-Fi network is available (e.g. because the Wi-Fi network has not
@@ -85,7 +83,6 @@ public class WiFiNetworkManagementCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "ssid : " + ssid + "\n";
         str += "passphraseSurrogate : " + passphraseSurrogate + "\n";
         return str;

@@ -32,12 +32,10 @@ public class ThreadNetworkDirectoryCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0453;
     public static final String CLUSTER_NAME = "ThreadNetworkDirectory";
     public static final String CLUSTER_PREFIX = "threadNetworkDirectory";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_PREFERRED_EXTENDED_PAN_ID = "preferredExtendedPanId";
     public static final String ATTRIBUTE_THREAD_NETWORKS = "threadNetworks";
     public static final String ATTRIBUTE_THREAD_NETWORK_TABLE_SIZE = "threadNetworkTableSize";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * Indicates the Thread Extended PAN ID value for the Thread network designated by the user to be their preferred
      * network for commissioning of Thread devices. If not null, the value of this attribute shall match the
@@ -149,7 +147,6 @@ public class ThreadNetworkDirectoryCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "preferredExtendedPanId : " + preferredExtendedPanId + "\n";
         str += "threadNetworks : " + threadNetworks + "\n";
         str += "threadNetworkTableSize : " + threadNetworkTableSize + "\n";

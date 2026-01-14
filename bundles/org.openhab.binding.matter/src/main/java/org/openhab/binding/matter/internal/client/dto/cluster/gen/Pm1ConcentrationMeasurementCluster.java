@@ -28,7 +28,6 @@ public class Pm1ConcentrationMeasurementCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x042C;
     public static final String CLUSTER_NAME = "Pm1ConcentrationMeasurement";
     public static final String CLUSTER_PREFIX = "pm1ConcentrationMeasurement";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_MEASURED_VALUE = "measuredValue";
     public static final String ATTRIBUTE_MIN_MEASURED_VALUE = "minMeasuredValue";
@@ -42,7 +41,6 @@ public class Pm1ConcentrationMeasurementCluster extends BaseCluster {
     public static final String ATTRIBUTE_MEASUREMENT_MEDIUM = "measurementMedium";
     public static final String ATTRIBUTE_LEVEL_VALUE = "levelValue";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the most recent measurement as a single-precision floating-point number. MeasuredValue’s unit is
@@ -235,7 +233,6 @@ public class Pm1ConcentrationMeasurementCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "measuredValue : " + measuredValue + "\n";
         str += "minMeasuredValue : " + minMeasuredValue + "\n";

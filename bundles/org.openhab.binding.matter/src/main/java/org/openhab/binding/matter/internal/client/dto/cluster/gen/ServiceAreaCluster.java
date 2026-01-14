@@ -32,7 +32,6 @@ public class ServiceAreaCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0150;
     public static final String CLUSTER_NAME = "ServiceArea";
     public static final String CLUSTER_PREFIX = "serviceArea";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_SUPPORTED_AREAS = "supportedAreas";
     public static final String ATTRIBUTE_SUPPORTED_MAPS = "supportedMaps";
@@ -41,7 +40,6 @@ public class ServiceAreaCluster extends BaseCluster {
     public static final String ATTRIBUTE_ESTIMATED_END_TIME = "estimatedEndTime";
     public static final String ATTRIBUTE_PROGRESS = "progress";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute shall contain the list of areas that can be included in the SelectedAreas attribute’s list. Each
@@ -499,7 +497,6 @@ public class ServiceAreaCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "supportedAreas : " + supportedAreas + "\n";
         str += "supportedMaps : " + supportedMaps + "\n";

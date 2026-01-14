@@ -29,14 +29,12 @@ public class LaundryWasherControlsCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0053;
     public static final String CLUSTER_NAME = "LaundryWasherControls";
     public static final String CLUSTER_PREFIX = "laundryWasherControls";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_SPIN_SPEEDS = "spinSpeeds";
     public static final String ATTRIBUTE_SPIN_SPEED_CURRENT = "spinSpeedCurrent";
     public static final String ATTRIBUTE_NUMBER_OF_RINSES = "numberOfRinses";
     public static final String ATTRIBUTE_SUPPORTED_RINSES = "supportedRinses";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the list of spin speeds available to the appliance in the currently selected mode. The spin speed
@@ -132,7 +130,6 @@ public class LaundryWasherControlsCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "spinSpeeds : " + spinSpeeds + "\n";
         str += "spinSpeedCurrent : " + spinSpeedCurrent + "\n";

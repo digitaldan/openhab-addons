@@ -32,7 +32,6 @@ public class MediaPlaybackCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0506;
     public static final String CLUSTER_NAME = "MediaPlayback";
     public static final String CLUSTER_PREFIX = "mediaPlayback";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_CURRENT_STATE = "currentState";
     public static final String ATTRIBUTE_START_TIME = "startTime";
@@ -46,7 +45,6 @@ public class MediaPlaybackCluster extends BaseCluster {
     public static final String ATTRIBUTE_ACTIVE_TEXT_TRACK = "activeTextTrack";
     public static final String ATTRIBUTE_AVAILABLE_TEXT_TRACKS = "availableTextTracks";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the current playback state of media.
@@ -601,7 +599,6 @@ public class MediaPlaybackCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "currentState : " + currentState + "\n";
         str += "startTime : " + startTime + "\n";

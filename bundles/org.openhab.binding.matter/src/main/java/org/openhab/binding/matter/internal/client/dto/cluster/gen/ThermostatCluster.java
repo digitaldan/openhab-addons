@@ -32,7 +32,6 @@ public class ThermostatCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0201;
     public static final String CLUSTER_NAME = "Thermostat";
     public static final String CLUSTER_PREFIX = "thermostat";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_LOCAL_TEMPERATURE = "localTemperature";
     public static final String ATTRIBUTE_OUTDOOR_TEMPERATURE = "outdoorTemperature";
@@ -94,7 +93,6 @@ public class ThermostatCluster extends BaseCluster {
     public static final String ATTRIBUTE_SCHEDULES = "schedules";
     public static final String ATTRIBUTE_SETPOINT_HOLD_EXPIRY_TIMESTAMP = "setpointHoldExpiryTimestamp";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the current Calculated Local Temperature, when available.
@@ -1600,7 +1598,6 @@ public class ThermostatCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "localTemperature : " + localTemperature + "\n";
         str += "outdoorTemperature : " + outdoorTemperature + "\n";

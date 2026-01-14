@@ -8,6 +8,7 @@ import { EventType, NodeState } from "../MessageTypes";
 import { printError } from "../util/error";
 import { SoftwareUpdateManager } from "@matter/node";
 import { DclOtaUpdateService } from "@matter/main/protocol";
+import { OtaSoftwareUpdateRequestorCluster } from "@matter/types/clusters/ota-software-update-requestor";
 const logger = Logger.get("ControllerNode");
 
 /**
@@ -24,7 +25,7 @@ export class ControllerNode {
         private readonly storageLocation: string,
         private readonly controllerName: string,
         private readonly nodeNum: number,
-        private readonly ws: WebSocketSession,
+        public readonly ws: WebSocketSession,
         private readonly netInterface?: string,
     ) {}
 
@@ -99,23 +100,38 @@ export class ControllerNode {
 
         await this.commissioningController.start();
 
+        //Set up observers for OTA updates, matter.js checks every 24 hours by default.
         this.observers = this.observers ?? new ObserverGroup(this.environment.runtime);
         const updateManagerEvents = this.commissioningController.otaProvider.eventsOf(SoftwareUpdateManager);
         this.observers.on(updateManagerEvents.updateAvailable, (peer, details) => {
             logger.info(`Update available for peer `, peer, `:`, details);
-            const nodeId = peer?.nodeId.toString();
+            const nodeId = peer?.nodeId;
             if(!nodeId) {
                 logger.error(`Node ID not found for peer `, peer);
                 return;
             }
             this.ws.sendEvent(EventType.UpdateAvailable, {
+                nodeId: nodeId.valueOf(),
                 ...details,
-                nodeId: nodeId,
             });
         });
         this.observers.on(updateManagerEvents.updateDone, peer => {
             logger.info(`Update done for peer `, peer);
         });
+
+        // Query for updates now once
+        const updates = await this.commissioningController.otaProvider.act(agent =>
+            agent.get(SoftwareUpdateManager).queryUpdates()
+        );
+        if (updates && updates.length > 0) {
+            for (const update of updates) {
+                logger.info(`Update available for peer `, update.peerAddress, `:`, update.info);
+                this.ws.sendEvent(EventType.UpdateAvailable, {
+                    nodeId: update.peerAddress.nodeId.valueOf(),
+                    ...update.info,
+                });
+            }
+        }
     }
 
     /**

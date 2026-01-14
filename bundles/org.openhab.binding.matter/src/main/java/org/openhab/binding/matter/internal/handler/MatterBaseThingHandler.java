@@ -37,7 +37,6 @@ import org.openhab.binding.matter.internal.MatterStateDescriptionOptionProvider;
 import org.openhab.binding.matter.internal.client.AttributeListener;
 import org.openhab.binding.matter.internal.client.EventTriggeredListener;
 import org.openhab.binding.matter.internal.client.MatterWebsocketClient;
-import org.openhab.binding.matter.internal.client.UpdateAvailableListener;
 import org.openhab.binding.matter.internal.client.dto.Endpoint;
 import org.openhab.binding.matter.internal.client.dto.cluster.ClusterCommand;
 import org.openhab.binding.matter.internal.client.dto.cluster.gen.BaseCluster;
@@ -48,7 +47,7 @@ import org.openhab.binding.matter.internal.client.dto.cluster.gen.GeneralDiagnos
 import org.openhab.binding.matter.internal.client.dto.cluster.gen.OperationalCredentialsCluster;
 import org.openhab.binding.matter.internal.client.dto.ws.AttributeChangedMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.EventTriggeredMessage;
-import org.openhab.binding.matter.internal.client.dto.ws.UpdateAvailableMessage;
+import org.openhab.binding.matter.internal.client.dto.ws.OtaUpdateAvailableMessage;
 import org.openhab.binding.matter.internal.controller.MatterControllerClient;
 import org.openhab.binding.matter.internal.controller.devices.converter.GenericConverter;
 import org.openhab.binding.matter.internal.controller.devices.types.DeviceType;
@@ -94,7 +93,7 @@ import com.google.gson.JsonElement;
  */
 @NonNullByDefault
 public abstract class MatterBaseThingHandler extends BaseThingHandler
-        implements AttributeListener, EventTriggeredListener, UpdateAvailableListener {
+        implements AttributeListener, EventTriggeredListener {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     protected final BaseThingHandlerFactory thingHandlerFactory;
@@ -203,6 +202,11 @@ public abstract class MatterBaseThingHandler extends BaseThingHandler
     }
 
     @Override
+    protected void updateStatus(ThingStatus status) {
+        updateStatus(status, ThingStatusDetail.NONE, null);
+    }
+
+    @Override
     public void onEvent(AttributeChangedMessage message) {
         logger.debug("AttributeChangedMessage for endpoint {}", message.path.endpointId);
         DeviceType deviceType = devices.get(message.path.endpointId);
@@ -217,11 +221,6 @@ public abstract class MatterBaseThingHandler extends BaseThingHandler
         if (deviceType != null) {
             deviceType.onEvent(message);
         }
-    }
-
-    @Override
-    public void onEvent(UpdateAvailableMessage message) {
-        logger.debug("Update Available Message for node {}", message.nodeId);
     }
 
     /**
@@ -420,6 +419,16 @@ public abstract class MatterBaseThingHandler extends BaseThingHandler
 
     public int getCurrentFabricIndex() {
         return currentFabricIndex;
+    }
+
+    /**
+     * Handle the OTA update available message.
+     * This should be overridden by the subclass to handle the OTA update available message.
+     * 
+     * @param message The OTA update available message.
+     */
+    protected void handleOtaUpdateAvailable(OtaUpdateAvailableMessage message) {
+        logger.debug("OtaUpdateAvailableMessage onEvent: node {} is {}", message.nodeId, message);
     }
 
     protected @Nullable ControllerHandler controllerHandler() {

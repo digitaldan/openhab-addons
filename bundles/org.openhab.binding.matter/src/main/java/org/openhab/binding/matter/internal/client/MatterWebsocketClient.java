@@ -60,7 +60,6 @@ import org.openhab.binding.matter.internal.client.dto.ws.Request;
 import org.openhab.binding.matter.internal.client.dto.ws.Response;
 import org.openhab.binding.matter.internal.client.dto.ws.ResponseType;
 import org.openhab.binding.matter.internal.client.dto.ws.TriggerEvent;
-import org.openhab.binding.matter.internal.client.dto.ws.UpdateAvailableMessage;
 import org.openhab.core.common.ThreadPoolManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -365,22 +364,6 @@ public class MatterWebsocketClient implements WebSocketListener, MatterWebsocket
                         for (MatterClientListener listener : clientListeners) {
                             try {
                                 listener.onEvent(bridgeEventMessage);
-                            } catch (Exception e) {
-                                logger.debug("Error notifying listener", e);
-                            }
-                        }
-                        break;
-                    case "updateAvailable":
-                        logger.debug("updateAvailable message {}", event.data);
-                        UpdateAvailableMessage updateAvailableMessage = gson.fromJson(event.data,
-                                UpdateAvailableMessage.class);
-                        if (updateAvailableMessage == null) {
-                            logger.debug("invalid updateAvailable message");
-                            return;
-                        }
-                        for (MatterClientListener listener : clientListeners) {
-                            try {
-                                listener.onEvent(updateAvailableMessage);
                             } catch (Exception e) {
                                 logger.debug("Error notifying listener", e);
                             }

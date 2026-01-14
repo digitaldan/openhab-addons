@@ -43,7 +43,7 @@ import org.openhab.binding.matter.internal.client.dto.ws.BridgeEventTriggered;
 import org.openhab.binding.matter.internal.client.dto.ws.EventTriggeredMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.NodeDataMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.NodeStateMessage;
-import org.openhab.binding.matter.internal.client.dto.ws.UpdateAvailableMessage;
+import org.openhab.binding.matter.internal.client.dto.ws.OtaUpdateAvailableMessage;
 import org.openhab.core.OpenHAB;
 import org.openhab.core.common.ThreadPoolManager;
 import org.openhab.core.common.registry.RegistryChangeListener;
@@ -273,7 +273,7 @@ public class MatterBridge implements MatterClientListener {
     }
 
     @Override
-    public void onEvent(UpdateAvailableMessage message) {
+    public void onEvent(OtaUpdateAvailableMessage message) {
     }
 
     @Override

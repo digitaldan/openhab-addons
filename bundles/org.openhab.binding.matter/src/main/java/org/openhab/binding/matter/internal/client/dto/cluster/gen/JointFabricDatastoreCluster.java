@@ -32,7 +32,6 @@ public class JointFabricDatastoreCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0752;
     public static final String CLUSTER_NAME = "JointFabricDatastore";
     public static final String CLUSTER_PREFIX = "jointFabricDatastore";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_ANCHOR_ROOT_CA = "anchorRootCa";
     public static final String ATTRIBUTE_ANCHOR_NODE_ID = "anchorNodeId";
     public static final String ATTRIBUTE_ANCHOR_VENDOR_ID = "anchorVendorId";
@@ -48,7 +47,6 @@ public class JointFabricDatastoreCluster extends BaseCluster {
     public static final String ATTRIBUTE_NODE_ACL_LIST = "nodeAclList";
     public static final String ATTRIBUTE_NODE_ENDPOINT_LIST = "nodeEndpointList";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * This shall indicate the Anchor Root CA used to sign all NOC Issuers in the Joint Fabric for the accessing fabric.
      * A null value indicates that the Joint Fabric is not yet formed.
@@ -1201,7 +1199,6 @@ public class JointFabricDatastoreCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "anchorRootCa : " + anchorRootCa + "\n";
         str += "anchorNodeId : " + anchorNodeId + "\n";
         str += "anchorVendorId : " + anchorVendorId + "\n";

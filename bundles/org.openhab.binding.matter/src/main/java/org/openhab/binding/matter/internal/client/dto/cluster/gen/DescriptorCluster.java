@@ -29,7 +29,6 @@ public class DescriptorCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x001D;
     public static final String CLUSTER_NAME = "Descriptor";
     public static final String CLUSTER_PREFIX = "descriptor";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_DEVICE_TYPE_LIST = "deviceTypeList";
     public static final String ATTRIBUTE_SERVER_LIST = "serverList";
@@ -38,7 +37,6 @@ public class DescriptorCluster extends BaseCluster {
     public static final String ATTRIBUTE_TAG_LIST = "tagList";
     public static final String ATTRIBUTE_ENDPOINT_UNIQUE_ID = "endpointUniqueId";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This is a list of device types and corresponding revisions declaring endpoint conformance (see Section 9.5.5.1,
@@ -136,7 +134,6 @@ public class DescriptorCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "deviceTypeList : " + deviceTypeList + "\n";
         str += "serverList : " + serverList + "\n";

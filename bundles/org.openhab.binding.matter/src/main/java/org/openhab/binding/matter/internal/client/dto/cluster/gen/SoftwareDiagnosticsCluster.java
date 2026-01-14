@@ -30,14 +30,12 @@ public class SoftwareDiagnosticsCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0034;
     public static final String CLUSTER_NAME = "SoftwareDiagnostics";
     public static final String CLUSTER_PREFIX = "softwareDiagnostics";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_THREAD_METRICS = "threadMetrics";
     public static final String ATTRIBUTE_CURRENT_HEAP_FREE = "currentHeapFree";
     public static final String ATTRIBUTE_CURRENT_HEAP_USED = "currentHeapUsed";
     public static final String ATTRIBUTE_CURRENT_HEAP_HIGH_WATERMARK = "currentHeapHighWatermark";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute shall be a list of ThreadMetricsStruct structs. Each active thread on the Node shall be
@@ -167,7 +165,6 @@ public class SoftwareDiagnosticsCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "threadMetrics : " + threadMetrics + "\n";
         str += "currentHeapFree : " + currentHeapFree + "\n";

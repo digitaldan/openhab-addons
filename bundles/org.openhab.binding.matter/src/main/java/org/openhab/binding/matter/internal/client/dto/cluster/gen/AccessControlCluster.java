@@ -32,7 +32,6 @@ public class AccessControlCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x001F;
     public static final String CLUSTER_NAME = "AccessControl";
     public static final String CLUSTER_PREFIX = "accessControl";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_ACL = "acl";
     public static final String ATTRIBUTE_EXTENSION = "extension";
@@ -42,7 +41,6 @@ public class AccessControlCluster extends BaseCluster {
     public static final String ATTRIBUTE_COMMISSIONING_ARL = "commissioningArl";
     public static final String ATTRIBUTE_ARL = "arl";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * An attempt to add an Access Control Entry when no more entries are available shall result in a RESOURCE_EXHAUSTED
@@ -733,7 +731,6 @@ public class AccessControlCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "acl : " + acl + "\n";
         str += "extension : " + extension + "\n";

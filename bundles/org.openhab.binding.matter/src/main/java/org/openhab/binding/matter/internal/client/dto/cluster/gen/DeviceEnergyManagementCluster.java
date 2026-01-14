@@ -32,7 +32,6 @@ public class DeviceEnergyManagementCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0098;
     public static final String CLUSTER_NAME = "DeviceEnergyManagement";
     public static final String CLUSTER_PREFIX = "deviceEnergyManagement";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_ESA_TYPE = "esaType";
     public static final String ATTRIBUTE_ESA_CAN_GENERATE = "esaCanGenerate";
@@ -43,7 +42,6 @@ public class DeviceEnergyManagementCluster extends BaseCluster {
     public static final String ATTRIBUTE_FORECAST = "forecast";
     public static final String ATTRIBUTE_OPT_OUT_STATE = "optOutState";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the type of ESA.
@@ -1080,7 +1078,6 @@ public class DeviceEnergyManagementCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "esaType : " + esaType + "\n";
         str += "esaCanGenerate : " + esaCanGenerate + "\n";

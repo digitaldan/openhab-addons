@@ -29,7 +29,6 @@ public class WiFiNetworkDiagnosticsCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0036;
     public static final String CLUSTER_NAME = "WiFiNetworkDiagnostics";
     public static final String CLUSTER_PREFIX = "wiFiNetworkDiagnostics";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_BSSID = "bssid";
     public static final String ATTRIBUTE_SECURITY_TYPE = "securityType";
@@ -45,7 +44,6 @@ public class WiFiNetworkDiagnosticsCluster extends BaseCluster {
     public static final String ATTRIBUTE_CURRENT_MAX_RATE = "currentMaxRate";
     public static final String ATTRIBUTE_OVERRUN_COUNT = "overrunCount";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the BSSID for which the Wi-Fi network the Node is currently connected.
@@ -312,7 +310,6 @@ public class WiFiNetworkDiagnosticsCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "bssid : " + bssid + "\n";
         str += "securityType : " + securityType + "\n";

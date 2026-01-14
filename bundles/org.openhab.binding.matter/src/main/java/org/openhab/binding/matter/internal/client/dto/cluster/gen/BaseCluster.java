@@ -36,6 +36,20 @@ public class BaseCluster {
     public int id;
     public String name;
 
+    // Global cluster attribute name constants
+    public static final String ATTRIBUTE_ACCEPTED_COMMAND_LIST = "acceptedCommandList";
+    public static final String ATTRIBUTE_ATTRIBUTE_LIST = "attributeList";
+    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
+    public static final String ATTRIBUTE_EVENT_LIST = "eventList";
+    public static final String ATTRIBUTE_GENERATED_COMMAND_LIST = "generatedCommandList";
+
+    // Global cluster attributes (present in all clusters per Matter spec)
+    public List<Integer> acceptedCommandList; // 65529 list
+    public List<Integer> attributeList; // 65531 list
+    public Integer clusterRevision; // 65533 uint16
+    public List<Integer> eventList; // 65530
+    public List<Integer> generatedCommandList; // 65528 list
+
     public interface MatterEnum {
         Integer getValue();
 

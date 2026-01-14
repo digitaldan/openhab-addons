@@ -31,7 +31,6 @@ public class ColorControlCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0300;
     public static final String CLUSTER_NAME = "ColorControl";
     public static final String CLUSTER_PREFIX = "colorControl";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_CURRENT_HUE = "currentHue";
     public static final String ATTRIBUTE_CURRENT_SATURATION = "currentSaturation";
@@ -86,7 +85,6 @@ public class ColorControlCluster extends BaseCluster {
     public static final String ATTRIBUTE_COUPLE_COLOR_TEMP_TO_LEVEL_MIN_MIREDS = "coupleColorTempToLevelMinMireds";
     public static final String ATTRIBUTE_START_UP_COLOR_TEMPERATURE_MIREDS = "startUpColorTemperatureMireds";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * The CurrentHue attribute contains the current hue value of the light. It is updated as fast as practical during
@@ -1131,7 +1129,6 @@ public class ColorControlCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "currentHue : " + currentHue + "\n";
         str += "currentSaturation : " + currentSaturation + "\n";

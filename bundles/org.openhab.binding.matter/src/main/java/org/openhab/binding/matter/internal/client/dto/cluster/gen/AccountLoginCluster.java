@@ -31,9 +31,6 @@ public class AccountLoginCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x050E;
     public static final String CLUSTER_NAME = "AccountLogin";
     public static final String CLUSTER_PREFIX = "accountLogin";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
-
-    public Integer clusterRevision; // 65533 ClusterRevision
 
     // Structs
     /**
@@ -166,7 +163,6 @@ public class AccountLoginCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         return str;
     }
 }

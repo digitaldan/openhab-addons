@@ -31,7 +31,6 @@ public class BridgedDeviceBasicInformationCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0039;
     public static final String CLUSTER_NAME = "BridgedDeviceBasicInformation";
     public static final String CLUSTER_PREFIX = "bridgedDeviceBasicInformation";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_DATA_MODEL_REVISION = "dataModelRevision";
     public static final String ATTRIBUTE_VENDOR_NAME = "vendorName";
     public static final String ATTRIBUTE_VENDOR_ID = "vendorId";
@@ -58,7 +57,6 @@ public class BridgedDeviceBasicInformationCluster extends BaseCluster {
     public static final String ATTRIBUTE_CONFIGURATION_VERSION = "configurationVersion";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * This attribute shall be set to the revision number of the Data Model against which the Node is certified. The
      * value of this attribute shall be one of the valid values listed in Section 7.1.1, “Revision History”.
@@ -480,7 +478,6 @@ public class BridgedDeviceBasicInformationCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "dataModelRevision : " + dataModelRevision + "\n";
         str += "vendorName : " + vendorName + "\n";
         str += "vendorId : " + vendorId + "\n";

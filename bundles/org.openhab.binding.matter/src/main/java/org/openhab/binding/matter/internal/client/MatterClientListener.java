@@ -18,7 +18,7 @@ import org.openhab.binding.matter.internal.client.dto.ws.BridgeEventMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.EventTriggeredMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.NodeDataMessage;
 import org.openhab.binding.matter.internal.client.dto.ws.NodeStateMessage;
-import org.openhab.binding.matter.internal.client.dto.ws.UpdateAvailableMessage;
+import org.openhab.binding.matter.internal.client.dto.ws.OtaUpdateAvailableMessage;
 
 /**
  * A listener for Matter client events
@@ -43,5 +43,5 @@ public interface MatterClientListener {
 
     public void onEvent(NodeDataMessage message);
 
-    public void onEvent(UpdateAvailableMessage message);
+    public void onEvent(OtaUpdateAvailableMessage message);
 }

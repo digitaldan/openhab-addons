@@ -29,7 +29,6 @@ public class PowerSourceCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x002F;
     public static final String CLUSTER_NAME = "PowerSource";
     public static final String CLUSTER_PREFIX = "powerSource";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_STATUS = "status";
     public static final String ATTRIBUTE_ORDER = "order";
@@ -64,7 +63,6 @@ public class PowerSourceCluster extends BaseCluster {
     public static final String ATTRIBUTE_ACTIVE_BAT_CHARGE_FAULTS = "activeBatChargeFaults";
     public static final String ATTRIBUTE_ENDPOINT_LIST = "endpointList";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the participation of this power source in providing power to the Node as specified in
@@ -733,7 +731,6 @@ public class PowerSourceCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "status : " + status + "\n";
         str += "order : " + order + "\n";

@@ -29,11 +29,9 @@ public class EcosystemInformationCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0750;
     public static final String CLUSTER_NAME = "EcosystemInformation";
     public static final String CLUSTER_PREFIX = "ecosystemInformation";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_DEVICE_DIRECTORY = "deviceDirectory";
     public static final String ATTRIBUTE_LOCATION_DIRECTORY = "locationDirectory";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * This attribute shall contain the list of logical devices represented by a Bridged Node. Most of the time this
      * will contain a single entry, but may grow with more complex device compositions (e.g. another bridge.) An empty
@@ -181,7 +179,6 @@ public class EcosystemInformationCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "deviceDirectory : " + deviceDirectory + "\n";
         str += "locationDirectory : " + locationDirectory + "\n";
         return str;

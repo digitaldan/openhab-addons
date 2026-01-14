@@ -28,7 +28,6 @@ public class PressureMeasurementCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0403;
     public static final String CLUSTER_NAME = "PressureMeasurement";
     public static final String CLUSTER_PREFIX = "pressureMeasurement";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_MEASURED_VALUE = "measuredValue";
     public static final String ATTRIBUTE_MIN_MEASURED_VALUE = "minMeasuredValue";
@@ -40,7 +39,6 @@ public class PressureMeasurementCluster extends BaseCluster {
     public static final String ATTRIBUTE_SCALED_TOLERANCE = "scaledTolerance";
     public static final String ATTRIBUTE_SCALE = "scale";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the pressure in kPa as follows:
@@ -113,7 +111,6 @@ public class PressureMeasurementCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "measuredValue : " + measuredValue + "\n";
         str += "minMeasuredValue : " + minMeasuredValue + "\n";

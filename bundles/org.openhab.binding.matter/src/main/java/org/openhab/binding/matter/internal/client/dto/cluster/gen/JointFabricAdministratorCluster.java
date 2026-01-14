@@ -31,10 +31,8 @@ public class JointFabricAdministratorCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0753;
     public static final String CLUSTER_NAME = "JointFabricAdministrator";
     public static final String CLUSTER_PREFIX = "jointFabricAdministrator";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_ADMINISTRATOR_FABRIC_INDEX = "administratorFabricIndex";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * The AdministratorFabricIndex attribute shall indicate the FabricIndex from the Endpoint 0’s Operational Cluster
      * Fabrics attribute (i.e. the Fabric Table) which is associated with the JointFabric. This field shall have the
@@ -226,7 +224,6 @@ public class JointFabricAdministratorCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "administratorFabricIndex : " + administratorFabricIndex + "\n";
         return str;
     }

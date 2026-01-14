@@ -32,12 +32,10 @@ public class ActionsCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0025;
     public static final String CLUSTER_NAME = "Actions";
     public static final String CLUSTER_PREFIX = "actions";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_ACTION_LIST = "actionList";
     public static final String ATTRIBUTE_ENDPOINT_LISTS = "endpointLists";
     public static final String ATTRIBUTE_SETUP_URL = "setupUrl";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * The ActionList attribute holds the list of actions. Each entry shall have an unique ActionID, and its
      * EndpointListID shall exist in the EndpointLists attribute.
@@ -617,7 +615,6 @@ public class ActionsCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "actionList : " + actionList + "\n";
         str += "endpointLists : " + endpointLists + "\n";
         str += "setupUrl : " + setupUrl + "\n";

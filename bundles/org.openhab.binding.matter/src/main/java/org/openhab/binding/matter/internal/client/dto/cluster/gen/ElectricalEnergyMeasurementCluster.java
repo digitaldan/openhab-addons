@@ -28,7 +28,6 @@ public class ElectricalEnergyMeasurementCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0091;
     public static final String CLUSTER_NAME = "ElectricalEnergyMeasurement";
     public static final String CLUSTER_PREFIX = "electricalEnergyMeasurement";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_ACCURACY = "accuracy";
     public static final String ATTRIBUTE_CUMULATIVE_ENERGY_IMPORTED = "cumulativeEnergyImported";
@@ -37,7 +36,6 @@ public class ElectricalEnergyMeasurementCluster extends BaseCluster {
     public static final String ATTRIBUTE_PERIODIC_ENERGY_EXPORTED = "periodicEnergyExported";
     public static final String ATTRIBUTE_CUMULATIVE_ENERGY_RESET = "cumulativeEnergyReset";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the accuracy of energy measurement by this server. The value of the MeasurementType field on this
@@ -363,7 +361,6 @@ public class ElectricalEnergyMeasurementCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "accuracy : " + accuracy + "\n";
         str += "cumulativeEnergyImported : " + cumulativeEnergyImported + "\n";

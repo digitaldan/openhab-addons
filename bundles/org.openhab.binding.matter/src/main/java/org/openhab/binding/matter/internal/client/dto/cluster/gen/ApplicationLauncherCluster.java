@@ -32,12 +32,10 @@ public class ApplicationLauncherCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x050C;
     public static final String CLUSTER_NAME = "ApplicationLauncher";
     public static final String CLUSTER_PREFIX = "applicationLauncher";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_CATALOG_LIST = "catalogList";
     public static final String ATTRIBUTE_CURRENT_APP = "currentApp";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute shall specify the list of supported application catalogs, where each entry in the list is the
@@ -206,7 +204,6 @@ public class ApplicationLauncherCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "catalogList : " + catalogList + "\n";
         str += "currentApp : " + currentApp + "\n";

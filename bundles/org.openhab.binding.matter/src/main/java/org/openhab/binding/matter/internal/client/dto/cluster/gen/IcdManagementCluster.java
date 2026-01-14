@@ -32,7 +32,6 @@ public class IcdManagementCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0046;
     public static final String CLUSTER_NAME = "IcdManagement";
     public static final String CLUSTER_PREFIX = "icdManagement";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_IDLE_MODE_DURATION = "idleModeDuration";
     public static final String ATTRIBUTE_ACTIVE_MODE_DURATION = "activeModeDuration";
@@ -45,7 +44,6 @@ public class IcdManagementCluster extends BaseCluster {
     public static final String ATTRIBUTE_OPERATING_MODE = "operatingMode";
     public static final String ATTRIBUTE_MAXIMUM_CHECK_IN_BACKOFF = "maximumCheckInBackoff";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the maximum interval in seconds the server can stay in idle mode. The IdleModeDuration shall NOT be
@@ -376,7 +374,6 @@ public class IcdManagementCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "idleModeDuration : " + idleModeDuration + "\n";
         str += "activeModeDuration : " + activeModeDuration + "\n";

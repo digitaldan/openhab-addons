@@ -32,7 +32,6 @@ public class DoorLockCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0101;
     public static final String CLUSTER_NAME = "DoorLock";
     public static final String CLUSTER_PREFIX = "doorLock";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_LOCK_STATE = "lockState";
     public static final String ATTRIBUTE_LOCK_TYPE = "lockType";
@@ -80,7 +79,6 @@ public class DoorLockCluster extends BaseCluster {
     public static final String ATTRIBUTE_NUMBER_OF_ALIRO_CREDENTIAL_ISSUER_KEYS_SUPPORTED = "numberOfAliroCredentialIssuerKeysSupported";
     public static final String ATTRIBUTE_NUMBER_OF_ALIRO_ENDPOINT_KEYS_SUPPORTED = "numberOfAliroEndpointKeysSupported";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute may be NULL if the lock hardware does not currently know the status of the locking mechanism. For
@@ -1959,7 +1957,6 @@ public class DoorLockCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "lockState : " + lockState + "\n";
         str += "lockType : " + lockType + "\n";

@@ -28,7 +28,6 @@ public class PumpConfigurationAndControlCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0200;
     public static final String CLUSTER_NAME = "PumpConfigurationAndControl";
     public static final String CLUSTER_PREFIX = "pumpConfigurationAndControl";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_MAX_PRESSURE = "maxPressure";
     public static final String ATTRIBUTE_MAX_SPEED = "maxSpeed";
@@ -54,7 +53,6 @@ public class PumpConfigurationAndControlCluster extends BaseCluster {
     public static final String ATTRIBUTE_OPERATION_MODE = "operationMode";
     public static final String ATTRIBUTE_CONTROL_MODE = "controlMode";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute specifies the maximum pressure the pump can achieve. It is a physical limit, and does not apply to
@@ -496,7 +494,6 @@ public class PumpConfigurationAndControlCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "maxPressure : " + maxPressure + "\n";
         str += "maxSpeed : " + maxSpeed + "\n";

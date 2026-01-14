@@ -32,7 +32,6 @@ public class ModeSelectCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0050;
     public static final String CLUSTER_NAME = "ModeSelect";
     public static final String CLUSTER_PREFIX = "modeSelect";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_DESCRIPTION = "description";
     public static final String ATTRIBUTE_STANDARD_NAMESPACE = "standardNamespace";
@@ -41,7 +40,6 @@ public class ModeSelectCluster extends BaseCluster {
     public static final String ATTRIBUTE_START_UP_MODE = "startUpMode";
     public static final String ATTRIBUTE_ON_MODE = "onMode";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute describes the purpose of the server, in readable text.
@@ -186,7 +184,6 @@ public class ModeSelectCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "description : " + description + "\n";
         str += "standardNamespace : " + standardNamespace + "\n";

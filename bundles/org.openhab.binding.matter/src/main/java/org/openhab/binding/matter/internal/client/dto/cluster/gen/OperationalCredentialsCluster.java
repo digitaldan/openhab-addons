@@ -32,7 +32,6 @@ public class OperationalCredentialsCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x003E;
     public static final String CLUSTER_NAME = "OperationalCredentials";
     public static final String CLUSTER_PREFIX = "operationalCredentials";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_NOCS = "nocs";
     public static final String ATTRIBUTE_FABRICS = "fabrics";
     public static final String ATTRIBUTE_SUPPORTED_FABRICS = "supportedFabrics";
@@ -40,7 +39,6 @@ public class OperationalCredentialsCluster extends BaseCluster {
     public static final String ATTRIBUTE_TRUSTED_ROOT_CERTIFICATES = "trustedRootCertificates";
     public static final String ATTRIBUTE_CURRENT_FABRIC_INDEX = "currentFabricIndex";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * This attribute shall contain all NOCs applicable to this Node, encoded as a read-only list of NOCStruct.
      * Operational Certificates shall be added through the AddNOC command, and shall be removed through the RemoveFabric
@@ -550,7 +548,6 @@ public class OperationalCredentialsCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "nocs : " + nocs + "\n";
         str += "fabrics : " + fabrics + "\n";
         str += "supportedFabrics : " + supportedFabrics + "\n";

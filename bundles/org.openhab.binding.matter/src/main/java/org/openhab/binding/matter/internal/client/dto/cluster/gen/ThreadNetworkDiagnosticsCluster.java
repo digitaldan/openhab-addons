@@ -30,7 +30,6 @@ public class ThreadNetworkDiagnosticsCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0035;
     public static final String CLUSTER_NAME = "ThreadNetworkDiagnostics";
     public static final String CLUSTER_PREFIX = "threadNetworkDiagnostics";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_CHANNEL = "channel";
     public static final String ATTRIBUTE_ROUTING_ROLE = "routingRole";
@@ -98,7 +97,6 @@ public class ThreadNetworkDiagnosticsCluster extends BaseCluster {
     public static final String ATTRIBUTE_EXT_ADDRESS = "extAddress";
     public static final String ATTRIBUTE_RLOC16 = "rloc16";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the 802.15.4 channel number configured on the Node’s Thread interface (that is, the Active Operational
@@ -857,7 +855,6 @@ public class ThreadNetworkDiagnosticsCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "channel : " + channel + "\n";
         str += "routingRole : " + routingRole + "\n";

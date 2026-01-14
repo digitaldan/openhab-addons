@@ -32,12 +32,10 @@ public class ContentLauncherCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x050A;
     public static final String CLUSTER_NAME = "ContentLauncher";
     public static final String CLUSTER_PREFIX = "contentLauncher";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_ACCEPT_HEADER = "acceptHeader";
     public static final String ATTRIBUTE_SUPPORTED_STREAMING_PROTOCOLS = "supportedStreamingProtocols";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute shall provide a list of content types supported by the Video Player or Content App in the form of
@@ -481,7 +479,6 @@ public class ContentLauncherCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "acceptHeader : " + acceptHeader + "\n";
         str += "supportedStreamingProtocols : " + supportedStreamingProtocols + "\n";

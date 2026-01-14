@@ -1,3 +1,4 @@
+import { OtaSoftwareUpdateRequestor } from "@matter/main/clusters";
 import { SoftwareUpdateInfo } from "@matter/node";
 
 export interface Request {
@@ -87,5 +88,5 @@ export enum NodeState {
 }
 
 export interface UpdateAvailableEvent extends SoftwareUpdateInfo {
-    nodeId: string;
+    nodeId: BigInt;
 }

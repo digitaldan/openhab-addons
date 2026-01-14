@@ -31,7 +31,6 @@ public class WindowCoveringCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0102;
     public static final String CLUSTER_NAME = "WindowCovering";
     public static final String CLUSTER_PREFIX = "windowCovering";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_TYPE = "type";
     public static final String ATTRIBUTE_PHYSICAL_CLOSED_LIMIT_LIFT = "physicalClosedLimitLift";
@@ -56,7 +55,6 @@ public class WindowCoveringCluster extends BaseCluster {
     public static final String ATTRIBUTE_MODE = "mode";
     public static final String ATTRIBUTE_SAFETY_STATUS = "safetyStatus";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute shall identify the type of window covering.
@@ -627,7 +625,6 @@ public class WindowCoveringCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "type : " + type + "\n";
         str += "physicalClosedLimitLift : " + physicalClosedLimitLift + "\n";

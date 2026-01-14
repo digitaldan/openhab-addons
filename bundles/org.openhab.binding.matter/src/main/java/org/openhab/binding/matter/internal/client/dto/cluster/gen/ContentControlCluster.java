@@ -32,7 +32,6 @@ public class ContentControlCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x050F;
     public static final String CLUSTER_NAME = "ContentControl";
     public static final String CLUSTER_PREFIX = "contentControl";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_ENABLED = "enabled";
     public static final String ATTRIBUTE_ON_DEMAND_RATINGS = "onDemandRatings";
@@ -46,7 +45,6 @@ public class ContentControlCluster extends BaseCluster {
     public static final String ATTRIBUTE_BLOCK_APPLICATION_LIST = "blockApplicationList";
     public static final String ATTRIBUTE_BLOCK_CONTENT_TIME_WINDOW = "blockContentTimeWindow";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates whether the Content Control feature implemented on a media device is turned off (FALSE) or turned on
@@ -637,7 +635,6 @@ public class ContentControlCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "enabled : " + enabled + "\n";
         str += "onDemandRatings : " + onDemandRatings + "\n";

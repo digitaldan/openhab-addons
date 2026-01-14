@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2025 Contributors to the openHAB project
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -16,14 +16,12 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 
 /**
- * UpdateAvailableMessage is a message that is sent when an update is available for a device
+ * OtaUpdateInfo holds update information for a device
  *
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public class UpdateAvailableMessage {
-    /** Node ID of the device that has an update available */
-    public String nodeId;
+public class OtaUpdateInfo {
 
     /** Vendor ID of the device that has an update available */
     public int vendorId;
@@ -46,7 +44,6 @@ public class UpdateAvailableMessage {
     /**
      * Constructor
      * 
-     * @param nodeId
      * @param vendorId
      * @param productId
      * @param softwareVersion
@@ -54,9 +51,8 @@ public class UpdateAvailableMessage {
      * @param releaseNotesUrl
      * @param specificationVersion
      */
-    public UpdateAvailableMessage(String nodeId, int vendorId, int productId, int softwareVersion,
-            String softwareVersionString, @Nullable String releaseNotesUrl, @Nullable Integer specificationVersion) {
-        this.nodeId = nodeId;
+    public OtaUpdateInfo(int vendorId, int productId, int softwareVersion, String softwareVersionString,
+            @Nullable String releaseNotesUrl, @Nullable Integer specificationVersion) {
         this.vendorId = vendorId;
         this.productId = productId;
         this.softwareVersion = softwareVersion;

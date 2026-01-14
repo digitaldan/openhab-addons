@@ -31,7 +31,6 @@ public class FanControlCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0202;
     public static final String CLUSTER_NAME = "FanControl";
     public static final String CLUSTER_PREFIX = "fanControl";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_FAN_MODE = "fanMode";
     public static final String ATTRIBUTE_FAN_MODE_SEQUENCE = "fanModeSequence";
@@ -46,7 +45,6 @@ public class FanControlCluster extends BaseCluster {
     public static final String ATTRIBUTE_WIND_SETTING = "windSetting";
     public static final String ATTRIBUTE_AIRFLOW_DIRECTION = "airflowDirection";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the current speed mode of the fan.
@@ -378,7 +376,6 @@ public class FanControlCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "fanMode : " + fanMode + "\n";
         str += "fanModeSequence : " + fanModeSequence + "\n";

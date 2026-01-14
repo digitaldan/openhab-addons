@@ -32,14 +32,12 @@ public class GroupKeyManagementCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x003F;
     public static final String CLUSTER_NAME = "GroupKeyManagement";
     public static final String CLUSTER_PREFIX = "groupKeyManagement";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_GROUP_KEY_MAP = "groupKeyMap";
     public static final String ATTRIBUTE_GROUP_TABLE = "groupTable";
     public static final String ATTRIBUTE_MAX_GROUPS_PER_FABRIC = "maxGroupsPerFabric";
     public static final String ATTRIBUTE_MAX_GROUP_KEYS_PER_FABRIC = "maxGroupKeysPerFabric";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * This attribute is a list of GroupKeyMapStruct entries. Each entry associates a logical Group Id with a particular
@@ -359,7 +357,6 @@ public class GroupKeyManagementCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "groupKeyMap : " + groupKeyMap + "\n";
         str += "groupTable : " + groupTable + "\n";

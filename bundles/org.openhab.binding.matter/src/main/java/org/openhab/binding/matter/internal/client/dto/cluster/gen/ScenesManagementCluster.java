@@ -32,12 +32,10 @@ public class ScenesManagementCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0062;
     public static final String CLUSTER_NAME = "ScenesManagement";
     public static final String CLUSTER_PREFIX = "scenesManagement";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_SCENE_TABLE_SIZE = "sceneTableSize";
     public static final String ATTRIBUTE_FABRIC_SCENE_INFO = "fabricSceneInfo";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the number of entries in the Scene Table on this endpoint. This is the total across all fabrics; note
@@ -397,7 +395,6 @@ public class ScenesManagementCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "sceneTableSize : " + sceneTableSize + "\n";
         str += "fabricSceneInfo : " + fabricSceneInfo + "\n";

@@ -30,7 +30,6 @@ public class RvcOperationalStateCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0061;
     public static final String CLUSTER_NAME = "RvcOperationalState";
     public static final String CLUSTER_PREFIX = "rvcOperationalState";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_PHASE_LIST = "phaseList";
     public static final String ATTRIBUTE_CURRENT_PHASE = "currentPhase";
     public static final String ATTRIBUTE_COUNTDOWN_TIME = "countdownTime";
@@ -38,7 +37,6 @@ public class RvcOperationalStateCluster extends BaseCluster {
     public static final String ATTRIBUTE_OPERATIONAL_STATE = "operationalState";
     public static final String ATTRIBUTE_OPERATIONAL_ERROR = "operationalError";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * Indicates a list of names of different phases that the device can go through for the selected function or mode.
      * The list may not be in sequence order. For example in a washing machine this could include items such as
@@ -403,7 +401,6 @@ public class RvcOperationalStateCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "phaseList : " + phaseList + "\n";
         str += "currentPhase : " + currentPhase + "\n";
         str += "countdownTime : " + countdownTime + "\n";

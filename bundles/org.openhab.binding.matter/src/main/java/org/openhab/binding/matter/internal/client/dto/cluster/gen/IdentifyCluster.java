@@ -31,11 +31,9 @@ public class IdentifyCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0003;
     public static final String CLUSTER_NAME = "Identify";
     public static final String CLUSTER_PREFIX = "identify";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_IDENTIFY_TIME = "identifyTime";
     public static final String ATTRIBUTE_IDENTIFY_TYPE = "identifyType";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * Indicates the remaining length of time, in seconds, that the endpoint will continue to identify itself.
      * If this attribute is set to a value other than 0 then the device shall enter its identification state, in order
@@ -177,7 +175,6 @@ public class IdentifyCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "identifyTime : " + identifyTime + "\n";
         str += "identifyType : " + identifyType + "\n";
         return str;

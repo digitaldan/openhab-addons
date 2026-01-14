@@ -31,7 +31,6 @@ public class WaterHeaterManagementCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0094;
     public static final String CLUSTER_NAME = "WaterHeaterManagement";
     public static final String CLUSTER_PREFIX = "waterHeaterManagement";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_HEATER_TYPES = "heaterTypes";
     public static final String ATTRIBUTE_HEAT_DEMAND = "heatDemand";
@@ -40,7 +39,6 @@ public class WaterHeaterManagementCluster extends BaseCluster {
     public static final String ATTRIBUTE_TANK_PERCENTAGE = "tankPercentage";
     public static final String ATTRIBUTE_BOOST_STATE = "boostState";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the heat sources that the water heater can call on for heating. If a bit is set then the water heater
@@ -270,7 +268,6 @@ public class WaterHeaterManagementCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "heaterTypes : " + heaterTypes + "\n";
         str += "heatDemand : " + heatDemand + "\n";

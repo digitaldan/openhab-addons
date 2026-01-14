@@ -31,10 +31,8 @@ public class CommissionerControlCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0751;
     public static final String CLUSTER_NAME = "CommissionerControl";
     public static final String CLUSTER_PREFIX = "commissionerControl";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_SUPPORTED_DEVICE_CATEGORIES = "supportedDeviceCategories";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     /**
      * Indicates the device categories specified in SupportedDeviceCategoryBitmap that are supported by this
      * Commissioner Control Cluster server.
@@ -155,7 +153,6 @@ public class CommissionerControlCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "supportedDeviceCategories : " + supportedDeviceCategories + "\n";
         return str;
     }

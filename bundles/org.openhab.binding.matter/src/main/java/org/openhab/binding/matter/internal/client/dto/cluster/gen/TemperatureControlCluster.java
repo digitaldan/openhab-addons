@@ -32,7 +32,6 @@ public class TemperatureControlCluster extends BaseCluster {
     public static final int CLUSTER_ID = 0x0056;
     public static final String CLUSTER_NAME = "TemperatureControl";
     public static final String CLUSTER_PREFIX = "temperatureControl";
-    public static final String ATTRIBUTE_CLUSTER_REVISION = "clusterRevision";
     public static final String ATTRIBUTE_FEATURE_MAP = "featureMap";
     public static final String ATTRIBUTE_TEMPERATURE_SETPOINT = "temperatureSetpoint";
     public static final String ATTRIBUTE_MIN_TEMPERATURE = "minTemperature";
@@ -41,7 +40,6 @@ public class TemperatureControlCluster extends BaseCluster {
     public static final String ATTRIBUTE_SELECTED_TEMPERATURE_LEVEL = "selectedTemperatureLevel";
     public static final String ATTRIBUTE_SUPPORTED_TEMPERATURE_LEVELS = "supportedTemperatureLevels";
 
-    public Integer clusterRevision; // 65533 ClusterRevision
     public FeatureMap featureMap; // 65532 FeatureMap
     /**
      * Indicates the desired Temperature Setpoint on the device.
@@ -138,7 +136,6 @@ public class TemperatureControlCluster extends BaseCluster {
     @Override
     public @NonNull String toString() {
         String str = "";
-        str += "clusterRevision : " + clusterRevision + "\n";
         str += "featureMap : " + featureMap + "\n";
         str += "temperatureSetpoint : " + temperatureSetpoint + "\n";
         str += "minTemperature : " + minTemperature + "\n";

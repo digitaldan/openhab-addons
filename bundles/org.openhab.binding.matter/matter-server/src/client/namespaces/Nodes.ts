@@ -1,8 +1,11 @@
-import { Logger } from "@matter/main";
-import { GeneralCommissioning, OperationalCredentialsCluster } from "@matter/main/clusters";
+import { Logger, ObserverGroup, SoftwareUpdateManager } from "@matter/main";
+import { GeneralCommissioning, OperationalCredentialsCluster, OtaSoftwareUpdateRequestor, OtaSoftwareUpdateRequestorCluster } from "@matter/main/clusters";
 import { FabricIndex, ManualPairingCodeCodec, NodeId, QrCode, QrPairingCodeCodec } from "@matter/types";
 import { NodeCommissioningOptions } from "@project-chip/matter.js";
 import { ControllerNode } from "../ControllerNode";
+import { OtaSoftwareUpdateRequestorClient } from "@matter/node/behaviors";
+import { EventType } from "../../MessageTypes";
+import { PeerAddress } from "@matter/main/protocol";
 
 const logger = Logger.get("matter");
 
@@ -227,13 +230,22 @@ export class Nodes {
         }
 
         const fabricInstance = FabricIndex(index);
-        const ourFabricIndex = await operationalCredentialsCluster.getCurrentFabricIndexAttribute(true);
+        const ourFabricIndex = await this.getOurFabricIndex(nodeId);
 
         if (ourFabricIndex == fabricInstance) {
             throw new Error("Will not delete our own fabric");
         }
 
         await operationalCredentialsCluster.commands.removeFabric({ fabricIndex: fabricInstance });
+    }
+
+    async getOurFabricIndex(nodeId: number | string) {
+        const node = this.controllerNode.getNode(nodeId);
+        const operationalCredentialsCluster = node.getRootClusterClient(OperationalCredentialsCluster);
+        if (operationalCredentialsCluster === undefined) {
+            throw new Error(`OperationalCredentialsCluster for node ${nodeId} not found.`);
+        }
+        return await operationalCredentialsCluster.getCurrentFabricIndexAttribute(true);
     }
 
     /**
@@ -292,23 +304,53 @@ export class Nodes {
         node.logStructure();
     }
 
-    async checkForUpdates(nodeId: number | string) {
+    async otaQueryForUpdates(nodeId: number | string, includeStoredUpdates: boolean = false) {
         const node = this.controllerNode.getNode(nodeId);
-        const nodeDetails = this.controllerNode.commissioningController?.getCommissionedNodesDetails().find(nd => nd.nodeId === node.nodeId);
-        const basicInfo = nodeDetails?.deviceData?.basicInformation;
-        if (!basicInfo) {
-            throw new Error(`Node ${nodeId} has no basic information available`);
+       // Query a specific node for updates
+        const updates = await this.controllerNode.commissioningController?.otaProvider.act(agent =>
+            agent.get(SoftwareUpdateManager).queryUpdates({ peerToCheck: node.node, includeStoredUpdates: includeStoredUpdates })
+        );
+        if (updates && updates.length > 0) {
+            return updates[0].info;
+        } 
+        return undefined;
+    }
+    
+    async otaStartUpdate(nodeId: number | string): Promise<void> {
+        const node = this.controllerNode.getNode(nodeId);
+        const observers = new ObserverGroup();
+    
+        // Get OTA events from the ClientNode
+        const otaEvents = node.node.eventsOf(OtaSoftwareUpdateRequestorClient);
+    
+        const updateInfo = await this.otaQueryForUpdates(nodeId, true);
+        if (updateInfo === undefined) {
+            throw new Error(`No update info found for node ${nodeId}`);
         }
-        if (
-            basicInfo.vendorId === undefined ||
-            basicInfo.productId === undefined ||
-            basicInfo.softwareVersion === undefined
-        ) {
-            throw new Error(
-                `Node ${nodeId} is missing required basic information for OTA check`,
-            );
+        const { vendorId, productId, softwareVersion, softwareVersionString } = updateInfo;
+        console.log(`Updating node ${nodeId} to version ${softwareVersionString} with vendorId ${vendorId} and productId ${productId}`);
+        const peerAddress = this.controllerNode.commissioningController?.fabric.addressOf(node.nodeId);
+        if (peerAddress === undefined) {
+            throw new Error(`Peer address not found for node ${nodeId}`);
         }
+        console.log(`Updating node ${nodeId} to firmware with vendorId ${vendorId} and productId ${productId} and softwareVersion ${softwareVersion}`);
+        await this.controllerNode.commissioningController?.otaProvider.act(agent => {
+            return agent
+                .get(SoftwareUpdateManager).forceUpdate(peerAddress, vendorId, productId, softwareVersion);
+        });
+    }
 
-        console.log(`Checking for OTA updates for node ${nodeId}...`);
+    async otaCancelUpdate(nodeId: number | string): Promise<void> {
+        const node = this.controllerNode.getNode(nodeId);
+        const peerAddress = this.controllerNode.commissioningController?.fabric.addressOf(node.nodeId);
+        if (peerAddress === undefined) {
+            throw new Error(`Peer address not found for node ${nodeId}`);
+        }
+        await this.controllerNode.commissioningController?.otaProvider.act(agent =>
+            agent
+                .get(SoftwareUpdateManager)
+                .removeConsent(peerAddress)
+        );
+        console.log(`Consent removed for node ${nodeId}`);
     }
 }
