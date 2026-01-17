@@ -803,7 +803,7 @@
 		</tags>
 		<state readOnly="true"/>
 	</channel-type>
-	
+
 	<!-- OTA Software Update Requestor Channels -->
 	<channel-type id="otasoftwareupdaterequestor-updateavailable">
 		<item-type>Switch</item-type>
