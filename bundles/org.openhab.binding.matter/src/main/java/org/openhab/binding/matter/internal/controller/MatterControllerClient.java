@@ -362,7 +362,7 @@ public class MatterControllerClient extends MatterWebsocketClient {
         CompletableFuture<JsonElement> future = sendMessage("nodes", "otaQueryForUpdates",
                 new Object[] { nodeId, includeStoredUpdates });
         return future.thenApply(obj -> {
-            if (obj.isJsonNull()) {
+            if (obj == null || obj.isJsonNull()) {
                 return null;
             }
             // TypeScript returns undefined when no update is available, which serializes as "undefined"
