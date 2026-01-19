@@ -24,10 +24,10 @@ import javax.measure.quantity.Time;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
-import org.openhab.binding.unifiprotect.internal.api.UniFiProtectApiClient;
-import org.openhab.binding.unifiprotect.internal.api.dto.ApiValueEnum;
-import org.openhab.binding.unifiprotect.internal.api.dto.Device;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.BaseEvent;
+import org.openhab.binding.unifiprotect.internal.api.UniFiProtectHybridClient;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.ApiValueEnum;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.Device;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.BaseEvent;
 import org.openhab.binding.unifiprotect.internal.config.UnifiProtectContactConfiguration;
 import org.openhab.binding.unifiprotect.internal.config.UnifiProtectDeviceConfiguration;
 import org.openhab.core.library.types.DateTimeType;
@@ -120,7 +120,7 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends Device> extend
         }
     }
 
-    protected @Nullable UniFiProtectApiClient getApiClient() {
+    protected @Nullable UniFiProtectHybridClient getApiClient() {
         Thing bridge = getBridge();
         if (bridge != null) {
             BaseThingHandler h = (BaseThingHandler) bridge.getHandler();

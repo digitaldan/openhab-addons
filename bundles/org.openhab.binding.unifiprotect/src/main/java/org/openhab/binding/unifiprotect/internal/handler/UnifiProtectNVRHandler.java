@@ -28,20 +28,33 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectBindingConstants;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectDiscoveryService;
-import org.openhab.binding.unifiprotect.internal.api.UniFiProtectApiClient;
-import org.openhab.binding.unifiprotect.internal.api.dto.Camera;
-import org.openhab.binding.unifiprotect.internal.api.dto.DeviceState;
-import org.openhab.binding.unifiprotect.internal.api.dto.Light;
-import org.openhab.binding.unifiprotect.internal.api.dto.Nvr;
-import org.openhab.binding.unifiprotect.internal.api.dto.ProtectVersionInfo;
-import org.openhab.binding.unifiprotect.internal.api.dto.Sensor;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.BaseEvent;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.EventType;
-import org.openhab.binding.unifiprotect.internal.api.dto.gson.DeviceTypeAdapterFactory;
-import org.openhab.binding.unifiprotect.internal.api.dto.gson.EventTypeAdapterFactory;
+import org.openhab.binding.unifiprotect.internal.api.UniFiProtectHybridClient;
+import org.openhab.binding.unifiprotect.internal.api.priv.client.UniFiProtectPrivateClient;
+import org.openhab.binding.unifiprotect.internal.api.priv.client.UniFiProtectPrivateWebSocket.WebSocketUpdate;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Chime;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Doorlock;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.ApiKey;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.ModelType;
+import org.openhab.binding.unifiprotect.internal.api.priv.util.JsonUtil;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.Camera;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.DeviceState;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.Light;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.Nvr;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.ProtectVersionInfo;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.Sensor;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.BaseEvent;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.EventType;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.gson.DeviceTypeAdapterFactory;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.gson.EventTypeAdapterFactory;
 import org.openhab.binding.unifiprotect.internal.config.UnifiProtectNVRConfiguration;
 import org.openhab.binding.unifiprotect.internal.handler.UnifiProtectAbstractDeviceHandler.WSEventType;
+import org.openhab.core.config.core.Configuration;
 import org.openhab.core.io.net.http.HttpClientFactory;
+import org.openhab.core.library.types.DateTimeType;
+import org.openhab.core.library.types.DecimalType;
+import org.openhab.core.library.types.OnOffType;
+import org.openhab.core.library.types.QuantityType;
+import org.openhab.core.library.types.StringType;
 import org.openhab.core.thing.Bridge;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
@@ -66,7 +79,7 @@ import com.google.gson.GsonBuilder;
 @NonNullByDefault
 public class UnifiProtectNVRHandler extends BaseBridgeHandler {
     private final Logger logger = LoggerFactory.getLogger(UnifiProtectNVRHandler.class);
-    private @Nullable UniFiProtectApiClient apiClient;
+    private @Nullable UniFiProtectHybridClient apiClient;
     private @Nullable ScheduledFuture<?> pollTask;
     private @Nullable ScheduledFuture<?> reconnectTask;
     private @Nullable UnifiProtectDiscoveryService discoveryService;
@@ -133,16 +146,64 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         logger.debug("Initializing NVR");
         shuttingDown = false;
         final UnifiProtectNVRConfiguration config = getConfigAs(UnifiProtectNVRConfiguration.class);
-        if (config.hostname.isBlank() || config.token.isBlank()) {
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, "Hostname or token is blank");
+
+        // Validate required fields (private API credentials are now required)
+        if (config.hostname.isBlank() || config.username.isBlank() || config.password.isBlank()) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                    "Hostname, username, and password are required");
             return;
         }
-        updateStatus(ThingStatus.UNKNOWN);
+
+        updateStatus(ThingStatus.UNKNOWN, ThingStatusDetail.CONFIGURATION_PENDING, "Initializing...");
+
         scheduler.execute(() -> {
             try {
+                String apiToken = config.token;
+
+                // Auto-create API key if not provided
+                if (apiToken == null || apiToken.isBlank()) {
+                    logger.info("No API token provided, auto-creating via Private API...");
+
+                    try {
+                        // Create temporary private client for key management
+                        UniFiProtectPrivateClient tempClient = new UniFiProtectPrivateClient(httpClient, scheduler,
+                                config.hostname, config.port, config.username, config.password);
+
+                        // Initialize and authenticate
+                        tempClient.initialize().get(30, TimeUnit.SECONDS);
+
+                        // Get current user ID
+                        String userId = tempClient.getCurrentUserId().get(10, TimeUnit.SECONDS);
+
+                        // Create or recreate API key
+                        String keyName = "openHAB-" + getThing().getUID().getId();
+                        ApiKey key = tempClient.getOrCreateApiKey(userId, keyName).get(10, TimeUnit.SECONDS);
+
+                        apiToken = key.fullApiKey;
+                        logger.info("Successfully created API key '{}': {}***", keyName,
+                                apiToken.substring(0, Math.min(8, apiToken.length())));
+
+                        // Save token to configuration for future use
+                        Configuration thingConfig = editConfiguration();
+                        thingConfig.put("token", apiToken);
+                        updateConfiguration(thingConfig);
+                        logger.info("Saved auto-created API token to configuration");
+
+                        tempClient.close();
+                    } catch (Exception e) {
+                        logger.error("Failed to auto-create API key", e);
+                        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                                "Failed to create API key: " + e.getMessage());
+                        return;
+                    }
+                }
+
+                // Create hybrid client with both public and private API
                 URI base = URI.create("https://" + config.hostname + "/proxy/protect/integration/");
-                UniFiProtectApiClient apiClient = new UniFiProtectApiClient(httpClient, base, gson, config.token,
-                        scheduler);
+                logger.info("Initializing with hybrid API client (Public + Private)");
+                UniFiProtectHybridClient apiClient = new UniFiProtectHybridClient(httpClient, base, gson, apiToken,
+                        scheduler, config.hostname, config.port, config.username, config.password);
+
                 this.apiClient = apiClient;
 
                 apiClient.subscribeEvents(add -> {
@@ -225,6 +286,26 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                     logger.debug("Device WS closed: {} {}", code, reason);
                     setOfflineAndReconnect();
                 }, err -> logger.debug("Device WS error", err)).get();
+
+                // Enable Private API WebSocket if configured
+                if (apiClient.isPrivateApiEnabled()) {
+                    logger.info("Enabling Private API WebSocket for real-time updates");
+                    apiClient.enablePrivateWebSocket(update -> {
+                        scheduler.execute(() -> {
+                            logger.trace("Private API WebSocket update: action={}, model={}", update.action,
+                                    update.modelType);
+                            // Route Private API updates to handlers based on model type
+                            routePrivateApiUpdate(update);
+                        });
+                    }).whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            logger.debug("Failed to enable Private API WebSocket", ex);
+                        }
+                    });
+
+                    // Update NVR status channels from Private API
+                    updateNVRStatus();
+                }
             } catch (Exception e) {
                 logger.debug("Initialization failed", e);
                 setOfflineAndReconnect();
@@ -245,8 +326,14 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
     }
 
     @Nullable
-    public UniFiProtectApiClient getApiClient() {
+    public UniFiProtectHybridClient getApiClient() {
         return apiClient;
+    }
+
+    @Nullable
+    public String getHostname() {
+        final UnifiProtectNVRConfiguration config = getConfigAs(UnifiProtectNVRConfiguration.class);
+        return config.hostname;
     }
 
     public void setDiscoveryService(UnifiProtectDiscoveryService discoveryService) {
@@ -328,7 +415,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
     }
 
     private void refreshChildFromApi(String deviceId, UnifiProtectAbstractDeviceHandler<?> handler) {
-        UniFiProtectApiClient apiClient = this.apiClient;
+        UniFiProtectHybridClient apiClient = this.apiClient;
         if (apiClient == null) {
             return;
         }
@@ -396,7 +483,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
     }
 
     private void syncDevices() {
-        UniFiProtectApiClient apiClient = this.apiClient;
+        UniFiProtectHybridClient apiClient = this.apiClient;
         if (apiClient == null) {
             return;
         }
@@ -521,8 +608,93 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         }
     }
 
+    private void routePrivateApiUpdate(WebSocketUpdate update) {
+        // Route Private API WebSocket updates to appropriate handlers
+        // The update contains: action, modelType, id, newUpdateId, and data (JsonObject)
+
+        if (update.data == null) {
+            return;
+        }
+
+        try {
+            // Parse the data JsonObject into the appropriate device type and update the handler
+            Gson gson = JsonUtil.getGson();
+
+            // Handle NVR updates (NVR doesn't have a device ID like other devices)
+            if (update.modelType == ModelType.NVR) {
+                org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Nvr nvr = gson.fromJson(update.data,
+                        org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Nvr.class);
+
+                if (nvr != null) {
+                    logger.trace("Private API NVR real-time update (action: {})", update.action);
+                    // Update NVR channels with the data from WebSocket
+                    updateNVRChannels(nvr);
+                }
+                return; // NVR updates are handled, no need to continue
+            }
+
+            // For device updates, we need an ID
+            if (update.id == null) {
+                return;
+            }
+
+            // Route to appropriate handler based on model type
+            String deviceId = update.id;
+            if (update.modelType == ModelType.CAMERA) {
+                UnifiProtectCameraHandler ch = findChildHandler(UnifiProtectBindingConstants.THING_TYPE_CAMERA,
+                        deviceId, UnifiProtectCameraHandler.class);
+                if (ch != null) {
+                    // Parse the update data into a Camera object
+                    org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera camera = gson.fromJson(
+                            update.data, org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera.class);
+
+                    if (camera != null) {
+                        logger.trace("Private API camera real-time update for device {} (action: {})", deviceId,
+                                update.action);
+                        // Update Private API channels with the data from WebSocket
+                        ch.updatePrivateApiChannels(camera);
+                    }
+                }
+            } else if (update.modelType == ModelType.LIGHT) {
+                // Lights have fewer Private API-specific channels
+                // The Public API WebSocket will handle most updates
+                logger.trace("Private API light real-time update for device {} (action: {})", deviceId, update.action);
+            } else if (update.modelType == ModelType.SENSOR) {
+                // Sensors have fewer Private API-specific channels
+                // The Public API WebSocket will handle most updates
+                logger.trace("Private API sensor real-time update for device {} (action: {})", deviceId, update.action);
+            } else if (update.modelType == ModelType.DOORLOCK) {
+                UnifiProtectDoorlockHandler dlh = findChildHandler(UnifiProtectBindingConstants.THING_TYPE_DOORLOCK,
+                        deviceId, UnifiProtectDoorlockHandler.class);
+                if (dlh != null) {
+                    Doorlock doorlock = gson.fromJson(update.data, Doorlock.class);
+
+                    if (doorlock != null) {
+                        logger.trace("Private API doorlock real-time update for device {} (action: {})", deviceId,
+                                update.action);
+                        dlh.updateDoorlockChannels(doorlock);
+                    }
+                }
+            } else if (update.modelType == ModelType.CHIME) {
+                UnifiProtectChimeHandler ch = findChildHandler(UnifiProtectBindingConstants.THING_TYPE_CHIME, deviceId,
+                        UnifiProtectChimeHandler.class);
+                if (ch != null) {
+                    Chime chime = gson.fromJson(update.data, Chime.class);
+
+                    if (chime != null) {
+                        logger.trace("Private API chime real-time update for device {} (action: {})", deviceId,
+                                update.action);
+                        ch.updateChimeChannels(chime);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Error processing Private API WebSocket update for device {}", update.id, e);
+        }
+    }
+
     private void stopApiClient() {
-        UniFiProtectApiClient apiClient = this.apiClient;
+        UniFiProtectHybridClient apiClient = this.apiClient;
         if (apiClient != null) {
             try {
                 apiClient.close();
@@ -618,6 +790,180 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         pendingEventUpdates.remove(eventId);
         if (last != null) {
             routeEvent(last, WSEventType.UPDATE);
+        }
+    }
+
+    /**
+     * Fetch and update NVR status channels from Private API
+     */
+    private void updateNVRStatus() {
+        UniFiProtectHybridClient client = apiClient;
+        if (client == null || !client.isPrivateApiEnabled()) {
+            return;
+        }
+
+        try {
+            // Fetch NVR data from Private API Bootstrap
+            client.getPrivateClient().getBootstrap().thenAccept(bootstrap -> {
+                if (bootstrap.nvr != null) {
+                    scheduler.execute(() -> {
+                        updateNVRChannels(bootstrap.nvr);
+                    });
+                }
+            }).exceptionally(ex -> {
+                logger.debug("Failed to fetch NVR status from Private API", ex);
+                return null;
+            });
+        } catch (Exception e) {
+            logger.debug("Error updating NVR status", e);
+        }
+    }
+
+    /**
+     * Update NVR channels from Private API NVR data
+     */
+    private void updateNVRChannels(org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Nvr nvr) {
+        if (nvr == null) {
+            return;
+        }
+
+        // Storage Monitoring
+        if (nvr.storageStats != null && nvr.storageStats.recordingSpace != null) {
+            if (nvr.storageStats.recordingSpace.total != null) {
+                updateState(UnifiProtectBindingConstants.CHANNEL_STORAGE_TOTAL,
+                        new DecimalType(nvr.storageStats.recordingSpace.total));
+            }
+            if (nvr.storageStats.recordingSpace.used != null) {
+                updateState(UnifiProtectBindingConstants.CHANNEL_STORAGE_USED,
+                        new DecimalType(nvr.storageStats.recordingSpace.used));
+            }
+            if (nvr.storageStats.recordingSpace.available != null) {
+                updateState(UnifiProtectBindingConstants.CHANNEL_STORAGE_AVAILABLE,
+                        new DecimalType(nvr.storageStats.recordingSpace.available));
+            }
+        }
+        if (nvr.storageStats != null) {
+            if (nvr.storageStats.utilization != null) {
+                updateState(UnifiProtectBindingConstants.CHANNEL_STORAGE_UTILIZATION,
+                        new QuantityType<>(nvr.storageStats.utilization, tech.units.indriya.unit.Units.PERCENT));
+            }
+        }
+
+        // Storage Device Health (from systemInfo.storage.devices)
+        if (nvr.systemInfo != null && nvr.systemInfo.storage != null && nvr.systemInfo.storage.devices != null
+                && !nvr.systemInfo.storage.devices.isEmpty()) {
+            boolean allHealthy = nvr.systemInfo.storage.devices.stream()
+                    .allMatch(d -> d.healthy != null && "health".equalsIgnoreCase(d.healthy));
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_STORAGE_DEVICE_HEALTHY, OnOffType.from(allHealthy));
+        }
+
+        // Camera Capacity
+        if (nvr.cameraUtilization != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_CAMERA_UTILIZATION,
+                    new DecimalType(nvr.cameraUtilization));
+        }
+        if (nvr.maxCameraCapacity != null && !nvr.maxCameraCapacity.isEmpty()) {
+            // Format capacity as a string (e.g., "4K: 10, 2K: 20, HD: 40")
+            StringBuilder capacity = new StringBuilder();
+            nvr.maxCameraCapacity.forEach((key, value) -> {
+                if (capacity.length() > 0) {
+                    capacity.append(", ");
+                }
+                capacity.append(key).append(": ").append(value);
+            });
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_CAMERA_CAPACITY_MAX, capacity.toString());
+        }
+
+        // Software Versions (Properties)
+        if (nvr.version != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_PROTECT_VERSION, nvr.version);
+        }
+        if (nvr.ucoreVersion != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_UCORE_VERSION, nvr.ucoreVersion);
+        }
+        if (nvr.uiVersion != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_UI_VERSION, nvr.uiVersion);
+        }
+
+        // Network Information (Properties)
+        if (nvr.publicIp != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_PUBLIC_IP, nvr.publicIp);
+        }
+        if (nvr.wanIp != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_WAN_IP, nvr.wanIp);
+        }
+
+        // Recording Settings
+        if (nvr.globalCameraSettings != null && nvr.globalCameraSettings.recordingMode != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_RECORDING_MODE,
+                    new StringType(nvr.globalCameraSettings.recordingMode));
+        }
+        if (nvr.isRecordingDisabled != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_RECORDING_DISABLED,
+                    OnOffType.from(nvr.isRecordingDisabled));
+        }
+        if (nvr.isRecordingMotionOnly != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_RECORDING_MOTION_ONLY,
+                    OnOffType.from(nvr.isRecordingMotionOnly));
+        }
+        if (nvr.recordingRetentionDurationMs != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_RECORDING_RETENTION,
+                    new QuantityType<>(nvr.recordingRetentionDurationMs,
+                            javax.measure.MetricPrefix.MILLI(tech.units.indriya.unit.Units.SECOND)));
+        }
+
+        // Away Mode
+        if (nvr.isAway != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_IS_AWAY, OnOffType.from(nvr.isAway));
+        }
+        if (nvr.locationSettings != null && nvr.locationSettings.isGeofencingEnabled != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_GEOFENCING_ENABLED,
+                    OnOffType.from(nvr.locationSettings.isGeofencingEnabled));
+        }
+
+        // Feature Flags
+        if (nvr.smartDetection != null && nvr.smartDetection.enable != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_SMART_DETECTION_AVAILABLE,
+                    OnOffType.from(nvr.smartDetection.enable));
+        }
+        if (nvr.isInsightsEnabled != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_INSIGHTS_ENABLED,
+                    OnOffType.from(nvr.isInsightsEnabled));
+        }
+        // Note: isVaultRegistered field doesn't exist in current UniFi Protect versions
+
+        // Hardware Information (Properties)
+        if (nvr.hostShortname != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_HARDWARE_PLATFORM, nvr.hostShortname);
+        }
+        if (nvr.marketName != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_MARKET_NAME, nvr.marketName);
+        }
+        if (nvr.hardwareRevision != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_IS_HARDWARE,
+                    String.valueOf(!nvr.hardwareRevision.isEmpty()));
+        }
+        if (nvr.name != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_NAME, nvr.name);
+        }
+        if (nvr.hostShortname != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_HOSTNAME, nvr.hostShortname);
+        }
+        if (nvr.hosts != null && !nvr.hosts.isEmpty()) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_HOST, nvr.hosts.get(0));
+        }
+
+        // Update Status
+        if (nvr.canAutoUpdate != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_CAN_AUTO_UPDATE, OnOffType.from(nvr.canAutoUpdate));
+        }
+        if (nvr.lastUpdateAt != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_LAST_UPDATE_AT, new DateTimeType(
+                    java.time.ZonedDateTime.ofInstant(nvr.lastUpdateAt, java.time.ZoneId.systemDefault())));
+        }
+        if (nvr.isProtectUpdatable != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_PROTECT_UPDATABLE,
+                    OnOffType.from(nvr.isProtectUpdatable));
         }
     }
 }

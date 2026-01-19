@@ -1,0 +1,292 @@
+/*
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
+package org.openhab.binding.unifiprotect.internal.api.priv.client;
+
+import java.net.HttpCookie;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.util.StringContentProvider;
+import org.eclipse.jetty.http.HttpMethod;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.LoginResponse;
+import org.openhab.binding.unifiprotect.internal.api.priv.exception.AuthenticationException;
+import org.openhab.binding.unifiprotect.internal.api.priv.util.JsonUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.JsonObject;
+
+/**
+ * Handles authentication with UniFi Protect
+ * Manages login, session cookies, CSRF tokens, and automatic re-authentication
+ *
+ * @author Dan Cunningham - Initial contribution
+ */
+public class UniFiProtectAuthenticator {
+
+    private static final Logger logger = LoggerFactory.getLogger(UniFiProtectAuthenticator.class);
+    private static final String AUTH_PATH = "/api/auth/login";
+    private static final Duration SESSION_EXPIRY = Duration.ofHours(24);
+    private static final String COOKIE_TOKEN = "TOKEN";
+    private static final String COOKIE_UOS_TOKEN = "UOS_TOKEN";
+
+    private final HttpClient httpClient;
+    private final String baseUrl;
+    private final String username;
+    private final String password;
+    private final SessionPersistence sessionPersistence;
+
+    private volatile String authCookie;
+    private volatile String csrfToken;
+    private volatile Instant lastAuthTime;
+    private volatile String userId;
+
+    public UniFiProtectAuthenticator(HttpClient httpClient, String baseUrl, String username, String password,
+            boolean enableSessionPersistence) {
+        this.httpClient = httpClient;
+        this.baseUrl = baseUrl;
+        this.username = username;
+        this.password = password;
+
+        SessionPersistence tempPersistence = null;
+        if (enableSessionPersistence) {
+            try {
+                tempPersistence = new SessionPersistence(baseUrl, username);
+
+                // Try to load saved session
+                SessionPersistence.SessionData sessionData = tempPersistence.load();
+                if (sessionData != null) {
+                    this.authCookie = sessionData.cookie;
+                    this.csrfToken = sessionData.csrfToken;
+                    this.lastAuthTime = Instant.now();
+                    logger.info("Loaded saved session for {}", username);
+
+                    // Fetch user ID since we didn't login
+                    fetchUserIdFromSelf();
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to initialize or load session persistence: {}", e.getMessage(), e);
+                tempPersistence = null;
+            }
+        }
+        this.sessionPersistence = tempPersistence;
+    }
+
+    /**
+     * Authenticate with UniFi Protect
+     * Returns CompletableFuture that completes when authenticated
+     */
+    public CompletableFuture<Void> authenticate() {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                logger.info("Authenticating with UniFi Protect as {}", username);
+
+                // Create login request body
+                JsonObject loginData = new JsonObject();
+                loginData.addProperty("username", username);
+                loginData.addProperty("password", password);
+                loginData.addProperty("rememberMe", sessionPersistence != null);
+
+                String url = baseUrl + AUTH_PATH;
+                Request request = httpClient.newRequest(url).method(HttpMethod.POST)
+                        .header("Content-Type", "application/json")
+                        .content(new StringContentProvider(loginData.toString()));
+
+                ContentResponse response = request.send();
+
+                if (response.getStatus() != 200) {
+                    throw new AuthenticationException(
+                            "Authentication failed: " + response.getStatus() + " " + response.getReason());
+                }
+
+                // Parse response body to get user ID
+                String responseBody = response.getContentAsString();
+                logger.debug("Login response body: {}", responseBody);
+                try {
+                    LoginResponse loginResponse = JsonUtil.getGson().fromJson(responseBody, LoginResponse.class);
+                    if (loginResponse != null && loginResponse.id != null) {
+                        this.userId = loginResponse.id;
+                        logger.debug("Got user ID: {}", userId);
+                    } else {
+                        logger.warn("Login response did not contain user ID");
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to parse login response for user ID", e);
+                }
+
+                // Extract CSRF token from headers
+                String csrfHeader = response.getHeaders().get("x-csrf-token");
+                if (csrfHeader != null) {
+                    this.csrfToken = csrfHeader;
+                    logger.debug("Got CSRF token: {}", csrfToken);
+                }
+
+                // Extract cookie from Set-Cookie header
+                String setCookieHeader = response.getHeaders().get("Set-Cookie");
+                if (setCookieHeader != null) {
+                    parseCookie(setCookieHeader);
+                    logger.debug("Got auth cookie");
+                }
+
+                if (authCookie == null) {
+                    throw new AuthenticationException("No authentication cookie received");
+                }
+
+                this.lastAuthTime = Instant.now();
+                logger.info("Successfully authenticated as {} (user ID: {})", username, userId);
+
+                // Save session to disk
+                if (sessionPersistence != null) {
+                    try {
+                        SessionPersistence.SessionData sessionData = new SessionPersistence.SessionData(authCookie,
+                                csrfToken, Instant.now().plus(SESSION_EXPIRY));
+                        sessionPersistence.save(sessionData);
+                    } catch (Exception e) {
+                        logger.warn("Failed to save session to disk: {}", e.getMessage(), e);
+                    }
+                }
+
+            } catch (Exception e) {
+                throw new AuthenticationException("Authentication failed", e);
+            }
+        });
+    }
+
+    /**
+     * Parse cookie from Set-Cookie header
+     */
+    private void parseCookie(String setCookieHeader) {
+        try {
+            List<HttpCookie> cookies = HttpCookie.parse(setCookieHeader);
+            for (HttpCookie cookie : cookies) {
+                if (COOKIE_TOKEN.equals(cookie.getName()) || COOKIE_UOS_TOKEN.equals(cookie.getName())) {
+                    // Store the full cookie string for the header
+                    this.authCookie = cookie.getName() + "=" + cookie.getValue();
+                    logger.debug("Parsed cookie: {}", cookie.getName());
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to parse cookie: {}", setCookieHeader, e);
+        }
+    }
+
+    /**
+     * Fetch user ID from /api/users/self
+     * Used when loading a saved session (no login response to parse)
+     */
+    private void fetchUserIdFromSelf() {
+        try {
+            String url = baseUrl + "/api/users/self";
+            Request request = httpClient.newRequest(url).method(HttpMethod.GET);
+
+            // Add auth headers
+            addAuthHeaders(request);
+
+            ContentResponse response = request.send();
+
+            if (response.getStatus() == 200) {
+                String responseBody = response.getContentAsString();
+                logger.debug("/users/self response: {}", responseBody);
+
+                try {
+                    LoginResponse userInfo = JsonUtil.getGson().fromJson(responseBody, LoginResponse.class);
+                    if (userInfo != null && userInfo.id != null) {
+                        this.userId = userInfo.id;
+                        logger.debug("Fetched user ID from /users/self: {}", userId);
+                    } else {
+                        logger.warn("/users/self response did not contain user ID");
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to parse /users/self response for user ID", e);
+                }
+            } else {
+                logger.warn("Failed to fetch user info from /users/self: {} {}", response.getStatus(),
+                        response.getReason());
+            }
+        } catch (Exception e) {
+            logger.warn("Error fetching user ID from /users/self", e);
+        }
+    }
+
+    /**
+     * Add authentication headers to a request
+     */
+    public void addAuthHeaders(Request request) {
+        if (authCookie != null) {
+            request.header("Cookie", authCookie);
+        }
+        if (csrfToken != null) {
+            request.header("x-csrf-token", csrfToken);
+        }
+    }
+
+    /**
+     * Check if we're authenticated
+     */
+    public boolean isAuthenticated() {
+        return authCookie != null && csrfToken != null;
+    }
+
+    /**
+     * Get auth cookie for WebSocket
+     */
+    public String getAuthCookie() {
+        return authCookie;
+    }
+
+    /**
+     * Get CSRF token
+     */
+    public String getCsrfToken() {
+        return csrfToken;
+    }
+
+    /**
+     * Get authenticated user ID
+     * Fetches from /users/self if not available
+     */
+    public String getUserId() {
+        if (userId == null && isAuthenticated()) {
+            // Lazy fetch if we don't have it yet
+            logger.debug("User ID not available, fetching from /users/self");
+            fetchUserIdFromSelf();
+        }
+        return userId;
+    }
+
+    /**
+     * Clear authentication (logout)
+     */
+    public void clearAuth() {
+        this.authCookie = null;
+        this.csrfToken = null;
+        this.lastAuthTime = null;
+        this.userId = null;
+
+        if (sessionPersistence != null) {
+            try {
+                sessionPersistence.delete();
+            } catch (Exception e) {
+                logger.warn("Failed to delete saved session: {}", e.getMessage(), e);
+            }
+        }
+
+        logger.info("Cleared authentication");
+    }
+}

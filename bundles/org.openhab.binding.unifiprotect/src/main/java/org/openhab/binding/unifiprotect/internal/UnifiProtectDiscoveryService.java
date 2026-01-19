@@ -17,10 +17,10 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.unifiprotect.internal.api.UniFiProtectApiClient;
-import org.openhab.binding.unifiprotect.internal.api.dto.Camera;
-import org.openhab.binding.unifiprotect.internal.api.dto.Light;
-import org.openhab.binding.unifiprotect.internal.api.dto.Sensor;
+import org.openhab.binding.unifiprotect.internal.api.UniFiProtectHybridClient;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.Camera;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.Light;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.Sensor;
 import org.openhab.binding.unifiprotect.internal.handler.UnifiProtectNVRHandler;
 import org.openhab.core.config.discovery.AbstractThingHandlerDiscoveryService;
 import org.openhab.core.config.discovery.DiscoveryResult;
@@ -61,7 +61,7 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
     @Override
     protected void startScan() {
         removeOlderResults(getTimestampOfLastScan());
-        final UniFiProtectApiClient client = thingHandler.getApiClient();
+        final UniFiProtectHybridClient client = thingHandler.getApiClient();
         if (client == null) {
             return;
         }
@@ -70,7 +70,7 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
         discoverSensors(client);
     }
 
-    public void discoverCameras(UniFiProtectApiClient client) {
+    public void discoverCameras(UniFiProtectHybridClient client) {
         try {
             for (Camera c : client.listCameras()) {
                 discoverCamera(c);
@@ -80,7 +80,7 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
         }
     }
 
-    public void discoverLights(UniFiProtectApiClient client) {
+    public void discoverLights(UniFiProtectHybridClient client) {
         try {
             for (Light l : client.listLights()) {
                 discoverLight(l);
@@ -90,13 +90,13 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
         }
     }
 
-    public void discoverSensors(UniFiProtectApiClient client) {
+    public void discoverSensors(UniFiProtectHybridClient client) {
         try {
             for (Sensor s : client.listSensors()) {
                 discoverSensor(s);
             }
         } catch (IOException e) {
-            logger.trace("Light discovery failed", e);
+            logger.trace("Sensor discovery failed", e);
         }
     }
 

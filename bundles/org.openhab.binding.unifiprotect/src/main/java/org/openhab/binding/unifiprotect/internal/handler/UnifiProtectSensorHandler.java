@@ -14,15 +14,17 @@ package org.openhab.binding.unifiprotect.internal.handler;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectBindingConstants;
-import org.openhab.binding.unifiprotect.internal.api.dto.Sensor;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.BaseEvent;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.SensorAlarmEvent;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.SensorClosedEvent;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.SensorExtremeValueEvent;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.SensorMotionEvent;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.SensorOpenEvent;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.SensorTamperEvent;
-import org.openhab.binding.unifiprotect.internal.api.dto.events.SensorWaterLeakEvent;
+import org.openhab.binding.unifiprotect.internal.api.UniFiProtectHybridClient;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.Sensor;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.BaseEvent;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.SensorAlarmEvent;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.SensorClosedEvent;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.SensorExtremeValueEvent;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.SensorMotionEvent;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.SensorOpenEvent;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.SensorTamperEvent;
+import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.SensorWaterLeakEvent;
+import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.OpenClosedType;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
@@ -49,6 +51,37 @@ public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler
         if (command instanceof RefreshType) {
             refreshState(id);
             return;
+        }
+
+        // Private API Commands
+        UniFiProtectHybridClient api = getApiClient();
+        if (api == null) {
+            return;
+        }
+
+        switch (id) {
+            case UnifiProtectBindingConstants.CHANNEL_SENSOR_CLEAR_TAMPER: {
+                if (api.isPrivateApiEnabled() && command == OnOffType.ON) {
+                    api.clearSensorTamper(deviceId).whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            logger.debug("Failed to clear sensor tamper", ex);
+                        }
+                    });
+                }
+                break;
+            }
+            case UnifiProtectBindingConstants.CHANNEL_DEVICE_REBOOT: {
+                if (api.isPrivateApiEnabled() && command == OnOffType.ON) {
+                    api.rebootDevice("sensor", deviceId).whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            logger.debug("Failed to reboot sensor", ex);
+                        }
+                    });
+                }
+                break;
+            }
+            default:
+                break;
         }
     }
 
