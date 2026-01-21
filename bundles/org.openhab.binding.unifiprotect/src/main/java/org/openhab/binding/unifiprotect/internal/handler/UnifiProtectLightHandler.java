@@ -174,8 +174,8 @@ public class UnifiProtectLightHandler extends UnifiProtectAbstractDeviceHandler<
                 }
                 // Private API Commands
                 case UnifiProtectBindingConstants.CHANNEL_DEVICE_REBOOT: {
-                    if (api.isPrivateApiEnabled() && command == OnOffType.ON) {
-                        api.rebootDevice("light", deviceId).whenComplete((result, ex) -> {
+                    if (command == OnOffType.ON) {
+                        api.getPrivateClient().rebootDevice("light", deviceId).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to reboot light", ex);
                             }

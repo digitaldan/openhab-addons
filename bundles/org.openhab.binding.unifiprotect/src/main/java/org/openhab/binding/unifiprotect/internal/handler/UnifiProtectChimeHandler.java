@@ -55,12 +55,6 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
                     return;
                 }
 
-                if (!client.isPrivateApiEnabled()) {
-                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-                            "Chime requires Private API to be enabled");
-                    return;
-                }
-
                 updateStatus(ThingStatus.ONLINE);
                 updateFromPrivateApi();
             } catch (Exception e) {
@@ -75,32 +69,41 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
         String channelId = channelUID.getId();
         UniFiProtectHybridClient api = getApiClient();
 
-        if (api == null || !api.isPrivateApiEnabled()) {
+        if (api == null) {
             logger.debug("Private API not available for chime command");
             return;
         }
+
+        var privateClient = api.getPrivateClient();
 
         try {
             switch (channelId) {
                 case UnifiProtectBindingConstants.CHANNEL_PLAY_CHIME:
                     if (command == OnOffType.ON) {
                         // Get current volume and repeat times from the chime
-                        api.getPrivateChime(deviceId).thenAccept(chime -> {
+                        privateClient.getBootstrap().thenApply(bootstrap -> {
+                            org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Chime chime = bootstrap.chimes
+                                    .get(deviceId);
+                            if (chime == null) {
+                                throw new IllegalArgumentException("Chime not found: " + deviceId);
+                            }
+                            return chime;
+                        }).thenAccept(chime -> {
                             Integer volume = chime.volume != null ? chime.volume : 100;
                             Integer repeatTimes = chime.repeatTimes != null ? chime.repeatTimes : 1;
 
-                            api.playChime(deviceId, volume, repeatTimes).thenRun(() -> {
+                            privateClient.playChime(deviceId, volume, repeatTimes).thenRun(() -> {
                                 logger.debug("Playing chime");
                                 // Reset the switch after playing starts
                                 scheduler.schedule(() -> {
                                     updateState(channelUID, OnOffType.OFF);
                                 }, 1, TimeUnit.SECONDS);
                             }).exceptionally(ex -> {
-                                logger.warn("Failed to play chime", ex);
+                                logger.debug("Failed to play chime", ex);
                                 return null;
                             });
                         }).exceptionally(ex -> {
-                            logger.warn("Failed to get chime data", ex);
+                            logger.debug("Failed to get chime data", ex);
                             return null;
                         });
                     }
@@ -108,14 +111,14 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
 
                 case UnifiProtectBindingConstants.CHANNEL_PLAY_BUZZER:
                     if (command == OnOffType.ON) {
-                        api.playChimeBuzzer(deviceId).thenRun(() -> {
+                        privateClient.playChimeBuzzer(deviceId).thenRun(() -> {
                             logger.debug("Playing buzzer");
                             // Reset the switch after playing starts
                             scheduler.schedule(() -> {
                                 updateState(channelUID, OnOffType.OFF);
                             }, 1, TimeUnit.SECONDS);
                         }).exceptionally(ex -> {
-                            logger.warn("Failed to play buzzer", ex);
+                            logger.debug("Failed to play buzzer", ex);
                             return null;
                         });
                     }
@@ -124,20 +127,20 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
                 case UnifiProtectBindingConstants.CHANNEL_CHIME_VOLUME:
                     if (command instanceof PercentType percentCmd) {
                         int volume = percentCmd.intValue();
-                        api.setChimeVolume(deviceId, volume).thenAccept(updatedChime -> {
+                        privateClient.setChimeVolume(deviceId, volume).thenAccept(updatedChime -> {
                             logger.debug("Set chime volume to {}", volume);
                             updateState(channelUID, new PercentType(volume));
                         }).exceptionally(ex -> {
-                            logger.warn("Failed to set chime volume", ex);
+                            logger.debug("Failed to set chime volume", ex);
                             return null;
                         });
                     } else if (command instanceof DecimalType decimalCmd) {
                         int volume = decimalCmd.intValue();
-                        api.setChimeVolume(deviceId, volume).thenAccept(updatedChime -> {
+                        privateClient.setChimeVolume(deviceId, volume).thenAccept(updatedChime -> {
                             logger.debug("Set chime volume to {}", volume);
                             updateState(channelUID, new PercentType(volume));
                         }).exceptionally(ex -> {
-                            logger.warn("Failed to set chime volume", ex);
+                            logger.debug("Failed to set chime volume", ex);
                             return null;
                         });
                     }
@@ -146,11 +149,11 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
                 case UnifiProtectBindingConstants.CHANNEL_CHIME_REPEAT_TIMES:
                     if (command instanceof DecimalType decimalCmd) {
                         int repeatTimes = decimalCmd.intValue();
-                        api.setChimeRepeatTimes(deviceId, repeatTimes).thenAccept(updatedChime -> {
+                        privateClient.setChimeRepeatTimes(deviceId, repeatTimes).thenAccept(updatedChime -> {
                             logger.debug("Set chime repeat times to {}", repeatTimes);
                             updateState(channelUID, new DecimalType(repeatTimes));
                         }).exceptionally(ex -> {
-                            logger.warn("Failed to set chime repeat times", ex);
+                            logger.debug("Failed to set chime repeat times", ex);
                             return null;
                         });
                     }
@@ -176,17 +179,20 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
      */
     private void updateFromPrivateApi() {
         UniFiProtectHybridClient api = getApiClient();
-        if (api == null || !api.isPrivateApiEnabled()) {
+        if (api == null) {
             return;
         }
 
         try {
             // Fetch chime data from Private API
-            api.getPrivateChime(deviceId).thenAccept(chime -> {
-                scheduler.execute(() -> {
-                    updateChimeChannels(chime);
-                });
-            }).exceptionally(ex -> {
+            api.getPrivateClient().getBootstrap().thenApply(bootstrap -> {
+                org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Chime chime = bootstrap.chimes
+                        .get(deviceId);
+                if (chime == null) {
+                    throw new IllegalArgumentException("Chime not found: " + deviceId);
+                }
+                return chime;
+            }).thenAccept(chime -> scheduler.execute(() -> updateChimeChannels(chime))).exceptionally(ex -> {
                 logger.debug("Failed to fetch Private API chime status", ex);
                 return null;
             });

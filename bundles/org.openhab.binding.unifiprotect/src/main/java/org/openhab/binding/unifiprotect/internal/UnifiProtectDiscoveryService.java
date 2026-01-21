@@ -72,7 +72,7 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
 
     public void discoverCameras(UniFiProtectHybridClient client) {
         try {
-            for (Camera c : client.listCameras()) {
+            for (Camera c : client.getPublicClient().listCameras()) {
                 discoverCamera(c);
             }
         } catch (IOException e) {
@@ -82,7 +82,7 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
 
     public void discoverLights(UniFiProtectHybridClient client) {
         try {
-            for (Light l : client.listLights()) {
+            for (Light l : client.getPublicClient().listLights()) {
                 discoverLight(l);
             }
         } catch (IOException e) {
@@ -92,7 +92,7 @@ public class UnifiProtectDiscoveryService extends AbstractThingHandlerDiscoveryS
 
     public void discoverSensors(UniFiProtectHybridClient client) {
         try {
-            for (Sensor s : client.listSensors()) {
+            for (Sensor s : client.getPublicClient().listSensors()) {
                 discoverSensor(s);
             }
         } catch (IOException e) {

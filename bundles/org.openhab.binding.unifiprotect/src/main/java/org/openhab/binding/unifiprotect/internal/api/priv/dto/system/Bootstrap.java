@@ -15,7 +15,14 @@ package org.openhab.binding.unifiprotect.internal.api.priv.dto.system;
 import java.util.Map;
 
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.base.UniFiProtectObject;
-import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.*;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.AiPort;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Bridge;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Chime;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Doorlock;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Light;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Sensor;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Viewer;
 
 /**
  * Bootstrap model - the main container for all UniFi Protect data

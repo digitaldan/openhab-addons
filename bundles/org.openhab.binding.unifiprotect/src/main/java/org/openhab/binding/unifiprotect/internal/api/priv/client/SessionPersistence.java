@@ -21,7 +21,7 @@ import java.time.Instant;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectBindingConstants;
-import org.openhab.binding.unifiprotect.internal.api.priv.util.JsonUtil;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.gson.JsonUtil;
 import org.openhab.core.OpenHAB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +39,7 @@ public class SessionPersistence {
 
     private final Path sessionFile;
     private static final String SESSION_DIR = Paths
-            .get(OpenHAB.getUserDataFolder(), "cache", UnifiProtectBindingConstants.BINDING_ID, "node_cache")
-            .toString();
+            .get(OpenHAB.getUserDataFolder(), "cache", UnifiProtectBindingConstants.BINDING_ID).toString();
 
     /**
      * Create a session persistence handler for the given host and username
@@ -124,7 +123,7 @@ public class SessionPersistence {
         public SessionData() {
         }
 
-        public SessionData(String cookie, String csrfToken, Instant expiresAt) {
+        public SessionData(@Nullable String cookie, @Nullable String csrfToken, @Nullable Instant expiresAt) {
             this.cookie = cookie;
             this.csrfToken = csrfToken;
             this.expiresAt = expiresAt;

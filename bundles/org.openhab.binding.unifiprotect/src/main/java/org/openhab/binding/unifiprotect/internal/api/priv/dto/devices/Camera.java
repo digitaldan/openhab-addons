@@ -16,7 +16,10 @@ import java.time.Instant;
 import java.util.List;
 
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.base.UniFiProtectAdoptableDevice;
-import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.*;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.IRLEDMode;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.RecordingMode;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectObjectType;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.VideoMode;
 
 import com.google.gson.annotations.SerializedName;
 

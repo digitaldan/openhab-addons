@@ -31,13 +31,13 @@ import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Doorlock;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Light;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Sensor;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Viewer;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.gson.JsonUtil;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Bootstrap;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Event;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Nvr;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.User;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.ModelType;
 import org.openhab.binding.unifiprotect.internal.api.priv.exception.UniFiProtectException;
-import org.openhab.binding.unifiprotect.internal.api.priv.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +84,6 @@ public class UniFiProtectPrivateWebSocket {
         this.updateHandler = updateHandler;
         this.client = client;
 
-        // Create WebSocket client using the shared HTTP client (already configured for SSL)
         this.wsClient = new WebSocketClient(httpClient);
         // Prevent wsClient.stop() from stopping the shared HttpClient instance
         this.wsClient.unmanage(httpClient);
@@ -110,31 +109,28 @@ public class UniFiProtectPrivateWebSocket {
             URI uri = new URI(wsUrl);
             UniFiWebSocketAdapter adapter = new UniFiWebSocketAdapter();
 
-            // Create request with cookie
             ClientUpgradeRequest request = new ClientUpgradeRequest();
             if (authCookie != null) {
                 request.setHeader("Cookie", authCookie);
             }
 
-            // Connect (Jetty 9 API returns Future, not CompletableFuture)
             Future<Session> future = wsClient.connect(adapter, uri, request);
 
-            // Handle connection result asynchronously
             CompletableFuture.runAsync(() -> {
                 try {
                     session = future.get(10, TimeUnit.SECONDS);
-                    reconnectAttempts = 0; // Reset on successful connection
-                    logger.info("WebSocket connected");
+                    reconnectAttempts = 0;
+                    logger.debug("WebSocket connected");
                     connectFuture.complete(null);
                 } catch (Exception ex) {
-                    logger.error("WebSocket connection failed", ex);
+                    logger.debug("WebSocket connection failed", ex);
                     connectFuture.completeExceptionally(ex);
                     scheduleReconnect();
                 }
             });
 
         } catch (Exception e) {
-            logger.error("Failed to connect WebSocket", e);
+            logger.debug("Failed to connect WebSocket", e);
             connectFuture.completeExceptionally(e);
         }
 
@@ -145,7 +141,7 @@ public class UniFiProtectPrivateWebSocket {
      * Disconnect WebSocket
      */
     public void disconnect() {
-        shouldReconnect = false; // Prevent reconnection
+        shouldReconnect = false;
 
         if (session != null && session.isOpen()) {
             session.close();
@@ -154,10 +150,10 @@ public class UniFiProtectPrivateWebSocket {
         try {
             wsClient.stop();
         } catch (Exception e) {
-            logger.warn("Error stopping WebSocket client", e);
+            logger.debug("Error stopping WebSocket client", e);
         }
 
-        logger.info("WebSocket disconnected");
+        logger.debug("WebSocket disconnected");
     }
 
     /**
@@ -170,20 +166,20 @@ public class UniFiProtectPrivateWebSocket {
         }
 
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            logger.error("Max reconnection attempts ({}) reached, giving up", MAX_RECONNECT_ATTEMPTS);
+            logger.debug("Max reconnection attempts ({}) reached, giving up", MAX_RECONNECT_ATTEMPTS);
             return;
         }
 
         reconnectAttempts++;
         int delayMs = Math.min(INITIAL_RECONNECT_DELAY_MS * (1 << (reconnectAttempts - 1)), MAX_RECONNECT_DELAY_MS);
 
-        logger.info("Scheduling WebSocket reconnection attempt {} in {}ms", reconnectAttempts, delayMs);
+        logger.debug("Scheduling WebSocket reconnection attempt {} in {}ms", reconnectAttempts, delayMs);
 
         CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS).execute(() -> {
             if (shouldReconnect) {
-                logger.info("Attempting WebSocket reconnection (attempt {})", reconnectAttempts);
+                logger.debug("Attempting WebSocket reconnection (attempt {})", reconnectAttempts);
                 connect().exceptionally(ex -> {
-                    logger.error("Reconnection attempt {} failed", reconnectAttempts, ex);
+                    logger.debug("Reconnection attempt {} failed", reconnectAttempts, ex);
                     return null;
                 });
             }
@@ -237,13 +233,12 @@ public class UniFiProtectPrivateWebSocket {
             try {
                 // UniFi Protect sends binary WebSocket packets with a specific format:
                 // Packet contains frames with headers followed by JSON data
-                // For simplicity, we'll try to parse the JSON from the binary data
 
                 ByteBuffer buffer = ByteBuffer.wrap(payload, offset, len);
                 parseWebSocketPacket(buffer);
 
             } catch (Exception e) {
-                logger.warn("Error parsing WebSocket binary message", e);
+                logger.debug("Error parsing WebSocket binary message", e);
             }
         }
 
@@ -253,28 +248,23 @@ public class UniFiProtectPrivateWebSocket {
                 // Sometimes we might get text messages too
                 logger.debug("WebSocket text message received");
 
-                // TRACE log text message
-                if (logger.isTraceEnabled()) {
-                    logger.trace("WebSocket Text Message: {}", message);
-                }
+                logger.trace("WebSocket Text Message: {}", message);
 
                 JsonObject json = JsonParser.parseString(message).getAsJsonObject();
                 processUpdate(json);
             } catch (Exception e) {
-                logger.warn("Error parsing WebSocket text message", e);
+                logger.debug("Error parsing WebSocket text message", e);
             }
         }
 
         @Override
         public void onWebSocketError(Throwable cause) {
-            logger.error("WebSocket error", cause);
+            logger.debug("WebSocket error", cause);
         }
 
         @Override
         public void onWebSocketClose(int statusCode, String reason) {
-            logger.info("WebSocket closed: {} - {}", statusCode, reason);
-
-            // Attempt to reconnect if enabled
+            logger.debug("WebSocket closed: {} - {}", statusCode, reason);
             if (shouldReconnect) {
                 scheduleReconnect();
             }
@@ -289,7 +279,7 @@ public class UniFiProtectPrivateWebSocket {
             try {
                 // Parse action frame (first frame)
                 if (buffer.remaining() < 8) {
-                    logger.warn("Packet too small for header");
+                    logger.debug("Packet too small for header");
                     return;
                 }
 
@@ -305,7 +295,7 @@ public class UniFiProtectPrivateWebSocket {
 
                 // Read action JSON
                 if (buffer.remaining() < payloadSize) {
-                    logger.warn("Not enough data for action payload");
+                    logger.debug("Not enough data for action payload");
                     return;
                 }
 
@@ -314,10 +304,7 @@ public class UniFiProtectPrivateWebSocket {
                 String actionJson = new String(actionBytes);
                 JsonObject actionData = JsonParser.parseString(actionJson).getAsJsonObject();
 
-                // TRACE log action frame
-                if (logger.isTraceEnabled()) {
-                    logger.trace("WebSocket Action Frame JSON: {}", actionJson);
-                }
+                logger.trace("WebSocket Action Frame JSON: {}", actionJson);
 
                 // Parse data frame (second frame) if present
                 JsonObject dataObject = null;
@@ -335,10 +322,7 @@ public class UniFiProtectPrivateWebSocket {
                         String dataJson = new String(dataBytes);
                         dataObject = JsonParser.parseString(dataJson).getAsJsonObject();
 
-                        // TRACE log data frame
-                        if (logger.isTraceEnabled()) {
-                            logger.trace("WebSocket Data Frame JSON: {}", dataJson);
-                        }
+                        logger.trace("WebSocket Data Frame JSON: {}", dataJson);
                     }
                 }
 
@@ -346,7 +330,7 @@ public class UniFiProtectPrivateWebSocket {
                 processUpdate(actionData, dataObject);
 
             } catch (Exception e) {
-                logger.warn("Error parsing WebSocket packet", e);
+                logger.debug("Error parsing WebSocket packet", e);
             }
         }
 
@@ -366,7 +350,6 @@ public class UniFiProtectPrivateWebSocket {
 
                 logger.debug("WebSocket update: action={}, model={}, id={}", action, modelType, id);
 
-                // TRACE log decoded message details
                 if (logger.isTraceEnabled()) {
                     logger.trace("Decoded WebSocket Message:");
                     logger.trace("  Action: {}", action);
@@ -384,7 +367,6 @@ public class UniFiProtectPrivateWebSocket {
                     client.getCachedBootstrap().lastUpdateId = newUpdateId;
                 }
 
-                // Create update object
                 WebSocketUpdate update = new WebSocketUpdate(action, modelType, id, newUpdateId, dataObject);
 
                 // Apply incremental updates to cached bootstrap
@@ -396,7 +378,7 @@ public class UniFiProtectPrivateWebSocket {
                 }
 
             } catch (Exception e) {
-                logger.warn("Error processing WebSocket update", e);
+                logger.debug("Error processing WebSocket update", e);
             }
         }
 
@@ -435,7 +417,7 @@ public class UniFiProtectPrivateWebSocket {
                         logger.debug("Unknown action: {}", action);
                 }
             } catch (Exception e) {
-                logger.warn("Error applying incremental update: action={}, model={}, id={}", action, modelType, id, e);
+                logger.debug("Error applying incremental update: action={}, model={}, id={}", action, modelType, id, e);
             }
         }
 

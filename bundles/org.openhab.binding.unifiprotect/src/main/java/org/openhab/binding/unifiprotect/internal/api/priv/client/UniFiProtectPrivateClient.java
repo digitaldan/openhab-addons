@@ -15,7 +15,6 @@ package org.openhab.binding.unifiprotect.internal.api.priv.client;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -25,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
@@ -37,6 +38,7 @@ import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Chime;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Doorlock;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Light;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Sensor;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.gson.JsonUtil;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.ApiKey;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.ApiKeyResponse;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Bootstrap;
@@ -45,7 +47,6 @@ import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectO
 import org.openhab.binding.unifiprotect.internal.api.priv.exception.AuthenticationException;
 import org.openhab.binding.unifiprotect.internal.api.priv.exception.BadRequestException;
 import org.openhab.binding.unifiprotect.internal.api.priv.exception.NvrException;
-import org.openhab.binding.unifiprotect.internal.api.priv.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +56,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Dan Cunningham - Initial contribution
  */
+@NonNullByDefault
 public class UniFiProtectPrivateClient {
 
     private static final Logger logger = LoggerFactory.getLogger(UniFiProtectPrivateClient.class);
@@ -67,10 +69,10 @@ public class UniFiProtectPrivateClient {
     private final UniFiProtectAuthenticator authenticator;
     private final ScheduledExecutorService scheduler;
 
-    private volatile Bootstrap cachedBootstrap;
-    private volatile Instant lastBootstrapRefresh;
-    private UniFiProtectPrivateWebSocket webSocket;
-    private ScheduledFuture<?> bootstrapRefreshTask;
+    private @Nullable Bootstrap cachedBootstrap;
+    private @Nullable Instant lastBootstrapRefresh;
+    private @Nullable UniFiProtectPrivateWebSocket webSocket;
+    private @Nullable ScheduledFuture<?> bootstrapRefreshTask;
 
     /**
      * Create a new UniFi Protect client
@@ -84,9 +86,6 @@ public class UniFiProtectPrivateClient {
      */
     public UniFiProtectPrivateClient(HttpClient httpClient, ScheduledExecutorService scheduler, String host, int port,
             String username, String password) {
-        if (httpClient == null || scheduler == null || host == null || username == null || password == null) {
-            throw new IllegalArgumentException("HttpClient, scheduler, host, username, and password are required");
-        }
 
         this.httpClient = httpClient;
         this.scheduler = scheduler;
@@ -99,7 +98,7 @@ public class UniFiProtectPrivateClient {
      */
     public CompletableFuture<Void> initialize() {
         return ensureAuthenticated().thenCompose(v -> getBootstrap()).thenAccept(bootstrap -> {
-            logger.info("Client initialized successfully");
+            logger.debug("Client initialized successfully");
             startPeriodicBootstrapRefresh();
         });
     }
@@ -128,7 +127,7 @@ public class UniFiProtectPrivateClient {
             }
         }, BOOTSTRAP_REFRESH_INTERVAL.toMinutes(), BOOTSTRAP_REFRESH_INTERVAL.toMinutes(), TimeUnit.MINUTES);
 
-        logger.info("Started periodic bootstrap refresh (interval: {} minutes)",
+        logger.debug("Started periodic bootstrap refresh (interval: {} minutes)",
                 BOOTSTRAP_REFRESH_INTERVAL.toMinutes());
     }
 
@@ -163,7 +162,7 @@ public class UniFiProtectPrivateClient {
         return apiRequest(HttpMethod.GET, "bootstrap", null, Bootstrap.class).thenApply(bootstrap -> {
             this.cachedBootstrap = bootstrap;
             this.lastBootstrapRefresh = Instant.now();
-            logger.info("Bootstrap refreshed");
+            logger.debug("Bootstrap refreshed");
             return bootstrap;
         });
     }
@@ -183,7 +182,7 @@ public class UniFiProtectPrivateClient {
             Consumer<UniFiProtectPrivateWebSocket.WebSocketUpdate> updateHandler) {
         return ensureAuthenticated().thenCompose(v -> {
             if (webSocket != null) {
-                logger.warn("WebSocket already enabled");
+                logger.debug("WebSocket already enabled");
                 return CompletableFuture.completedFuture(null);
             }
 
@@ -203,7 +202,7 @@ public class UniFiProtectPrivateClient {
      * Make a direct API request (without /proxy/protect/api/ prefix)
      * Used for non-Protect APIs like user management
      */
-    private <T> CompletableFuture<T> directApiRequest(HttpMethod method, String path, Object body,
+    private <T> CompletableFuture<T> directApiRequest(HttpMethod method, String path, @Nullable Object body,
             Class<T> responseType) {
         return makeApiRequest(method, path, body, responseType);
     }
@@ -211,14 +210,15 @@ public class UniFiProtectPrivateClient {
     /**
      * Make a Protect API request (with /proxy/protect/api/ prefix)
      */
-    public <T> CompletableFuture<T> apiRequest(HttpMethod method, String path, Object body, Class<T> responseType) {
+    public <T> CompletableFuture<T> apiRequest(HttpMethod method, String path, @Nullable Object body,
+            Class<T> responseType) {
         return makeApiRequest(method, PRIVATE_API_PATH + path, body, responseType);
     }
 
     /**
      * Core API request implementation
      */
-    private <T> CompletableFuture<T> makeApiRequest(HttpMethod method, String path, Object body,
+    private <T> CompletableFuture<T> makeApiRequest(HttpMethod method, String path, @Nullable Object body,
             Class<T> responseType) {
         return ensureAuthenticated().thenCompose(v -> {
             CompletableFuture<T> future = new CompletableFuture<>();
@@ -228,7 +228,6 @@ public class UniFiProtectPrivateClient {
                 Request request = httpClient.newRequest(url).method(method).timeout(DEFAULT_TIMEOUT.toMillis(),
                         TimeUnit.MILLISECONDS);
 
-                // Add authentication
                 authenticator.addAuthHeaders(request);
 
                 // Add body if present
@@ -239,7 +238,6 @@ public class UniFiProtectPrivateClient {
                     request.content(new StringContentProvider(requestBody));
                 }
 
-                // TRACE log request
                 if (logger.isTraceEnabled()) {
                     logger.trace("HTTP Request: {} {}", method, url);
                     if (requestBody != null) {
@@ -247,7 +245,6 @@ public class UniFiProtectPrivateClient {
                     }
                 }
 
-                // Use BufferedResponseListener to capture response content
                 request.send(new BufferingResponseListener() {
                     @Override
                     public void onComplete(Result result) {
@@ -260,16 +257,14 @@ public class UniFiProtectPrivateClient {
                             Response response = result.getResponse();
                             int status = response.getStatus();
 
-                            // Handle authentication errors
                             if (status == 401 || status == 403) {
-                                logger.warn("Authentication error, will retry: {}", status);
+                                logger.debug("Authentication error, will retry: {}", status);
                                 authenticator.clearAuth();
                                 future.completeExceptionally(
                                         new AuthenticationException("Authentication required: " + status));
                                 return;
                             }
 
-                            // Handle other errors
                             if (status < 200 || status >= 300) {
                                 String reason = response.getReason();
                                 if (status >= 400 && status < 500) {
@@ -281,10 +276,8 @@ public class UniFiProtectPrivateClient {
                                 return;
                             }
 
-                            // Parse response
                             String content = getContentAsString();
 
-                            // TRACE log response
                             if (logger.isTraceEnabled()) {
                                 logger.trace("HTTP Response: {} {}", status, response.getReason());
                                 if (content != null && !content.isEmpty()) {
@@ -326,7 +319,7 @@ public class UniFiProtectPrivateClient {
     /**
      * Get cached bootstrap (synchronous)
      */
-    public Bootstrap getCachedBootstrap() {
+    public @Nullable Bootstrap getCachedBootstrap() {
         return cachedBootstrap;
     }
 
@@ -447,10 +440,7 @@ public class UniFiProtectPrivateClient {
      */
     public CompletableFuture<org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera> setCameraRecordingMode(
             String cameraId, String recordingMode) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> recordingSettings = new HashMap<>();
-        recordingSettings.put("mode", recordingMode);
-        updates.put("recordingSettings", recordingSettings);
+        Map<String, Object> updates = Map.of("recordingSettings", Map.of("mode", recordingMode));
         return updateCamera(cameraId, updates);
     }
 
@@ -462,9 +452,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraMicEnabled(String cameraId, boolean enabled) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("isMicEnabled", enabled);
-        return updateCamera(cameraId, updates);
+        return updateCamera(cameraId, Map.of("isMicEnabled", enabled));
     }
 
     /**
@@ -475,9 +463,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraMicVolume(String cameraId, int volume) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("micVolume", volume);
-        return updateCamera(cameraId, updates);
+        return updateCamera(cameraId, Map.of("micVolume", volume));
     }
 
     /**
@@ -488,10 +474,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraIRMode(String cameraId, String mode) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> ispSettings = new HashMap<>();
-        ispSettings.put("irLedMode", mode);
-        updates.put("ispSettings", ispSettings);
+        Map<String, Object> updates = Map.of("ispSettings", Map.of("irLedMode", mode));
         return updateCamera(cameraId, updates);
     }
 
@@ -503,10 +486,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraStatusLight(String cameraId, boolean enabled) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> ledSettings = new HashMap<>();
-        ledSettings.put("isEnabled", enabled);
-        updates.put("ledSettings", ledSettings);
+        Map<String, Object> updates = Map.of("ledSettings", Map.of("isEnabled", enabled));
         return updateCamera(cameraId, updates);
     }
 
@@ -551,9 +531,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Light
      */
     public CompletableFuture<Light> setLight(String lightId, boolean enabled) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("isLightForceEnabled", enabled);
-        return updateLight(lightId, updates);
+        return updateLight(lightId, Map.of("isLightForceEnabled", enabled));
     }
 
     /**
@@ -564,10 +542,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Light
      */
     public CompletableFuture<Light> setLightBrightness(String lightId, int brightness) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> lightDeviceSettings = new HashMap<>();
-        lightDeviceSettings.put("ledLevel", brightness);
-        updates.put("lightDeviceSettings", lightDeviceSettings);
+        Map<String, Object> updates = Map.of("lightDeviceSettings", Map.of("ledLevel", brightness));
         return updateLight(lightId, updates);
     }
 
@@ -579,10 +554,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Light
      */
     public CompletableFuture<Light> setLightPirSensitivity(String lightId, int sensitivity) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> lightDeviceSettings = new HashMap<>();
-        lightDeviceSettings.put("pirSensitivity", sensitivity);
-        updates.put("lightDeviceSettings", lightDeviceSettings);
+        Map<String, Object> updates = Map.of("lightDeviceSettings", Map.of("pirSensitivity", sensitivity));
         return updateLight(lightId, updates);
     }
 
@@ -596,14 +568,15 @@ public class UniFiProtectPrivateClient {
      */
     public CompletableFuture<Void> playChime(String chimeId, Integer volume, Integer repeatTimes) {
         String path = "chimes/" + chimeId + "/play-speaker";
-        Map<String, Object> body = new HashMap<>();
-        if (volume != null) {
-            body.put("volume", volume);
+        Map<String, Object> body = null;
+        if (volume != null && repeatTimes != null) {
+            body = Map.ofEntries(Map.entry("volume", volume), Map.entry("repeatTimes", repeatTimes));
+        } else if (volume != null) {
+            body = Map.of("volume", volume);
+        } else if (repeatTimes != null) {
+            body = Map.of("repeatTimes", repeatTimes);
         }
-        if (repeatTimes != null) {
-            body.put("repeatTimes", repeatTimes);
-        }
-        return apiRequest(HttpMethod.POST, path, body.isEmpty() ? null : body, Void.class);
+        return apiRequest(HttpMethod.POST, path, body, Void.class);
     }
 
     /**
@@ -614,9 +587,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Chime
      */
     public CompletableFuture<Chime> setChimeVolume(String chimeId, int volume) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("volume", volume);
-        return updateChime(chimeId, updates);
+        return updateChime(chimeId, Map.of("volume", volume));
     }
 
     /**
@@ -638,9 +609,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Chime
      */
     public CompletableFuture<Chime> setChimeRepeatTimes(String chimeId, int repeatTimes) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("repeatTimes", repeatTimes);
-        return updateChime(chimeId, updates);
+        return updateChime(chimeId, Map.of("repeatTimes", repeatTimes));
     }
 
     /**
@@ -660,9 +629,7 @@ public class UniFiProtectPrivateClient {
             if (!cameraIds.contains(cameraId)) {
                 cameraIds.add(cameraId);
             }
-            Map<String, Object> updates = new HashMap<>();
-            updates.put("cameraIds", cameraIds);
-            return updateChime(chimeId, updates);
+            return updateChime(chimeId, Map.of("cameraIds", cameraIds));
         });
     }
 
@@ -681,9 +648,7 @@ public class UniFiProtectPrivateClient {
             }
             List<String> cameraIds = new ArrayList<>(chime.cameraIds);
             cameraIds.remove(cameraId);
-            Map<String, Object> updates = new HashMap<>();
-            updates.put("cameraIds", cameraIds);
-            return updateChime(chimeId, updates);
+            return updateChime(chimeId, Map.of("cameraIds", cameraIds));
         });
     }
 
@@ -721,9 +686,7 @@ public class UniFiProtectPrivateClient {
      */
     public CompletableFuture<Void> calibrateDoorlock(String doorlockId) {
         String path = "doorlocks/" + doorlockId + "/calibrate";
-        Map<String, Object> body = new HashMap<>();
-        body.put("auto", true);
-        return apiRequest(HttpMethod.POST, path, body, Void.class);
+        return apiRequest(HttpMethod.POST, path, Map.of("auto", true), Void.class);
     }
 
     /**
@@ -734,9 +697,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Doorlock
      */
     public CompletableFuture<Doorlock> setDoorlockAutoCloseTime(String doorlockId, int durationSeconds) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("autoCloseTimeMs", durationSeconds * 1000);
-        return updateDoorlock(doorlockId, updates);
+        return updateDoorlock(doorlockId, Map.of("autoCloseTimeMs", durationSeconds * 1000));
     }
 
     // ===========================================
@@ -757,16 +718,9 @@ public class UniFiProtectPrivateClient {
     public CompletableFuture<Void> ptzRelativeMove(String cameraId, float pan, float tilt, int panSpeed, int tiltSpeed,
             int scale) {
         String path = "cameras/" + cameraId + "/move";
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("panPos", pan);
-        payload.put("tiltPos", tilt);
-        payload.put("panSpeed", panSpeed);
-        payload.put("tiltSpeed", tiltSpeed);
-        payload.put("scale", scale);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("type", "relative");
-        body.put("payload", payload);
+        Map<String, Object> payload = Map.ofEntries(Map.entry("panPos", pan), Map.entry("tiltPos", tilt),
+                Map.entry("panSpeed", panSpeed), Map.entry("tiltSpeed", tiltSpeed), Map.entry("scale", scale));
+        Map<String, Object> body = Map.ofEntries(Map.entry("type", "relative"), Map.entry("payload", payload));
         return apiRequest(HttpMethod.POST, path, body, Void.class);
     }
 
@@ -781,14 +735,8 @@ public class UniFiProtectPrivateClient {
      */
     public CompletableFuture<Void> ptzCenter(String cameraId, int x, int y, int z) {
         String path = "cameras/" + cameraId + "/move";
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("x", x);
-        payload.put("y", y);
-        payload.put("z", z);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("type", "center");
-        body.put("payload", payload);
+        Map<String, Object> payload = Map.ofEntries(Map.entry("x", x), Map.entry("y", y), Map.entry("z", z));
+        Map<String, Object> body = Map.ofEntries(Map.entry("type", "center"), Map.entry("payload", payload));
         return apiRequest(HttpMethod.POST, path, body, Void.class);
     }
 
@@ -802,13 +750,8 @@ public class UniFiProtectPrivateClient {
      */
     public CompletableFuture<Void> ptzZoom(String cameraId, float zoom, int speed) {
         String path = "cameras/" + cameraId + "/move";
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("zoomPos", zoom);
-        payload.put("zoomSpeed", speed);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("type", "zoom");
-        body.put("payload", payload);
+        Map<String, Object> payload = Map.ofEntries(Map.entry("zoomPos", zoom), Map.entry("zoomSpeed", speed));
+        Map<String, Object> body = Map.ofEntries(Map.entry("type", "zoom"), Map.entry("payload", payload));
         return apiRequest(HttpMethod.POST, path, body, Void.class);
     }
 
@@ -821,12 +764,8 @@ public class UniFiProtectPrivateClient {
      */
     public CompletableFuture<Void> ptzGotoPreset(String cameraId, int slot) {
         String path = "cameras/" + cameraId + "/move";
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("slot", slot);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("type", "goto");
-        body.put("payload", payload);
+        Map<String, Object> payload = Map.of("slot", slot);
+        Map<String, Object> body = Map.ofEntries(Map.entry("type", "goto"), Map.entry("payload", payload));
         return apiRequest(HttpMethod.POST, path, body, Void.class);
     }
 
@@ -840,10 +779,8 @@ public class UniFiProtectPrivateClient {
      */
     public CompletableFuture<Void> ptzCreatePreset(String cameraId, int slot, String name) {
         String path = "cameras/" + cameraId + "/ptz/preset";
-        Map<String, Object> body = new HashMap<>();
-        body.put("slot", slot);
-        body.put("name", name);
-        return apiRequest(HttpMethod.POST, path, body, Void.class);
+        return apiRequest(HttpMethod.POST, path, Map.ofEntries(Map.entry("slot", slot), Map.entry("name", name)),
+                Void.class);
     }
 
     /**
@@ -881,10 +818,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraMotionDetection(String cameraId, boolean enabled) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> recordingSettings = new HashMap<>();
-        recordingSettings.put("enableMotionDetection", enabled);
-        updates.put("recordingSettings", recordingSettings);
+        Map<String, Object> updates = Map.of("recordingSettings", Map.of("enableMotionDetection", enabled));
         return updateCamera(cameraId, updates);
     }
 
@@ -896,9 +830,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraUseGlobal(String cameraId, boolean useGlobal) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("useGlobal", useGlobal);
-        return updateCamera(cameraId, updates);
+        return updateCamera(cameraId, Map.of("useGlobal", useGlobal));
     }
 
     /**
@@ -909,9 +841,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraHDR(String cameraId, boolean enabled) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("hdrMode", enabled);
-        return updateCamera(cameraId, updates);
+        return updateCamera(cameraId, Map.of("hdrMode", enabled));
     }
 
     /**
@@ -922,9 +852,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraVideoMode(String cameraId, String videoMode) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("videoMode", videoMode);
-        return updateCamera(cameraId, updates);
+        return updateCamera(cameraId, Map.of("videoMode", videoMode));
     }
 
     /**
@@ -935,10 +863,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraZoom(String cameraId, int zoomLevel) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> ispSettings = new HashMap<>();
-        ispSettings.put("zoomPosition", zoomLevel);
-        updates.put("ispSettings", ispSettings);
+        Map<String, Object> updates = Map.of("ispSettings", Map.of("zoomPosition", zoomLevel));
         return updateCamera(cameraId, updates);
     }
 
@@ -950,10 +875,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraWDR(String cameraId, int wdrLevel) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> ispSettings = new HashMap<>();
-        ispSettings.put("wdr", wdrLevel);
-        updates.put("ispSettings", ispSettings);
+        Map<String, Object> updates = Map.of("ispSettings", Map.of("wdr", wdrLevel));
         return updateCamera(cameraId, updates);
     }
 
@@ -965,10 +887,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setCameraSpeakerVolume(String cameraId, int volume) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> speakerSettings = new HashMap<>();
-        speakerSettings.put("volume", volume);
-        updates.put("speakerSettings", speakerSettings);
+        Map<String, Object> updates = Map.of("speakerSettings", Map.of("volume", volume));
         return updateCamera(cameraId, updates);
     }
 
@@ -980,10 +899,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setDoorbellRingVolume(String cameraId, int volume) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> speakerSettings = new HashMap<>();
-        speakerSettings.put("ringVolume", volume);
-        updates.put("speakerSettings", speakerSettings);
+        Map<String, Object> updates = Map.of("speakerSettings", Map.of("ringVolume", volume));
         return updateCamera(cameraId, updates);
     }
 
@@ -995,9 +911,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Camera
      */
     public CompletableFuture<Camera> setDoorbellChimeDuration(String cameraId, int durationMs) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("chimeDuration", durationMs);
-        return updateCamera(cameraId, updates);
+        return updateCamera(cameraId, Map.of("chimeDuration", durationMs));
     }
 
     // ===========================================
@@ -1114,10 +1028,7 @@ public class UniFiProtectPrivateClient {
             } else if (!enabled) {
                 objectTypes.remove(enumType);
             }
-            Map<String, Object> updates = new HashMap<>();
-            Map<String, Object> smartDetectSettings = new HashMap<>();
-            smartDetectSettings.put("objectTypes", objectTypes);
-            updates.put("smartDetectSettings", smartDetectSettings);
+            Map<String, Object> updates = Map.of("smartDetectSettings", Map.of("objectTypes", objectTypes));
             return updateCamera(cameraId, updates);
         });
     }
@@ -1135,10 +1046,7 @@ public class UniFiProtectPrivateClient {
      */
     public CompletableFuture<Void> adoptDevice(String modelType, String deviceId) {
         String path = "devices/adopt";
-        Map<String, Object> deviceMap = new HashMap<>();
-        deviceMap.put(deviceId, new HashMap<>());
-        Map<String, Object> body = new HashMap<>();
-        body.put(modelType + "s", deviceMap);
+        Map<String, Object> body = Map.of(modelType + "s", Map.of(deviceId, Map.of()));
         return apiRequest(HttpMethod.POST, path, body, Void.class);
     }
 
@@ -1164,9 +1072,7 @@ public class UniFiProtectPrivateClient {
      */
     public <T> CompletableFuture<T> setDeviceSSH(String modelType, String deviceId, boolean enabled,
             Class<T> responseType) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("isSshEnabled", enabled);
-        return updateDevice(modelType, deviceId, updates, responseType);
+        return updateDevice(modelType, deviceId, Map.of("isSshEnabled", enabled), responseType);
     }
 
     // ===========================================
@@ -1196,14 +1102,10 @@ public class UniFiProtectPrivateClient {
      * @param enableAt When to enable ("sunrise", "sunset", null for always)
      * @return CompletableFuture with updated Light
      */
-    public CompletableFuture<Light> setLightMode(String lightId, String mode, String enableAt) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> lightModeSettings = new HashMap<>();
-        lightModeSettings.put("mode", mode);
-        if (enableAt != null) {
-            lightModeSettings.put("enableAt", enableAt);
-        }
-        updates.put("lightModeSettings", lightModeSettings);
+    public CompletableFuture<Light> setLightMode(String lightId, String mode, @Nullable String enableAt) {
+        Map<String, Object> lightModeSettings = enableAt == null ? Map.of("mode", mode)
+                : Map.ofEntries(Map.entry("mode", mode), Map.entry("enableAt", enableAt));
+        Map<String, Object> updates = Map.of("lightModeSettings", lightModeSettings);
         return updateLight(lightId, updates);
     }
 
@@ -1215,10 +1117,7 @@ public class UniFiProtectPrivateClient {
      * @return CompletableFuture with updated Light
      */
     public CompletableFuture<Light> setLightDuration(String lightId, int durationMs) {
-        Map<String, Object> updates = new HashMap<>();
-        Map<String, Object> lightDeviceSettings = new HashMap<>();
-        lightDeviceSettings.put("pirDuration", durationMs);
-        updates.put("lightDeviceSettings", lightDeviceSettings);
+        Map<String, Object> updates = Map.of("lightDeviceSettings", Map.of("pirDuration", durationMs));
         return updateLight(lightId, updates);
     }
 
@@ -1226,7 +1125,7 @@ public class UniFiProtectPrivateClient {
      * Close the client
      */
     public void close() {
-        logger.info("Closing UniFi Protect client");
+        logger.debug("Closing UniFi Protect client");
 
         // Stop periodic bootstrap refresh
         stopPeriodicBootstrapRefresh();
@@ -1294,7 +1193,7 @@ public class UniFiProtectPrivateClient {
      * @param keyId The API key ID to delete
      * @return CompletableFuture that completes when the key is deleted
      */
-    public CompletableFuture<Void> deleteApiKey(String keyId) {
+    public CompletableFuture<@Nullable Void> deleteApiKey(String keyId) {
         return directApiRequest(HttpMethod.DELETE, "/proxy/users/api/v2/keys/" + keyId, null, Object.class)
                 .thenApply(v -> null);
     }
@@ -1315,8 +1214,7 @@ public class UniFiProtectPrivateClient {
      * @param name The key name to search for
      * @return CompletableFuture with the API key if found, null otherwise
      */
-    public CompletableFuture<org.openhab.binding.unifiprotect.internal.api.priv.dto.system.ApiKey> findApiKeyByName(
-            String userId, String name) {
+    public CompletableFuture<@Nullable ApiKey> findApiKeyByName(String userId, String name) {
         return listApiKeys(userId).thenApply(keys -> {
             return keys.stream().filter(k -> name.equals(k.name)).findFirst().orElse(null);
         });
@@ -1334,10 +1232,10 @@ public class UniFiProtectPrivateClient {
             String userId, String name) {
         return findApiKeyByName(userId, name).thenCompose(existingKey -> {
             if (existingKey != null) {
-                logger.info("Found existing API key '{}', deleting and recreating...", name);
+                logger.debug("Found existing API key '{}', deleting and recreating...", name);
                 return deleteApiKey(existingKey.id).thenCompose(v -> createApiKey(userId, name));
             } else {
-                logger.info("Creating new API key '{}'", name);
+                logger.debug("Creating new API key '{}'", name);
                 return createApiKey(userId, name);
             }
         });

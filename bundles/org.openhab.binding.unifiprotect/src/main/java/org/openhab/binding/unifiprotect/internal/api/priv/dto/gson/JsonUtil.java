@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.unifiprotect.internal.api.priv.util;
+package org.openhab.binding.unifiprotect.internal.api.priv.dto.gson;
 
 import java.lang.reflect.Type;
 import java.time.Duration;

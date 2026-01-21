@@ -33,9 +33,9 @@ import org.openhab.binding.unifiprotect.internal.api.priv.client.UniFiProtectPri
 import org.openhab.binding.unifiprotect.internal.api.priv.client.UniFiProtectPrivateWebSocket.WebSocketUpdate;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Chime;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Doorlock;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.gson.JsonUtil;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.ApiKey;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.ModelType;
-import org.openhab.binding.unifiprotect.internal.api.priv.util.JsonUtil;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.Camera;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.DeviceState;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.Light;
@@ -162,7 +162,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
 
                 // Auto-create API key if not provided
                 if (apiToken == null || apiToken.isBlank()) {
-                    logger.info("No API token provided, auto-creating via Private API...");
+                    logger.debug("No API token provided, auto-creating via Private API...");
 
                     try {
                         // Create temporary private client for key management
@@ -180,18 +180,18 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                         ApiKey key = tempClient.getOrCreateApiKey(userId, keyName).get(10, TimeUnit.SECONDS);
 
                         apiToken = key.fullApiKey;
-                        logger.info("Successfully created API key '{}': {}***", keyName,
+                        logger.debug("Successfully created API key '{}': {}***", keyName,
                                 apiToken.substring(0, Math.min(8, apiToken.length())));
 
                         // Save token to configuration for future use
                         Configuration thingConfig = editConfiguration();
                         thingConfig.put("token", apiToken);
                         updateConfiguration(thingConfig);
-                        logger.info("Saved auto-created API token to configuration");
+                        logger.debug("Saved auto-created API token to configuration");
 
                         tempClient.close();
                     } catch (Exception e) {
-                        logger.error("Failed to auto-create API key", e);
+                        logger.debug("Failed to auto-create API key", e);
                         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
                                 "Failed to create API key: " + e.getMessage());
                         return;
@@ -200,13 +200,13 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
 
                 // Create hybrid client with both public and private API
                 URI base = URI.create("https://" + config.hostname + "/proxy/protect/integration/");
-                logger.info("Initializing with hybrid API client (Public + Private)");
+                logger.debug("Initializing with hybrid API client (Public + Private)");
                 UniFiProtectHybridClient apiClient = new UniFiProtectHybridClient(httpClient, base, gson, apiToken,
                         scheduler, config.hostname, config.port, config.username, config.password);
 
                 this.apiClient = apiClient;
 
-                apiClient.subscribeEvents(add -> {
+                apiClient.getPublicClient().subscribeEvents(add -> {
                     routeEvent(add.item, WSEventType.ADD);
                 }, update -> {
                     handleUpdateEvent(update.item);
@@ -218,7 +218,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                     setOfflineAndReconnect();
                 }, err -> logger.debug("Event WS error", err)).get();
 
-                apiClient.subscribeDevices(add -> {
+                apiClient.getPublicClient().subscribeDevices(add -> {
                     UnifiProtectDiscoveryService discoveryService = this.discoveryService;
                     if (discoveryService == null) {
                         logger.debug("Discovery service not set");
@@ -286,26 +286,22 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                     logger.debug("Device WS closed: {} {}", code, reason);
                     setOfflineAndReconnect();
                 }, err -> logger.debug("Device WS error", err)).get();
-
-                // Enable Private API WebSocket if configured
-                if (apiClient.isPrivateApiEnabled()) {
-                    logger.info("Enabling Private API WebSocket for real-time updates");
-                    apiClient.enablePrivateWebSocket(update -> {
-                        scheduler.execute(() -> {
-                            logger.trace("Private API WebSocket update: action={}, model={}", update.action,
-                                    update.modelType);
-                            // Route Private API updates to handlers based on model type
-                            routePrivateApiUpdate(update);
-                        });
-                    }).whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            logger.debug("Failed to enable Private API WebSocket", ex);
-                        }
+                logger.debug("Enabling Private API WebSocket for real-time updates");
+                apiClient.getPrivateClient().enableWebSocket(update -> {
+                    scheduler.execute(() -> {
+                        logger.trace("Private API WebSocket update: action={}, model={}", update.action,
+                                update.modelType);
+                        // Route Private API updates to handlers based on model type
+                        routePrivateApiUpdate(update);
                     });
+                }).whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        logger.debug("Failed to enable Private API WebSocket", ex);
+                    }
+                });
 
-                    // Update NVR status channels from Private API
-                    updateNVRStatus();
-                }
+                // Update NVR status channels from Private API
+                updateNVRStatus();
             } catch (Exception e) {
                 logger.debug("Initialization failed", e);
                 setOfflineAndReconnect();
@@ -421,13 +417,13 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         }
         try {
             if (handler instanceof UnifiProtectCameraHandler cameraHandler) {
-                Camera cam = apiClient.getCamera(deviceId);
+                Camera cam = apiClient.getPublicClient().getCamera(deviceId);
                 cameraHandler.updateFromDevice(cam);
             } else if (handler instanceof UnifiProtectLightHandler lightHandler) {
-                Light light = apiClient.getLight(deviceId);
+                Light light = apiClient.getPublicClient().getLight(deviceId);
                 lightHandler.updateFromDevice(light);
             } else if (handler instanceof UnifiProtectSensorHandler sensorHandler) {
-                Sensor sensor = apiClient.getSensor(deviceId);
+                Sensor sensor = apiClient.getPublicClient().getSensor(deviceId);
                 sensorHandler.updateFromDevice(sensor);
             }
             cancelChildRefreshRetry(deviceId);
@@ -489,7 +485,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
         }
         try {
             try {
-                ProtectVersionInfo meta = apiClient.getMetaInfo();
+                ProtectVersionInfo meta = apiClient.getPublicClient().getMetaInfo();
                 if (meta.applicationVersion != null) {
                     updateProperty("applicationVersion", meta.applicationVersion);
                 }
@@ -500,12 +496,12 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
             }
 
             // Basic NVR fetch (validate connectivity and log)
-            Nvr nvr = apiClient.getNvr();
+            Nvr nvr = apiClient.getPublicClient().getNvr();
             logger.debug("NVR name: {}", nvr.name);
 
             UnifiProtectDiscoveryService discoveryService = this.discoveryService;
             if (discoveryService != null) {
-                apiClient.listCameras().forEach(camera -> {
+                apiClient.getPublicClient().listCameras().forEach(camera -> {
                     UnifiProtectCameraHandler ch = findChildHandler(UnifiProtectBindingConstants.THING_TYPE_CAMERA,
                             camera.id, UnifiProtectCameraHandler.class);
                     if (ch != null) {
@@ -514,7 +510,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                         discoveryService.discoverCamera(camera);
                     }
                 });
-                apiClient.listLights().forEach(light -> {
+                apiClient.getPublicClient().listLights().forEach(light -> {
                     UnifiProtectLightHandler lh = findChildHandler(UnifiProtectBindingConstants.THING_TYPE_LIGHT,
                             light.id, UnifiProtectLightHandler.class);
                     if (lh != null) {
@@ -523,7 +519,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                         discoveryService.discoverLight(light);
                     }
                 });
-                apiClient.listSensors().forEach(sensor -> {
+                apiClient.getPublicClient().listSensors().forEach(sensor -> {
                     UnifiProtectSensorHandler sh = findChildHandler(UnifiProtectBindingConstants.THING_TYPE_SENSOR,
                             sensor.id, UnifiProtectSensorHandler.class);
                     if (sh != null) {
@@ -798,7 +794,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
      */
     private void updateNVRStatus() {
         UniFiProtectHybridClient client = apiClient;
-        if (client == null || !client.isPrivateApiEnabled()) {
+        if (client == null) {
             return;
         }
 

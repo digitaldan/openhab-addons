@@ -61,8 +61,8 @@ public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler
 
         switch (id) {
             case UnifiProtectBindingConstants.CHANNEL_SENSOR_CLEAR_TAMPER: {
-                if (api.isPrivateApiEnabled() && command == OnOffType.ON) {
-                    api.clearSensorTamper(deviceId).whenComplete((result, ex) -> {
+                if (command == OnOffType.ON) {
+                    api.getPrivateClient().clearSensorTamper(deviceId).whenComplete((result, ex) -> {
                         if (ex != null) {
                             logger.debug("Failed to clear sensor tamper", ex);
                         }
@@ -71,8 +71,8 @@ public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler
                 break;
             }
             case UnifiProtectBindingConstants.CHANNEL_DEVICE_REBOOT: {
-                if (api.isPrivateApiEnabled() && command == OnOffType.ON) {
-                    api.rebootDevice("sensor", deviceId).whenComplete((result, ex) -> {
+                if (command == OnOffType.ON) {
+                    api.getPrivateClient().rebootDevice("sensor", deviceId).whenComplete((result, ex) -> {
                         if (ex != null) {
                             logger.debug("Failed to reboot sensor", ex);
                         }

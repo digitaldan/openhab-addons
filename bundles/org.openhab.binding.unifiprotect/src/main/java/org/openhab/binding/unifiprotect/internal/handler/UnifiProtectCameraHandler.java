@@ -128,6 +128,8 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             return;
         }
 
+        var privateClient = api.getPrivateClient();
+
         try {
             switch (id) {
                 case UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME: {
@@ -222,9 +224,9 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                 }
                 // Private API Commands
                 case UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_PAN: {
-                    if (api.isPrivateApiEnabled() && command instanceof DecimalType pan) {
+                    if (command instanceof DecimalType pan) {
                         float panValue = pan.floatValue();
-                        api.ptzRelativeMove(deviceId, panValue, 0, 10, 10, 0).whenComplete((result, ex) -> {
+                        privateClient.ptzRelativeMove(deviceId, panValue, 0, 10, 10, 0).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("PTZ pan failed", ex);
                             }
@@ -233,9 +235,9 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_TILT: {
-                    if (api.isPrivateApiEnabled() && command instanceof DecimalType tilt) {
+                    if (command instanceof DecimalType tilt) {
                         float tiltValue = tilt.floatValue();
-                        api.ptzRelativeMove(deviceId, 0, tiltValue, 10, 10, 0).whenComplete((result, ex) -> {
+                        privateClient.ptzRelativeMove(deviceId, 0, tiltValue, 10, 10, 0).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("PTZ tilt failed", ex);
                             }
@@ -244,9 +246,9 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_ZOOM: {
-                    if (api.isPrivateApiEnabled() && command instanceof DecimalType zoom) {
+                    if (command instanceof DecimalType zoom) {
                         float zoomValue = zoom.floatValue();
-                        api.ptzZoom(deviceId, zoomValue, 10).whenComplete((result, ex) -> {
+                        privateClient.ptzZoom(deviceId, zoomValue, 10).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("PTZ zoom failed", ex);
                             }
@@ -255,14 +257,14 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_PTZ_CENTER: {
-                    if (api.isPrivateApiEnabled() && command instanceof StringType coords) {
+                    if (command instanceof StringType coords) {
                         try {
                             String[] parts = coords.toString().split(",");
                             if (parts.length == 3) {
                                 int x = Integer.parseInt(parts[0]);
                                 int y = Integer.parseInt(parts[1]);
                                 int z = Integer.parseInt(parts[2]);
-                                api.ptzCenter(deviceId, x, y, z).whenComplete((result, ex) -> {
+                                privateClient.ptzCenter(deviceId, x, y, z).whenComplete((result, ex) -> {
                                     if (ex != null) {
                                         logger.debug("PTZ center failed", ex);
                                     }
@@ -275,8 +277,8 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_PTZ_SET_HOME: {
-                    if (api.isPrivateApiEnabled() && command == OnOffType.ON) {
-                        api.ptzSetHome(deviceId).whenComplete((result, ex) -> {
+                    if (command == OnOffType.ON) {
+                        privateClient.ptzSetHome(deviceId).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("PTZ set home failed", ex);
                             }
@@ -285,31 +287,31 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_PTZ_CREATE_PRESET: {
-                    if (api.isPrivateApiEnabled() && command instanceof StringType presetCmd) {
+                    if (command instanceof StringType presetCmd) {
                         try {
                             // Format: "slot,name" e.g. "1,Front Door"
                             String[] parts = presetCmd.toString().split(",", 2);
                             if (parts.length == 2) {
                                 int slot = Integer.parseInt(parts[0].trim());
                                 String name = parts[1].trim();
-                                api.ptzCreatePreset(deviceId, slot, name).whenComplete((result, ex) -> {
+                                privateClient.ptzCreatePreset(deviceId, slot, name).whenComplete((result, ex) -> {
                                     if (ex != null) {
                                         logger.debug("Failed to create PTZ preset", ex);
                                     }
                                 });
                             } else {
-                                logger.warn("Invalid PTZ preset format. Expected 'slot,name', got: {}", presetCmd);
+                                logger.debug("Invalid PTZ preset format. Expected 'slot,name', got: {}", presetCmd);
                             }
                         } catch (NumberFormatException e) {
-                            logger.warn("Invalid PTZ preset slot number", e);
+                            logger.debug("Invalid PTZ preset slot number", e);
                         }
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_PTZ_DELETE_PRESET: {
-                    if (api.isPrivateApiEnabled() && command instanceof DecimalType slotCmd) {
+                    if (command instanceof DecimalType slotCmd) {
                         int slot = slotCmd.intValue();
-                        api.ptzDeletePreset(deviceId, slot).whenComplete((result, ex) -> {
+                        privateClient.ptzDeletePreset(deviceId, slot).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to delete PTZ preset", ex);
                             }
@@ -318,8 +320,8 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_RECORDING_MODE: {
-                    if (api.isPrivateApiEnabled() && command instanceof StringType mode) {
-                        api.setCameraRecordingMode(deviceId, mode.toString()).whenComplete((result, ex) -> {
+                    if (command instanceof StringType mode) {
+                        privateClient.setCameraRecordingMode(deviceId, mode.toString()).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to set recording mode", ex);
                             }
@@ -328,28 +330,30 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_PERSON_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType enabled) {
-                        api.setPersonDetection(deviceId, enabled == OnOffType.ON).whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                logger.debug("Failed to set person detection", ex);
-                            }
-                        });
+                    if (command instanceof OnOffType enabled) {
+                        privateClient.setPersonDetection(deviceId, enabled == OnOffType.ON)
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        logger.debug("Failed to set person detection", ex);
+                                    }
+                                });
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_VEHICLE_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType enabled) {
-                        api.setVehicleDetection(deviceId, enabled == OnOffType.ON).whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                logger.debug("Failed to set vehicle detection", ex);
-                            }
-                        });
+                    if (command instanceof OnOffType enabled) {
+                        privateClient.setVehicleDetection(deviceId, enabled == OnOffType.ON)
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        logger.debug("Failed to set vehicle detection", ex);
+                                    }
+                                });
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_FACE_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType enabled) {
-                        api.setFaceDetection(deviceId, enabled == OnOffType.ON).whenComplete((result, ex) -> {
+                    if (command instanceof OnOffType enabled) {
+                        privateClient.setFaceDetection(deviceId, enabled == OnOffType.ON).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to set face detection", ex);
                             }
@@ -358,38 +362,41 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LICENSE_PLATE_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType enabled) {
-                        api.setLicensePlateDetection(deviceId, enabled == OnOffType.ON).whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                logger.debug("Failed to set license plate detection", ex);
-                            }
-                        });
+                    if (command instanceof OnOffType enabled) {
+                        privateClient.setLicensePlateDetection(deviceId, enabled == OnOffType.ON)
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        logger.debug("Failed to set license plate detection", ex);
+                                    }
+                                });
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_PACKAGE_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType enabled) {
-                        api.setPackageDetection(deviceId, enabled == OnOffType.ON).whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                logger.debug("Failed to set package detection", ex);
-                            }
-                        });
+                    if (command instanceof OnOffType enabled) {
+                        privateClient.setPackageDetection(deviceId, enabled == OnOffType.ON)
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        logger.debug("Failed to set package detection", ex);
+                                    }
+                                });
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ANIMAL_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType enabled) {
-                        api.setAnimalDetection(deviceId, enabled == OnOffType.ON).whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                logger.debug("Failed to set animal detection", ex);
-                            }
-                        });
+                    if (command instanceof OnOffType enabled) {
+                        privateClient.setAnimalDetection(deviceId, enabled == OnOffType.ON)
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        logger.debug("Failed to set animal detection", ex);
+                                    }
+                                });
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_DEVICE_REBOOT: {
-                    if (api.isPrivateApiEnabled() && command == OnOffType.ON) {
-                        api.rebootDevice("camera", deviceId).whenComplete((result, ex) -> {
+                    if (command == OnOffType.ON) {
+                        privateClient.rebootDevice("camera", deviceId).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to reboot camera", ex);
                             }
@@ -399,18 +406,19 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                 }
                 // Additional Private API Camera Controls
                 case UnifiProtectBindingConstants.CHANNEL_MIC_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType enabled) {
-                        api.setCameraMicEnabled(deviceId, enabled == OnOffType.ON).whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                logger.debug("Failed to set microphone enabled", ex);
-                            }
-                        });
+                    if (command instanceof OnOffType enabled) {
+                        privateClient.setCameraMicEnabled(deviceId, enabled == OnOffType.ON)
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        logger.debug("Failed to set microphone enabled", ex);
+                                    }
+                                });
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_IR_MODE: {
-                    if (api.isPrivateApiEnabled() && command instanceof StringType mode) {
-                        api.setCameraIRMode(deviceId, mode.toString()).whenComplete((result, ex) -> {
+                    if (command instanceof StringType mode) {
+                        privateClient.setCameraIRMode(deviceId, mode.toString()).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to set IR mode", ex);
                             }
@@ -419,29 +427,31 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_MOTION_DETECTION_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType enabled) {
-                        api.setCameraMotionDetection(deviceId, enabled == OnOffType.ON).whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                logger.debug("Failed to set motion detection", ex);
-                            }
-                        });
+                    if (command instanceof OnOffType enabled) {
+                        privateClient.setCameraMotionDetection(deviceId, enabled == OnOffType.ON)
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        logger.debug("Failed to set motion detection", ex);
+                                    }
+                                });
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_USE_GLOBAL_SETTINGS: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType useGlobal) {
-                        api.setCameraUseGlobal(deviceId, useGlobal == OnOffType.ON).whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                logger.debug("Failed to set use global settings", ex);
-                            }
-                        });
+                    if (command instanceof OnOffType useGlobal) {
+                        privateClient.setCameraUseGlobal(deviceId, useGlobal == OnOffType.ON)
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        logger.debug("Failed to set use global settings", ex);
+                                    }
+                                });
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_CAMERA_SPEAKER_VOLUME: {
-                    if (api.isPrivateApiEnabled() && command instanceof DecimalType volume) {
+                    if (command instanceof DecimalType volume) {
                         int vol = Math.max(0, Math.min(100, volume.intValue()));
-                        api.setCameraSpeakerVolume(deviceId, vol).whenComplete((result, ex) -> {
+                        privateClient.setCameraSpeakerVolume(deviceId, vol).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to set speaker volume", ex);
                             }
@@ -450,9 +460,9 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_CAMERA_ZOOM_LEVEL: {
-                    if (api.isPrivateApiEnabled() && command instanceof DecimalType zoom) {
+                    if (command instanceof DecimalType zoom) {
                         int zoomLevel = Math.max(0, Math.min(100, zoom.intValue()));
-                        api.setCameraZoom(deviceId, zoomLevel).whenComplete((result, ex) -> {
+                        privateClient.setCameraZoom(deviceId, zoomLevel).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to set zoom level", ex);
                             }
@@ -461,9 +471,9 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_CAMERA_WDR_LEVEL: {
-                    if (api.isPrivateApiEnabled() && command instanceof DecimalType wdr) {
+                    if (command instanceof DecimalType wdr) {
                         int wdrLevel = Math.max(0, Math.min(3, wdr.intValue()));
-                        api.setCameraWDR(deviceId, wdrLevel).whenComplete((result, ex) -> {
+                        privateClient.setCameraWDR(deviceId, wdrLevel).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to set WDR level", ex);
                             }
@@ -472,9 +482,9 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_DOORBELL_RING_VOLUME: {
-                    if (api.isPrivateApiEnabled() && command instanceof DecimalType volume) {
+                    if (command instanceof DecimalType volume) {
                         int vol = Math.max(0, Math.min(100, volume.intValue()));
-                        api.setDoorbellRingVolume(deviceId, vol).whenComplete((result, ex) -> {
+                        privateClient.setDoorbellRingVolume(deviceId, vol).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to set doorbell ring volume", ex);
                             }
@@ -483,20 +493,19 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_DOORBELL_CHIME_DURATION: {
-                    if (api.isPrivateApiEnabled()) {
-                        Long duration = timeToMilliseconds(command);
-                        if (duration != null) {
-                            api.setDoorbellChimeDuration(deviceId, duration.intValue()).whenComplete((result, ex) -> {
-                                if (ex != null) {
-                                    logger.debug("Failed to set chime duration", ex);
-                                }
-                            });
-                        }
+                    Long duration = timeToMilliseconds(command);
+                    if (duration != null) {
+                        privateClient.setDoorbellChimeDuration(deviceId, duration.intValue())
+                                .whenComplete((result, ex) -> {
+                                    if (ex != null) {
+                                        logger.debug("Failed to set chime duration", ex);
+                                    }
+                                });
                     }
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_PRIVACY_MODE: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType privacy) {
+                    if (command instanceof OnOffType privacy) {
                         // Privacy mode is available through Public API
                         boolean value = privacy == OnOffType.ON;
                         var patch = UniFiProtectPublicClient.buildPatch("isPrivate", value);
@@ -506,8 +515,8 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_HIGH_FPS_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType highFps) {
-                        api.setCameraVideoMode(deviceId, highFps == OnOffType.ON ? "highFps" : "default")
+                    if (command instanceof OnOffType highFps) {
+                        privateClient.setCameraVideoMode(deviceId, highFps == OnOffType.ON ? "highFps" : "default")
                                 .whenComplete((result, ex) -> {
                                     if (ex != null) {
                                         logger.debug("Failed to set high FPS mode", ex);
@@ -517,8 +526,8 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     break;
                 }
                 case UnifiProtectBindingConstants.CHANNEL_HDR_ENABLED: {
-                    if (api.isPrivateApiEnabled() && command instanceof OnOffType hdr) {
-                        api.setCameraHDR(deviceId, hdr == OnOffType.ON).whenComplete((result, ex) -> {
+                    if (command instanceof OnOffType hdr) {
+                        privateClient.setCameraHDR(deviceId, hdr == OnOffType.ON).whenComplete((result, ex) -> {
                             if (ex != null) {
                                 logger.debug("Failed to set HDR", ex);
                             }
@@ -614,20 +623,24 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
      */
     private void updatePrivateApiStatus() {
         UniFiProtectHybridClient api = getApiClient();
-        if (api == null || !api.isPrivateApiEnabled()) {
+        if (api == null) {
             return;
         }
 
         try {
             // Fetch full camera data from Private API (async)
-            api.getPrivateCamera(deviceId).thenAccept(privCamera -> {
-                scheduler.execute(() -> {
-                    updatePrivateApiChannelsInternal(privCamera);
-                });
-            }).exceptionally(ex -> {
-                logger.debug("Failed to fetch Private API camera status", ex);
-                return null;
-            });
+            api.getPrivateClient().getBootstrap().thenApply(bootstrap -> {
+                org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera privCamera = bootstrap.cameras
+                        .get(deviceId);
+                if (privCamera == null) {
+                    throw new IllegalArgumentException("Camera not found: " + deviceId);
+                }
+                return privCamera;
+            }).thenAccept(privCamera -> scheduler.execute(() -> updatePrivateApiChannelsInternal(privCamera)))
+                    .exceptionally(ex -> {
+                        logger.debug("Failed to fetch Private API camera status", ex);
+                        return null;
+                    });
         } catch (Exception e) {
             logger.debug("Error updating Private API status", e);
         }
@@ -944,38 +957,43 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         String rtspUrlLow = null;
 
         // Get static rtspAlias from Private API camera channels
-        if (api.isPrivateApiEnabled()) {
-            try {
-                // Get NVR handler to access hostname
-                Thing bridge = getBridge();
-                String host = null;
-                if (bridge != null && bridge.getHandler() instanceof UnifiProtectNVRHandler) {
-                    UnifiProtectNVRHandler nvrHandler = (UnifiProtectNVRHandler) bridge.getHandler();
-                    host = nvrHandler.getHostname();
-                }
+        try {
+            // Get NVR handler to access hostname
+            Thing bridge = getBridge();
+            String host = null;
+            if (bridge != null && bridge.getHandler() instanceof UnifiProtectNVRHandler) {
+                UnifiProtectNVRHandler nvrHandler = (UnifiProtectNVRHandler) bridge.getHandler();
+                host = nvrHandler.getHostname();
+            }
 
-                if (host != null) {
-                    org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera privCamera = api
-                            .getPrivateCamera(deviceId).join();
-                    if (privCamera != null && privCamera.channels != null) {
-                        int port = 7441; // Default rtsps port
-                        for (var channel : privCamera.channels) {
-                            if (channel.rtspAlias != null && channel.isRtspEnabled != null && channel.isRtspEnabled) {
-                                String url = String.format("rtsps://%s:%d/%s", host, port, channel.rtspAlias);
-                                if ("High".equalsIgnoreCase(channel.name)) {
-                                    rtspUrlHigh = url;
-                                } else if ("Medium".equalsIgnoreCase(channel.name)) {
-                                    rtspUrlMedium = url;
-                                } else if ("Low".equalsIgnoreCase(channel.name)) {
-                                    rtspUrlLow = url;
-                                }
+            if (host != null) {
+                org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera privCamera = api
+                        .getPrivateClient().getBootstrap().thenApply(bootstrap -> {
+                            org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera camera = bootstrap.cameras
+                                    .get(deviceId);
+                            if (camera == null) {
+                                throw new IllegalArgumentException("Camera not found: " + deviceId);
+                            }
+                            return camera;
+                        }).join();
+                if (privCamera != null && privCamera.channels != null) {
+                    int port = 7441; // Default rtsps port
+                    for (var channel : privCamera.channels) {
+                        if (channel.rtspAlias != null && channel.isRtspEnabled != null && channel.isRtspEnabled) {
+                            String url = String.format("rtsps://%s:%d/%s", host, port, channel.rtspAlias);
+                            if ("High".equalsIgnoreCase(channel.name)) {
+                                rtspUrlHigh = url;
+                            } else if ("Medium".equalsIgnoreCase(channel.name)) {
+                                rtspUrlMedium = url;
+                            } else if ("Low".equalsIgnoreCase(channel.name)) {
+                                rtspUrlLow = url;
                             }
                         }
                     }
                 }
-            } catch (Exception e) {
-                logger.debug("Failed to get static RTSP URLs from private API", e);
             }
+        } catch (Exception e) {
+            logger.debug("Failed to get static RTSP URLs from private API", e);
         }
 
         // Update existing channels with static URLs
@@ -1203,7 +1221,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
 
         // Private API Channels (only if enabled)
         UniFiProtectHybridClient api = getApiClient();
-        if (api != null && api.isPrivateApiEnabled()) {
+        if (api != null) {
             // PTZ Controls (add for all cameras, will fail gracefully if not supported)
             addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_PAN, CoreItemFactory.NUMBER,
                     UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_PAN, channelAdd, activeChannelIds);

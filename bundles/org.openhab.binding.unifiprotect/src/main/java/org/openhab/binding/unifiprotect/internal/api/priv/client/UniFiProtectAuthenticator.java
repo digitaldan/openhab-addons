@@ -18,14 +18,16 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.util.StringContentProvider;
 import org.eclipse.jetty.http.HttpMethod;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.gson.JsonUtil;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.LoginResponse;
 import org.openhab.binding.unifiprotect.internal.api.priv.exception.AuthenticationException;
-import org.openhab.binding.unifiprotect.internal.api.priv.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +39,7 @@ import com.google.gson.JsonObject;
  *
  * @author Dan Cunningham - Initial contribution
  */
+@NonNullByDefault
 public class UniFiProtectAuthenticator {
 
     private static final Logger logger = LoggerFactory.getLogger(UniFiProtectAuthenticator.class);
@@ -49,12 +52,11 @@ public class UniFiProtectAuthenticator {
     private final String baseUrl;
     private final String username;
     private final String password;
-    private final SessionPersistence sessionPersistence;
+    private @Nullable SessionPersistence sessionPersistence;
 
-    private volatile String authCookie;
-    private volatile String csrfToken;
-    private volatile Instant lastAuthTime;
-    private volatile String userId;
+    private @Nullable String authCookie;
+    private @Nullable String csrfToken;
+    private @Nullable String userId;
 
     public UniFiProtectAuthenticator(HttpClient httpClient, String baseUrl, String username, String password,
             boolean enableSessionPersistence) {
@@ -73,14 +75,13 @@ public class UniFiProtectAuthenticator {
                 if (sessionData != null) {
                     this.authCookie = sessionData.cookie;
                     this.csrfToken = sessionData.csrfToken;
-                    this.lastAuthTime = Instant.now();
-                    logger.info("Loaded saved session for {}", username);
+                    logger.debug("Loaded saved session for {}", username);
 
                     // Fetch user ID since we didn't login
                     fetchUserIdFromSelf();
                 }
             } catch (Exception e) {
-                logger.warn("Failed to initialize or load session persistence: {}", e.getMessage(), e);
+                logger.debug("Failed to initialize or load session persistence: {}", e.getMessage(), e);
                 tempPersistence = null;
             }
         }
@@ -94,7 +95,7 @@ public class UniFiProtectAuthenticator {
     public CompletableFuture<Void> authenticate() {
         return CompletableFuture.runAsync(() -> {
             try {
-                logger.info("Authenticating with UniFi Protect as {}", username);
+                logger.debug("Authenticating with UniFi Protect as {}", username);
 
                 // Create login request body
                 JsonObject loginData = new JsonObject();
@@ -123,20 +124,18 @@ public class UniFiProtectAuthenticator {
                         this.userId = loginResponse.id;
                         logger.debug("Got user ID: {}", userId);
                     } else {
-                        logger.warn("Login response did not contain user ID");
+                        logger.debug("Login response did not contain user ID");
                     }
                 } catch (Exception e) {
-                    logger.warn("Failed to parse login response for user ID", e);
+                    logger.debug("Failed to parse login response for user ID", e);
                 }
 
-                // Extract CSRF token from headers
                 String csrfHeader = response.getHeaders().get("x-csrf-token");
                 if (csrfHeader != null) {
                     this.csrfToken = csrfHeader;
                     logger.debug("Got CSRF token: {}", csrfToken);
                 }
 
-                // Extract cookie from Set-Cookie header
                 String setCookieHeader = response.getHeaders().get("Set-Cookie");
                 if (setCookieHeader != null) {
                     parseCookie(setCookieHeader);
@@ -147,8 +146,7 @@ public class UniFiProtectAuthenticator {
                     throw new AuthenticationException("No authentication cookie received");
                 }
 
-                this.lastAuthTime = Instant.now();
-                logger.info("Successfully authenticated as {} (user ID: {})", username, userId);
+                logger.debug("Successfully authenticated as {} (user ID: {})", username, userId);
 
                 // Save session to disk
                 if (sessionPersistence != null) {
@@ -157,7 +155,7 @@ public class UniFiProtectAuthenticator {
                                 csrfToken, Instant.now().plus(SESSION_EXPIRY));
                         sessionPersistence.save(sessionData);
                     } catch (Exception e) {
-                        logger.warn("Failed to save session to disk: {}", e.getMessage(), e);
+                        logger.debug("Failed to save session to disk: {}", e.getMessage(), e);
                     }
                 }
 
@@ -175,14 +173,13 @@ public class UniFiProtectAuthenticator {
             List<HttpCookie> cookies = HttpCookie.parse(setCookieHeader);
             for (HttpCookie cookie : cookies) {
                 if (COOKIE_TOKEN.equals(cookie.getName()) || COOKIE_UOS_TOKEN.equals(cookie.getName())) {
-                    // Store the full cookie string for the header
                     this.authCookie = cookie.getName() + "=" + cookie.getValue();
                     logger.debug("Parsed cookie: {}", cookie.getName());
                     break;
                 }
             }
         } catch (Exception e) {
-            logger.warn("Failed to parse cookie: {}", setCookieHeader, e);
+            logger.debug("Failed to parse cookie: {}", setCookieHeader, e);
         }
     }
 
@@ -195,7 +192,6 @@ public class UniFiProtectAuthenticator {
             String url = baseUrl + "/api/users/self";
             Request request = httpClient.newRequest(url).method(HttpMethod.GET);
 
-            // Add auth headers
             addAuthHeaders(request);
 
             ContentResponse response = request.send();
@@ -210,17 +206,17 @@ public class UniFiProtectAuthenticator {
                         this.userId = userInfo.id;
                         logger.debug("Fetched user ID from /users/self: {}", userId);
                     } else {
-                        logger.warn("/users/self response did not contain user ID");
+                        logger.debug("/users/self response did not contain user ID");
                     }
                 } catch (Exception e) {
-                    logger.warn("Failed to parse /users/self response for user ID", e);
+                    logger.debug("Failed to parse /users/self response for user ID", e);
                 }
             } else {
-                logger.warn("Failed to fetch user info from /users/self: {} {}", response.getStatus(),
+                logger.debug("Failed to fetch user info from /users/self: {} {}", response.getStatus(),
                         response.getReason());
             }
         } catch (Exception e) {
-            logger.warn("Error fetching user ID from /users/self", e);
+            logger.debug("Error fetching user ID from /users/self", e);
         }
     }
 
@@ -246,14 +242,14 @@ public class UniFiProtectAuthenticator {
     /**
      * Get auth cookie for WebSocket
      */
-    public String getAuthCookie() {
+    public @Nullable String getAuthCookie() {
         return authCookie;
     }
 
     /**
      * Get CSRF token
      */
-    public String getCsrfToken() {
+    public @Nullable String getCsrfToken() {
         return csrfToken;
     }
 
@@ -261,7 +257,7 @@ public class UniFiProtectAuthenticator {
      * Get authenticated user ID
      * Fetches from /users/self if not available
      */
-    public String getUserId() {
+    public @Nullable String getUserId() {
         if (userId == null && isAuthenticated()) {
             // Lazy fetch if we don't have it yet
             logger.debug("User ID not available, fetching from /users/self");
@@ -276,17 +272,16 @@ public class UniFiProtectAuthenticator {
     public void clearAuth() {
         this.authCookie = null;
         this.csrfToken = null;
-        this.lastAuthTime = null;
         this.userId = null;
 
         if (sessionPersistence != null) {
             try {
                 sessionPersistence.delete();
             } catch (Exception e) {
-                logger.warn("Failed to delete saved session: {}", e.getMessage(), e);
+                logger.debug("Failed to delete saved session: {}", e.getMessage(), e);
             }
         }
 
-        logger.info("Cleared authentication");
+        logger.debug("Cleared authentication");
     }
 }
