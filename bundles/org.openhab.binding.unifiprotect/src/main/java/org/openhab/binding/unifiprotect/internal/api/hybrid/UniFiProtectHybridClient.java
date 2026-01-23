@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.unifiprotect.internal.api;
+package org.openhab.binding.unifiprotect.internal.api.hybrid;
 
 import java.io.Closeable;
 import java.io.IOException;

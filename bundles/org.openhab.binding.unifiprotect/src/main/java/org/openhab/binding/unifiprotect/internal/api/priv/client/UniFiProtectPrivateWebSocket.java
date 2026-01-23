@@ -231,12 +231,8 @@ public class UniFiProtectPrivateWebSocket {
         @Override
         public void onWebSocketBinary(byte[] payload, int offset, int len) {
             try {
-                // UniFi Protect sends binary WebSocket packets with a specific format:
-                // Packet contains frames with headers followed by JSON data
-
                 ByteBuffer buffer = ByteBuffer.wrap(payload, offset, len);
                 parseWebSocketPacket(buffer);
-
             } catch (Exception e) {
                 logger.debug("Error parsing WebSocket binary message", e);
             }
@@ -246,10 +242,7 @@ public class UniFiProtectPrivateWebSocket {
         public void onWebSocketText(String message) {
             try {
                 // Sometimes we might get text messages too
-                logger.debug("WebSocket text message received");
-
                 logger.trace("WebSocket Text Message: {}", message);
-
                 JsonObject json = JsonParser.parseString(message).getAsJsonObject();
                 processUpdate(json);
             } catch (Exception e) {
@@ -363,8 +356,9 @@ public class UniFiProtectPrivateWebSocket {
                 }
 
                 // Update bootstrap's lastUpdateId if present
-                if (newUpdateId != null && client.getCachedBootstrap() != null) {
-                    client.getCachedBootstrap().lastUpdateId = newUpdateId;
+                Bootstrap bootstrap = client.getCachedBootstrap();
+                if (newUpdateId != null && bootstrap != null) {
+                    bootstrap.lastUpdateId = newUpdateId;
                 }
 
                 WebSocketUpdate update = new WebSocketUpdate(action, modelType, id, newUpdateId, dataObject);

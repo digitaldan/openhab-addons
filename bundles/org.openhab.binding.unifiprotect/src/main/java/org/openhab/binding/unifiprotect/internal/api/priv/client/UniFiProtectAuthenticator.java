@@ -69,14 +69,11 @@ public class UniFiProtectAuthenticator {
         if (enableSessionPersistence) {
             try {
                 tempPersistence = new SessionPersistence(baseUrl, username);
-
-                // Try to load saved session
                 SessionPersistence.SessionData sessionData = tempPersistence.load();
                 if (sessionData != null) {
                     this.authCookie = sessionData.cookie;
                     this.csrfToken = sessionData.csrfToken;
                     logger.debug("Loaded saved session for {}", username);
-
                     // Fetch user ID since we didn't login
                     fetchUserIdFromSelf();
                 }
@@ -115,7 +112,6 @@ public class UniFiProtectAuthenticator {
                             "Authentication failed: " + response.getStatus() + " " + response.getReason());
                 }
 
-                // Parse response body to get user ID
                 String responseBody = response.getContentAsString();
                 logger.debug("Login response body: {}", responseBody);
                 try {
@@ -148,7 +144,6 @@ public class UniFiProtectAuthenticator {
 
                 logger.debug("Successfully authenticated as {} (user ID: {})", username, userId);
 
-                // Save session to disk
                 if (sessionPersistence != null) {
                     try {
                         SessionPersistence.SessionData sessionData = new SessionPersistence.SessionData(authCookie,

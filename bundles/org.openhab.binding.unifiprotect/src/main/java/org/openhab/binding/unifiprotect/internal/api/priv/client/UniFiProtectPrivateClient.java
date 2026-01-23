@@ -144,7 +144,7 @@ public class UniFiProtectPrivateClient {
     }
 
     /**
-     * Get the bootstrap (cached, with automatic refresh)
+     * Get the bootstrap object, either from cache or from the API
      */
     public CompletableFuture<Bootstrap> getBootstrap() {
         Bootstrap cachedBootstrap = this.cachedBootstrap;
@@ -158,7 +158,7 @@ public class UniFiProtectPrivateClient {
             }
         }
 
-        // Fetch new bootstrap
+        // No valid cache, fetch new bootstrap
         return apiRequest(HttpMethod.GET, "bootstrap", null, Bootstrap.class).thenApply(bootstrap -> {
             this.cachedBootstrap = bootstrap;
             this.lastBootstrapRefresh = Instant.now();
@@ -331,10 +331,6 @@ public class UniFiProtectPrivateClient {
         this.lastBootstrapRefresh = Instant.now();
     }
 
-    // ===========================================
-    // WRITE OPERATIONS - Device Control
-    // ===========================================
-
     /**
      * Update a device by sending a PATCH request with the changes
      * 
@@ -414,10 +410,6 @@ public class UniFiProtectPrivateClient {
     public CompletableFuture<Nvr> updateNvr(String nvrId, Object updates) {
         return updateDevice("nvr", nvrId, updates, Nvr.class);
     }
-
-    // ===========================================
-    // DEVICE COMMANDS
-    // ===========================================
 
     /**
      * Reboot a device
@@ -652,10 +644,6 @@ public class UniFiProtectPrivateClient {
         });
     }
 
-    // ===========================================
-    // DOORLOCK OPERATIONS
-    // ===========================================
-
     /**
      * Unlock doorlock
      * 
@@ -699,10 +687,6 @@ public class UniFiProtectPrivateClient {
     public CompletableFuture<Doorlock> setDoorlockAutoCloseTime(String doorlockId, int durationSeconds) {
         return updateDoorlock(doorlockId, Map.of("autoCloseTimeMs", durationSeconds * 1000));
     }
-
-    // ===========================================
-    // PTZ CAMERA OPERATIONS
-    // ===========================================
 
     /**
      * Move PTZ camera relatively
@@ -805,10 +789,6 @@ public class UniFiProtectPrivateClient {
         String path = "cameras/" + cameraId + "/ptz/home";
         return apiRequest(HttpMethod.POST, path, null, Void.class);
     }
-
-    // ===========================================
-    // ADVANCED CAMERA SETTINGS
-    // ===========================================
 
     /**
      * Enable/disable motion detection
@@ -913,10 +893,6 @@ public class UniFiProtectPrivateClient {
     public CompletableFuture<Camera> setDoorbellChimeDuration(String cameraId, int durationMs) {
         return updateCamera(cameraId, Map.of("chimeDuration", durationMs));
     }
-
-    // ===========================================
-    // SMART DETECTION SETTINGS
-    // ===========================================
 
     /**
      * Enable/disable person smart detection
@@ -1033,10 +1009,6 @@ public class UniFiProtectPrivateClient {
         });
     }
 
-    // ===========================================
-    // DEVICE MANAGEMENT
-    // ===========================================
-
     /**
      * Adopt/manage a device
      * 
@@ -1075,10 +1047,6 @@ public class UniFiProtectPrivateClient {
         return updateDevice(modelType, deviceId, Map.of("isSshEnabled", enabled), responseType);
     }
 
-    // ===========================================
-    // SENSOR OPERATIONS
-    // ===========================================
-
     /**
      * Clear tamper flag on sensor
      * 
@@ -1089,10 +1057,6 @@ public class UniFiProtectPrivateClient {
         String path = "sensors/" + sensorId + "/clear-tamper-flag";
         return apiRequest(HttpMethod.POST, path, null, Void.class);
     }
-
-    // ===========================================
-    // LIGHT OPERATIONS (ADDITIONAL)
-    // ===========================================
 
     /**
      * Set light mode and settings
@@ -1134,10 +1098,6 @@ public class UniFiProtectPrivateClient {
             webSocket.disconnect();
         }
     }
-
-    // ==========================================
-    // API KEY MANAGEMENT
-    // ==========================================
 
     /**
      * List all API keys for a user

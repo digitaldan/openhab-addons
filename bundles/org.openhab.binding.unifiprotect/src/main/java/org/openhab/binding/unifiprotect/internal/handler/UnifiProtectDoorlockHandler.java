@@ -16,8 +16,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectBindingConstants;
-import org.openhab.binding.unifiprotect.internal.api.UniFiProtectHybridClient;
-import org.openhab.binding.unifiprotect.internal.api.pub.dto.Doorlock;
+import org.openhab.binding.unifiprotect.internal.api.hybrid.UniFiProtectHybridClient;
+import org.openhab.binding.unifiprotect.internal.api.hybrid.devices.DoorklockDevice;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Doorlock;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.BaseEvent;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
@@ -34,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public class UnifiProtectDoorlockHandler extends UnifiProtectAbstractDeviceHandler<Doorlock> {
+public class UnifiProtectDoorlockHandler extends UnifiProtectAbstractDeviceHandler<DoorklockDevice> {
 
     private final Logger logger = LoggerFactory.getLogger(UnifiProtectDoorlockHandler.class);
 
@@ -44,10 +45,7 @@ public class UnifiProtectDoorlockHandler extends UnifiProtectAbstractDeviceHandl
 
     @Override
     public void initialize() {
-        updateStatus(ThingStatus.UNKNOWN);
-        scheduler.execute(() -> {
-            updateFromPrivateApi();
-        });
+        super.initialize();
     }
 
     @Override
@@ -124,51 +122,19 @@ public class UnifiProtectDoorlockHandler extends UnifiProtectAbstractDeviceHandl
     }
 
     @Override
-    public void updateFromDevice(org.openhab.binding.unifiprotect.internal.api.pub.dto.Doorlock device) {
+    public void updateFromDevice(DoorklockDevice device) {
         // The public API doesn't support doorlocks
         // All updates come from Private API
-        updateFromPrivateApi();
-    }
-
-    /**
-     * Fetch and update all doorlock channels from Private API
-     */
-    private void updateFromPrivateApi() {
-        UniFiProtectHybridClient api = getApiClient();
-        if (api == null) {
-            return;
-        }
-
-        try {
-            // Fetch doorlock data from Private API
-            api.getPrivateClient().getBootstrap().thenApply(bootstrap -> {
-                org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Doorlock doorlock = bootstrap.doorlocks
-                        .get(deviceId);
-                if (doorlock == null) {
-                    throw new IllegalArgumentException("Doorlock not found: " + deviceId);
-                }
-                return doorlock;
-            }).thenAccept(doorlock -> scheduler.execute(() -> updateDoorlockChannels(doorlock))).exceptionally(ex -> {
-                logger.debug("Failed to fetch Private API doorlock status", ex);
-                return null;
-            });
-        } catch (Exception e) {
-            logger.debug("Error updating Private API doorlock status", e);
+        updateDoorlockChannels(device.privateDevice);
+        if (getThing().getStatus() != ThingStatus.ONLINE) {
+            updateStatus(ThingStatus.ONLINE);
         }
     }
 
     /**
      * Update doorlock channels from Private API data
      */
-    public void updateDoorlockChannels(
-            org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Doorlock doorlock) {
-        if (doorlock == null) {
-            return;
-        }
-        if (getThing().getStatus() != ThingStatus.ONLINE) {
-            updateStatus(ThingStatus.ONLINE);
-        }
-
+    public void updateDoorlockChannels(Doorlock doorlock) {
         // Device properties
         if (doorlock.name != null) {
             updateProperty(UnifiProtectBindingConstants.PROPERTY_NAME, doorlock.name);
@@ -219,9 +185,5 @@ public class UnifiProtectDoorlockHandler extends UnifiProtectAbstractDeviceHandl
     public void handleEvent(BaseEvent event, WSEventType type) {
         // Doorlocks don't have events in the public API
         // All updates come through Private API WebSocket
-    }
-
-    public void refresh() {
-        updateFromPrivateApi();
     }
 }

@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.unifiprotect.internal.api.UniFiProtectHybridClient;
+import org.openhab.binding.unifiprotect.internal.api.hybrid.UniFiProtectHybridClient;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.Camera;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.Light;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.Sensor;

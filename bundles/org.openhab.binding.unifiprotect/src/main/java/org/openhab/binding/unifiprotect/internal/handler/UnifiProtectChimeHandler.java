@@ -16,8 +16,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.unifiprotect.internal.UnifiProtectBindingConstants;
-import org.openhab.binding.unifiprotect.internal.api.UniFiProtectHybridClient;
-import org.openhab.binding.unifiprotect.internal.api.pub.dto.Chime;
+import org.openhab.binding.unifiprotect.internal.api.hybrid.UniFiProtectHybridClient;
+import org.openhab.binding.unifiprotect.internal.api.hybrid.devices.ChimeDevice;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.events.BaseEvent;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
@@ -25,7 +25,6 @@ import org.openhab.core.library.types.PercentType;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
-import org.openhab.core.thing.ThingStatusDetail;
 import org.openhab.core.types.Command;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<Chime> {
+public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<ChimeDevice> {
 
     private final Logger logger = LoggerFactory.getLogger(UnifiProtectChimeHandler.class);
 
@@ -46,22 +45,7 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
 
     @Override
     public void initialize() {
-        updateStatus(ThingStatus.UNKNOWN);
-        scheduler.execute(() -> {
-            try {
-                UniFiProtectHybridClient client = getApiClient();
-                if (client == null) {
-                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE, "No API client available");
-                    return;
-                }
-
-                updateStatus(ThingStatus.ONLINE);
-                updateFromPrivateApi();
-            } catch (Exception e) {
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
-                logger.debug("Error initializing chime", e);
-            }
-        });
+        super.initialize();
     }
 
     @Override
@@ -168,36 +152,13 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
     }
 
     @Override
-    public void updateFromDevice(org.openhab.binding.unifiprotect.internal.api.pub.dto.Chime device) {
+    public void updateFromDevice(ChimeDevice device) {
+        super.updateFromDevice(device);
         // The public API doesn't support chimes
         // All updates come from Private API
-        updateFromPrivateApi();
-    }
-
-    /**
-     * Fetch and update all chime channels from Private API
-     */
-    private void updateFromPrivateApi() {
-        UniFiProtectHybridClient api = getApiClient();
-        if (api == null) {
-            return;
-        }
-
-        try {
-            // Fetch chime data from Private API
-            api.getPrivateClient().getBootstrap().thenApply(bootstrap -> {
-                org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Chime chime = bootstrap.chimes
-                        .get(deviceId);
-                if (chime == null) {
-                    throw new IllegalArgumentException("Chime not found: " + deviceId);
-                }
-                return chime;
-            }).thenAccept(chime -> scheduler.execute(() -> updateChimeChannels(chime))).exceptionally(ex -> {
-                logger.debug("Failed to fetch Private API chime status", ex);
-                return null;
-            });
-        } catch (Exception e) {
-            logger.debug("Error updating Private API chime status", e);
+        updateChimeChannels(device.privateDevice);
+        if (getThing().getStatus() != ThingStatus.ONLINE) {
+            updateStatus(ThingStatus.ONLINE);
         }
     }
 
@@ -205,55 +166,44 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
      * Update chime channels from Private API data
      */
     public void updateChimeChannels(org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Chime chime) {
-        if (chime == null) {
-            return;
+        // Device properties
+        if (chime.name != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_NAME, chime.name);
+        }
+        if (chime.marketName != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_MODEL, chime.marketName);
+        } else if (chime.type != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_MODEL, chime.type);
+        }
+        if (chime.firmwareVersion != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_FIRMWARE_VERSION, chime.firmwareVersion);
+        }
+        if (chime.mac != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_MAC_ADDRESS, chime.mac);
+        }
+        if (chime.host != null) {
+            updateProperty(UnifiProtectBindingConstants.PROPERTY_IP_ADDRESS, chime.host);
         }
 
-        scheduler.execute(() -> {
-            // Device properties
-            if (chime.name != null) {
-                updateProperty(UnifiProtectBindingConstants.PROPERTY_NAME, chime.name);
-            }
-            if (chime.marketName != null) {
-                updateProperty(UnifiProtectBindingConstants.PROPERTY_MODEL, chime.marketName);
-            } else if (chime.type != null) {
-                updateProperty(UnifiProtectBindingConstants.PROPERTY_MODEL, chime.type);
-            }
-            if (chime.firmwareVersion != null) {
-                updateProperty(UnifiProtectBindingConstants.PROPERTY_FIRMWARE_VERSION, chime.firmwareVersion);
-            }
-            if (chime.mac != null) {
-                updateProperty(UnifiProtectBindingConstants.PROPERTY_MAC_ADDRESS, chime.mac);
-            }
-            if (chime.host != null) {
-                updateProperty(UnifiProtectBindingConstants.PROPERTY_IP_ADDRESS, chime.host);
-            }
+        // Volume
+        if (chime.volume != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_CHIME_VOLUME, new PercentType(chime.volume));
+        }
 
-            // Volume
-            if (chime.volume != null) {
-                updateState(UnifiProtectBindingConstants.CHANNEL_CHIME_VOLUME, new PercentType(chime.volume));
-            }
+        // Repeat times
+        if (chime.repeatTimes != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_CHIME_REPEAT_TIMES, new DecimalType(chime.repeatTimes));
+        }
 
-            // Repeat times
-            if (chime.repeatTimes != null) {
-                updateState(UnifiProtectBindingConstants.CHANNEL_CHIME_REPEAT_TIMES,
-                        new DecimalType(chime.repeatTimes));
-            }
-
-            // Update thing status
-            if (getThing().getStatus() != ThingStatus.ONLINE) {
-                updateStatus(ThingStatus.ONLINE);
-            }
-        });
+        // Update thing status
+        if (getThing().getStatus() != ThingStatus.ONLINE) {
+            updateStatus(ThingStatus.ONLINE);
+        }
     }
 
     @Override
     public void handleEvent(BaseEvent event, WSEventType type) {
         // Chimes don't have events in the public API
         // All updates come through Private API WebSocket
-    }
-
-    public void refresh() {
-        updateFromPrivateApi();
     }
 }
