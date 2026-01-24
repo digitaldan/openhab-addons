@@ -181,8 +181,8 @@ public class UnifiProtectSensorHandler extends UnifiProtectAbstractDeviceHandler
     }
 
     @Override
-    public void updateFromDevice(SensorDevice sensor) {
-        super.updateFromDevice(sensor);
+    public void refreshFromDevice(SensorDevice sensor) {
+        super.refreshFromDevice(sensor);
         if (sensor.privateDevice.batteryStatus != null && sensor.privateDevice.batteryStatus.percentage != null) {
             updateDecimalChannel(UnifiProtectBindingConstants.CHANNEL_BATTERY,
                     sensor.privateDevice.batteryStatus.percentage);

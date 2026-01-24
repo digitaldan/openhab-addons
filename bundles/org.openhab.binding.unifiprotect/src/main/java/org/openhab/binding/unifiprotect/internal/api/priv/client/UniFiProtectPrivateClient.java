@@ -43,6 +43,7 @@ import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.ApiKey;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.ApiKeyResponse;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Bootstrap;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Nvr;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.UserCertificate;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectObjectType;
 import org.openhab.binding.unifiprotect.internal.api.priv.exception.AuthenticationException;
 import org.openhab.binding.unifiprotect.internal.api.priv.exception.BadRequestException;
@@ -304,8 +305,14 @@ public class UniFiProtectPrivateClient {
                             if (content == null || content.isEmpty()) {
                                 future.complete(null);
                             } else {
-                                T parsed = JsonUtil.fromJson(content, responseType);
-                                future.complete(parsed);
+                                try {
+                                    T parsed = JsonUtil.fromJson(content, responseType);
+                                    future.complete(parsed);
+                                } catch (Exception parseEx) {
+                                    logger.error("Failed to parse response as {}: {}", responseType.getSimpleName(),
+                                            parseEx.getMessage(), parseEx);
+                                    future.completeExceptionally(parseEx);
+                                }
                             }
 
                         } catch (Exception e) {
@@ -1215,5 +1222,83 @@ public class UniFiProtectPrivateClient {
                 return createApiKey(userId, name);
             }
         });
+    }
+
+    /**
+     * List all user certificates
+     *
+     * @return CompletableFuture with list of user certificates
+     */
+    public CompletableFuture<List<UserCertificate>> listUserCertificates() {
+        return directApiRequest(HttpMethod.GET, "/api/userCertificates", null, UserCertificate[].class)
+                .thenApply(array -> {
+                    if (array != null) {
+                        return List.of(array);
+                    }
+                    return List.of();
+                });
+    }
+
+    /**
+     * Create a new user certificate, after creating, you then need to activate the certificate by calling
+     * updateUserCertificate with the certificate ID and active=true
+     *
+     * @param name The name for the certificate
+     * @param certificateContent The certificate content (PEM format)
+     * @param keyContent The private key content (PEM format)
+     * @return CompletableFuture with the created certificate
+     */
+    public CompletableFuture<UserCertificate> createUserCertificate(String name, String certificateContent,
+            String keyContent) {
+        Map<String, String> body = Map.of("name", name, "certificate", certificateContent, "key", keyContent);
+        return directApiRequest(HttpMethod.POST, "/api/userCertificates", body, UserCertificate.class);
+    }
+
+    /**
+     * Get a single user certificate status
+     *
+     * @param certificateId The certificate ID
+     * @return CompletableFuture with the certificate
+     */
+    public CompletableFuture<UserCertificate> getUserCertificate(String certificateId) {
+        return directApiRequest(HttpMethod.GET, "/api/userCertificates/" + certificateId + "/status", null,
+                UserCertificate.class);
+    }
+
+    /**
+     * Update a user certificate (e.g., to activate/deactivate)
+     *
+     * @param certificateId The certificate ID
+     * @param certificate The updated certificate object
+     * @return CompletableFuture with the updated certificate
+     */
+    public CompletableFuture<UserCertificate> updateUserCertificate(String certificateId, UserCertificate certificate) {
+        return directApiRequest(HttpMethod.PUT, "/api/userCertificates/" + certificateId + "/status", certificate,
+                UserCertificate.class);
+    }
+
+    /**
+     * Set a user certificate active/inactive status
+     *
+     * @param certificateId The certificate ID
+     * @param active True to activate, false to deactivate
+     * @return CompletableFuture with the updated certificate
+     */
+    public CompletableFuture<UserCertificate> setUserCertificateActive(String certificateId, boolean active) {
+        return getUserCertificate(certificateId).thenCompose(cert -> {
+            cert.active = active;
+            return updateUserCertificate(certificateId, cert);
+        });
+    }
+
+    /**
+     * Delete a user certificate
+     *
+     * @param certificateId The certificate ID to delete
+     * @return CompletableFuture that completes when the certificate is deleted
+     */
+    public CompletableFuture<@Nullable Void> deleteUserCertificate(String certificateId) {
+        return directApiRequest(HttpMethod.DELETE, "/api/userCertificates/" + certificateId + "/status", null,
+                Object.class).thenApply(v -> null);
     }
 }

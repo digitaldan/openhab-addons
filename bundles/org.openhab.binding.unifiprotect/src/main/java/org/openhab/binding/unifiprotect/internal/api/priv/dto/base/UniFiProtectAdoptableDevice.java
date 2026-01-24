@@ -82,18 +82,6 @@ public abstract class UniFiProtectAdoptableDevice extends UniFiProtectDevice {
         public Double experienceScore;
     }
 
-    public boolean isWired() {
-        return wiredConnectionState != null;
-    }
-
-    public boolean isWifi() {
-        return wifiConnectionState != null;
-    }
-
-    public boolean isBluetooth() {
-        return bluetoothConnectionState != null;
-    }
-
     public boolean isAdoptedByUs() {
         return Boolean.TRUE.equals(isAdopted) && !Boolean.TRUE.equals(isAdoptedByOther);
     }

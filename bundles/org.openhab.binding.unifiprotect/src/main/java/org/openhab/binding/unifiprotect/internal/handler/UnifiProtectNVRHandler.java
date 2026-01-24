@@ -14,6 +14,7 @@ package org.openhab.binding.unifiprotect.internal.handler;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -171,10 +172,8 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                         UniFiProtectPrivateClient tempClient = new UniFiProtectPrivateClient(httpClient, scheduler,
                                 config.hostname, config.port, config.username, config.password);
 
-                        // Initialize and authenticate
                         tempClient.initialize().get(30, TimeUnit.SECONDS);
 
-                        // Get current user ID
                         String userId = tempClient.getCurrentUserId().get(10, TimeUnit.SECONDS);
                         if (userId == null || userId.isBlank()) {
                             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
@@ -182,7 +181,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                             return;
                         }
 
-                        // Create or recreate API key
                         String keyName = "openHAB-" + getThing().getUID().getId();
                         ApiKey key = tempClient.getOrCreateApiKey(userId, keyName).get(10, TimeUnit.SECONDS);
                         if (key == null || key.fullApiKey == null || key.fullApiKey.isBlank()) {
@@ -195,7 +193,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                         logger.debug("Successfully created API key '{}': {}***", keyName,
                                 apiToken.substring(0, Math.min(8, apiToken.length())));
 
-                        // Save token to configuration for future use
                         Configuration thingConfig = editConfiguration();
                         thingConfig.put("token", apiToken);
                         updateConfiguration(thingConfig);
@@ -210,10 +207,8 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                     }
                 }
 
-                // Create hybrid client with both public and private API
-                URI base = URI.create("https://" + config.hostname + "/proxy/protect/integration/");
                 logger.debug("Initializing with hybrid API client (Public + Private)");
-                UniFiProtectHybridClient apiClient = new UniFiProtectHybridClient(httpClient, base, gson, apiToken,
+                UniFiProtectHybridClient apiClient = new UniFiProtectHybridClient(httpClient, gson, apiToken,
                         scheduler, config.hostname, config.port, config.username, config.password);
 
                 this.apiClient = apiClient;
@@ -303,7 +298,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                     scheduler.execute(() -> {
                         logger.trace("Private API WebSocket update: action={}, model={}", update.action,
                                 update.modelType);
-                        // Route Private API updates to handlers based on model type
                         routePrivateApiUpdate(update);
                     });
                 }).whenComplete((result, ex) -> {
@@ -312,8 +306,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                         setOfflineAndReconnect();
                     }
                 });
-
-                // Update NVR status channels from Private API
                 updateNVRStatus();
             } catch (Exception e) {
                 logger.debug("Initialization failed", e);
@@ -433,14 +425,14 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
             if (handler instanceof UnifiProtectCameraHandler cameraHandler && bootstrap.cameras.get(
                     deviceId) instanceof org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera privCamera) {
                 Camera publicCamera = apiClient.getPublicClient().getCamera(deviceId);
-                cameraHandler.updateFromDevice(new CameraDevice(privCamera, publicCamera));
+                cameraHandler.refreshFromDevice(new CameraDevice(privCamera, publicCamera));
             } else if (handler instanceof UnifiProtectLightHandler lightHandler && bootstrap.lights.get(
                     deviceId) instanceof org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Light privLight) {
                 lightHandler
-                        .updateFromDevice(new LightDevice(privLight, apiClient.getPublicClient().getLight(deviceId)));
+                        .refreshFromDevice(new LightDevice(privLight, apiClient.getPublicClient().getLight(deviceId)));
             } else if (handler instanceof UnifiProtectSensorHandler sensorHandler && bootstrap.sensors.get(
                     deviceId) instanceof org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Sensor privSensor) {
-                sensorHandler.updateFromDevice(
+                sensorHandler.refreshFromDevice(
                         new SensorDevice(privSensor, apiClient.getPublicClient().getSensor(deviceId)));
             }
             cancelChildRefreshRetry(deviceId);
@@ -520,7 +512,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                         camera.id, UnifiProtectCameraHandler.class);
                 if (ch != null && bootstrap.cameras.get(
                         camera.id) instanceof org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera privCamera) {
-                    ch.updateFromDevice(new CameraDevice(privCamera, camera));
+                    ch.refreshFromDevice(new CameraDevice(privCamera, camera));
                 } else {
                     discoveryService.discoverCamera(camera);
                 }
@@ -530,7 +522,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                         UnifiProtectLightHandler.class);
                 if (lh != null && bootstrap.lights.get(
                         light.id) instanceof org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Light privLight) {
-                    lh.updateFromDevice(new LightDevice(privLight, light));
+                    lh.refreshFromDevice(new LightDevice(privLight, light));
                 } else {
                     discoveryService.discoverLight(light);
                 }
@@ -540,7 +532,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                         sensor.id, UnifiProtectSensorHandler.class);
                 if (sh != null && bootstrap.sensors.get(
                         sensor.id) instanceof org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Sensor privSensor) {
-                    sh.updateFromDevice(new SensorDevice(privSensor, sensor));
+                    sh.refreshFromDevice(new SensorDevice(privSensor, sensor));
                 } else {
                     discoveryService.discoverSensor(sensor);
                 }
@@ -936,9 +928,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
             updateState(UnifiProtectBindingConstants.CHANNEL_NVR_INSIGHTS_ENABLED,
                     OnOffType.from(nvr.isInsightsEnabled));
         }
-        // Note: isVaultRegistered field doesn't exist in current UniFi Protect versions
 
-        // Hardware Information (Properties)
         if (nvr.hostShortname != null) {
             updateProperty(UnifiProtectBindingConstants.PROPERTY_HARDWARE_PLATFORM, nvr.hostShortname);
         }
@@ -959,13 +949,12 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
             updateProperty(UnifiProtectBindingConstants.PROPERTY_HOST, nvr.hosts.get(0));
         }
 
-        // Update Status
         if (nvr.canAutoUpdate != null) {
             updateState(UnifiProtectBindingConstants.CHANNEL_NVR_CAN_AUTO_UPDATE, OnOffType.from(nvr.canAutoUpdate));
         }
         if (nvr.lastUpdateAt != null) {
             updateState(UnifiProtectBindingConstants.CHANNEL_NVR_LAST_UPDATE_AT, new DateTimeType(
-                    java.time.ZonedDateTime.ofInstant(nvr.lastUpdateAt, java.time.ZoneId.systemDefault())));
+                    ZonedDateTime.ofInstant(nvr.lastUpdateAt, java.time.ZoneId.systemDefault())));
         }
         if (nvr.isProtectUpdatable != null) {
             updateState(UnifiProtectBindingConstants.CHANNEL_NVR_PROTECT_UPDATABLE,

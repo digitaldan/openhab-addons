@@ -74,7 +74,7 @@ public abstract class UnifiProtectAbstractDeviceHandler<T extends BaseDevice> ex
         super(thing);
     }
 
-    public void updateFromDevice(T device) {
+    public void refreshFromDevice(T device) {
         this.device = device;
     }
 

@@ -165,7 +165,6 @@ The NVR bridge provides comprehensive monitoring channels for system health, sto
 | osd-logo                               | Switch      | RW | Public | Show logo on OSD                                                                                     | false    |
 | led-enabled                            | Switch      | RW | Public | Enable/disable camera status LED                                                                     | false    |
 | active-patrol-slot                     | Number      | RW | Public | Active PTZ patrol slot (set 0 to stop)                                                               | false    |
-| privacy-mode                           | Switch      | RW | Both   | Privacy mode (disables recording/streaming)                                                          | false    |
 
 #### Streaming URLs
 
@@ -444,7 +443,6 @@ Switch  Cam_Front_OSD_Name         "OSD Name"                           { channe
 Switch  Cam_Front_OSD_Date         "OSD Date"                           { channel="unifiprotect:camera:myNvr:frontdoor:osd-date" }
 Switch  Cam_Front_OSD_Logo         "OSD Logo"                           { channel="unifiprotect:camera:myNvr:frontdoor:osd-logo" }
 Switch  Cam_Front_LED              "Status LED"                         { channel="unifiprotect:camera:myNvr:frontdoor:led-enabled" }
-Switch  Cam_Front_Privacy          "Privacy Mode"                       { channel="unifiprotect:camera:myNvr:frontdoor:privacy-mode" }
 Number  Cam_Front_PatrolSlot       "PTZ Patrol Slot [%d]"               { channel="unifiprotect:camera:myNvr:frontdoor:active-patrol-slot" }
 String  Cam_Front_WebRTC_High      "WebRTC High [%s]"                   { channel="unifiprotect:camera:myNvr:frontdoor:webrtc-url-high" }
 Contact Cam_Front_Motion           "Motion [%s]"                        { channel="unifiprotect:camera:myNvr:frontdoor:motion-contact" }

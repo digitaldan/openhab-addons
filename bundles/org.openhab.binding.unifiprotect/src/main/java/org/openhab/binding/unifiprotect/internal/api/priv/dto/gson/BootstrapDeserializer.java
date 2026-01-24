@@ -25,10 +25,13 @@ import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Light;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Sensor;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Viewer;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Bootstrap;
+import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Event;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Group;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Liveview;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Nvr;
 import org.openhab.binding.unifiprotect.internal.api.priv.dto.system.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
@@ -45,9 +48,13 @@ import com.google.gson.JsonParseException;
  */
 public class BootstrapDeserializer implements JsonDeserializer<Bootstrap> {
 
+    private final Logger logger = LoggerFactory.getLogger(BootstrapDeserializer.class);
+
     @Override
     public Bootstrap deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
             throws JsonParseException {
+        logger.debug("BootstrapDeserializer.deserialize called");
+
         JsonObject obj = json.getAsJsonObject();
         Bootstrap bootstrap = new Bootstrap();
 
@@ -55,12 +62,17 @@ public class BootstrapDeserializer implements JsonDeserializer<Bootstrap> {
         bootstrap.accessKey = getAsString(obj, "accessKey");
         bootstrap.lastUpdateId = getAsString(obj, "lastUpdateId");
 
+        logger.debug("Bootstrap authUserId: {}, lastUpdateId: {}", bootstrap.authUserId, bootstrap.lastUpdateId);
+
         if (obj.has("nvr")) {
             bootstrap.nvr = context.deserialize(obj.get("nvr"), Nvr.class);
+            logger.debug("Deserialized NVR: {}", bootstrap.nvr != null ? "success" : "null");
         }
 
         // Convert device arrays to maps
         bootstrap.cameras = arrayToMap(obj, "cameras", Camera.class, context);
+        logger.debug("Deserialized {} cameras", bootstrap.cameras.size());
+
         bootstrap.lights = arrayToMap(obj, "lights", Light.class, context);
         bootstrap.sensors = arrayToMap(obj, "sensors", Sensor.class, context);
         bootstrap.doorlocks = arrayToMap(obj, "doorlocks", Doorlock.class, context);
@@ -69,9 +81,13 @@ public class BootstrapDeserializer implements JsonDeserializer<Bootstrap> {
         bootstrap.viewers = arrayToMap(obj, "viewers", Viewer.class, context);
         bootstrap.aiports = arrayToMap(obj, "aiports", AiPort.class, context);
         bootstrap.users = arrayToMap(obj, "users", User.class, context);
+        logger.debug("Deserialized {} users", bootstrap.users.size());
+
         bootstrap.groups = arrayToMap(obj, "groups", Group.class, context);
         bootstrap.liveviews = arrayToMap(obj, "liveviews", Liveview.class, context);
+        bootstrap.events = arrayToMap(obj, "events", Event.class, context);
 
+        logger.debug("Bootstrap deserialization complete");
         return bootstrap;
     }
 
@@ -84,19 +100,32 @@ public class BootstrapDeserializer implements JsonDeserializer<Bootstrap> {
         Map<String, T> map = new HashMap<>();
 
         if (!obj.has(field) || obj.get(field).isJsonNull()) {
+            logger.trace("Field '{}' not present or is null", field);
             return map;
         }
 
-        JsonArray array = obj.getAsJsonArray(field);
-        for (JsonElement element : array) {
-            T item = context.deserialize(element, clazz);
-            if (item != null) {
-                JsonObject itemObj = element.getAsJsonObject();
-                if (itemObj.has("id")) {
-                    String id = itemObj.get("id").getAsString();
-                    map.put(id, item);
+        try {
+            JsonArray array = obj.getAsJsonArray(field);
+            logger.trace("Processing '{}' array with {} items", field, array.size());
+
+            for (JsonElement element : array) {
+                try {
+                    T item = context.deserialize(element, clazz);
+                    if (item != null) {
+                        JsonObject itemObj = element.getAsJsonObject();
+                        if (itemObj.has("id")) {
+                            String id = itemObj.get("id").getAsString();
+                            map.put(id, item);
+                        } else {
+                            logger.warn("Item in '{}' array has no 'id' field", field);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to deserialize item in '{}' array: {}", field, e.getMessage(), e);
                 }
             }
+        } catch (Exception e) {
+            logger.error("Failed to process '{}' array: {}", field, e.getMessage(), e);
         }
 
         return map;

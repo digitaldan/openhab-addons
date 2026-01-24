@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -38,7 +39,6 @@ import org.openhab.binding.unifiprotect.internal.api.pub.dto.ChannelQuality;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.HdrType;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.LcdMessage;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.LedSettings;
-import org.openhab.binding.unifiprotect.internal.api.pub.dto.ObjectType;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.OsdSettings;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.RtspsStreams;
 import org.openhab.binding.unifiprotect.internal.api.pub.dto.TalkbackSession;
@@ -508,16 +508,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     }
                     break;
                 }
-                case UnifiProtectBindingConstants.CHANNEL_PRIVACY_MODE: {
-                    if (command instanceof OnOffType privacy) {
-                        // Privacy mode is available through Public API
-                        boolean value = privacy == OnOffType.ON;
-                        var patch = UniFiProtectPublicClient.buildPatch("isPrivate", value);
-                        Camera updated = api.getPublicClient().patchCamera(deviceId, patch);
-                        updateFromPublicDevice(updated);
-                    }
-                    break;
-                }
                 case UnifiProtectBindingConstants.CHANNEL_HIGH_FPS_ENABLED: {
                     if (command instanceof OnOffType highFps) {
                         api.getPrivateClient()
@@ -550,16 +540,15 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
     }
 
     @Override
-    public void updateFromDevice(CameraDevice camera) {
-        super.updateFromDevice(camera);
+    public void refreshFromDevice(CameraDevice camera) {
+        super.refreshFromDevice(camera);
+        addRemoveChannels();
+        updateRtspsChannels();
         updateFromPublicDevice(camera.publicDevice);
         updateFromPrivateDevice(camera.privateDevice);
-        updateRtspsChannels();
     }
 
     protected void updateFromPublicDevice(Camera camera) {
-
-        addRemoveChannels(camera);
         if (getThing().getStatus() != ThingStatus.ONLINE) {
             updateStatus(ThingStatus.ONLINE);
         }
@@ -615,6 +604,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
      */
     protected void updateFromPrivateDevice(
             org.openhab.binding.unifiprotect.internal.api.priv.dto.devices.Camera privCamera) {
+        logger.debug("Updating from private device: {}", privCamera);
         // Device status flags
         if (privCamera.isMotionDetected != null) {
             updateState(UnifiProtectBindingConstants.CHANNEL_IS_MOTION_DETECTED,
@@ -628,10 +618,8 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             updateState(UnifiProtectBindingConstants.CHANNEL_IS_RECORDING, OnOffType.from(privCamera.isRecording));
         }
         if (privCamera.isMicEnabled != null) {
-            updateState(UnifiProtectBindingConstants.CHANNEL_IS_MIC_ACTIVE, OnOffType.from(privCamera.isMicEnabled));
+            updateState(UnifiProtectBindingConstants.CHANNEL_MIC_ENABLED, OnOffType.from(privCamera.isMicEnabled));
         }
-
-        // Timestamps
         if (privCamera.upSince != null) {
             updateDateTimeChannel(UnifiProtectBindingConstants.CHANNEL_UPTIME_STARTED,
                     privCamera.upSince.toEpochMilli());
@@ -645,11 +633,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         }
         if (privCamera.lastRing != null) {
             updateDateTimeChannel(UnifiProtectBindingConstants.CHANNEL_LAST_RING, privCamera.lastRing.toEpochMilli());
-        }
-
-        // Device info (Properties)
-        if (privCamera.name != null) {
-            updateProperty(UnifiProtectBindingConstants.PROPERTY_NAME, privCamera.name);
         }
         if (privCamera.marketName != null) {
             updateProperty(UnifiProtectBindingConstants.PROPERTY_MODEL, privCamera.marketName);
@@ -669,28 +652,20 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             updateState(UnifiProtectBindingConstants.CHANNEL_DEVICE_UPTIME,
                     new QuantityType<>(privCamera.uptime.toMillis(), Units.SECOND));
         }
-
-        // LCD message for doorbells
         if (privCamera.lcdMessage != null && privCamera.lcdMessage.text != null) {
             updateStringChannel(UnifiProtectBindingConstants.CHANNEL_LCD_MESSAGE, privCamera.lcdMessage.text);
         }
-
-        // Doorbell ringing state (derived from lastRing timestamp vs current time)
         if (privCamera.lastRing != null) {
             long secondsSinceRing = Duration.between(privCamera.lastRing, Instant.now()).getSeconds();
             boolean isRinging = secondsSinceRing < 5; // Consider "ringing" if within last 5 seconds
             updateState(UnifiProtectBindingConstants.CHANNEL_IS_RINGING, OnOffType.from(isRinging));
         }
-
-        // Additional detection & motion status
         if (privCamera.isDark != null) {
             updateState(UnifiProtectBindingConstants.CHANNEL_IS_DARK, OnOffType.from(privCamera.isDark));
         }
         if (privCamera.lastSmart != null) {
             updateDateTimeChannel(UnifiProtectBindingConstants.CHANNEL_LAST_SMART, privCamera.lastSmart.toEpochMilli());
         }
-
-        // Recording status
         if (privCamera.isLiveHeatmapEnabled != null) {
             updateState(UnifiProtectBindingConstants.CHANNEL_IS_LIVE_HEATMAP_ENABLED,
                     OnOffType.from(privCamera.isLiveHeatmapEnabled));
@@ -699,8 +674,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             updateState(UnifiProtectBindingConstants.CHANNEL_VIDEO_RECONFIGURATION_IN_PROGRESS,
                     OnOffType.from(privCamera.videoReconfigurationInProgress));
         }
-
-        // Network status
         if (privCamera.phyRate != null) {
             updateState(UnifiProtectBindingConstants.CHANNEL_PHY_RATE, new DecimalType(privCamera.phyRate));
         }
@@ -715,8 +688,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             updateState(UnifiProtectBindingConstants.CHANNEL_IS_WIRELESS_UPLINK_ENABLED,
                     OnOffType.from(privCamera.isWirelessUplinkEnabled));
         }
-
-        // Power & Battery
         if (privCamera.voltage != null) {
             updateState(UnifiProtectBindingConstants.CHANNEL_VOLTAGE,
                     new org.openhab.core.library.types.QuantityType<>(privCamera.voltage, Units.VOLT));
@@ -736,8 +707,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                         privCamera.batteryStatus.sleepState);
             }
         }
-
-        // Platform info (Properties)
         if (privCamera.isThirdPartyCamera != null) {
             updateProperty(UnifiProtectBindingConstants.PROPERTY_IS_THIRD_PARTY_CAMERA,
                     String.valueOf(privCamera.isThirdPartyCamera));
@@ -754,8 +723,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         if (privCamera.hasBattery != null) {
             updateProperty(UnifiProtectBindingConstants.PROPERTY_HAS_BATTERY, String.valueOf(privCamera.hasBattery));
         }
-
-        // WiFi stats
         if (privCamera.stats != null && privCamera.stats.wifi != null) {
             if (privCamera.stats.wifi.channel != null) {
                 updateState(UnifiProtectBindingConstants.CHANNEL_WIFI_CHANNEL,
@@ -775,8 +742,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                         new DecimalType(privCamera.stats.wifi.signalStrength));
             }
         }
-
-        // Storage stats
         if (privCamera.stats != null && privCamera.stats.storage != null) {
             if (privCamera.stats.storage.used != null) {
                 // Storage is in bytes - use DecimalType since channel is Number:DataAmount
@@ -787,6 +752,87 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                 updateState(UnifiProtectBindingConstants.CHANNEL_STORAGE_RATE,
                         new DecimalType(privCamera.stats.storage.getRatePerSecond()));
             }
+        }
+        if (privCamera.ispSettings != null && privCamera.ispSettings.wdr != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_CAMERA_WDR_LEVEL,
+                    new DecimalType(privCamera.ispSettings.wdr));
+        }
+
+        // Recording settings
+        if (privCamera.recordingSettings != null) {
+            if (privCamera.recordingSettings.mode != null) {
+                updateStringChannel(UnifiProtectBindingConstants.CHANNEL_RECORDING_MODE,
+                        privCamera.recordingSettings.mode.toString());
+            }
+            if (privCamera.recordingSettings.enableMotionDetection != null) {
+                updateState(UnifiProtectBindingConstants.CHANNEL_MOTION_DETECTION_ENABLED,
+                        OnOffType.from(privCamera.recordingSettings.enableMotionDetection));
+            }
+        }
+
+        // Smart detection settings
+        if (privCamera.smartDetectSettings != null && privCamera.smartDetectSettings.objectTypes != null) {
+            List<org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectObjectType> types = privCamera.smartDetectSettings.objectTypes;
+            updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_PERSON_ENABLED, OnOffType.from(types.contains(
+                    org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectObjectType.PERSON)));
+            updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_VEHICLE_ENABLED,
+                    OnOffType.from(types.contains(
+                            org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectObjectType.VEHICLE)));
+            updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_FACE_ENABLED, OnOffType.from(types.contains(
+                    org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectObjectType.FACE)));
+            updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LICENSE_PLATE_ENABLED,
+                    OnOffType.from(types.contains(
+                            org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectObjectType.LICENSE_PLATE)));
+            updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_PACKAGE_ENABLED,
+                    OnOffType.from(types.contains(
+                            org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectObjectType.PACKAGE)));
+            updateState(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ANIMAL_ENABLED, OnOffType.from(types.contains(
+                    org.openhab.binding.unifiprotect.internal.api.priv.dto.types.SmartDetectObjectType.ANIMAL)));
+        }
+
+        // IR Mode
+        if (privCamera.ispSettings != null && privCamera.ispSettings.irLedMode != null) {
+            updateStringChannel(UnifiProtectBindingConstants.CHANNEL_IR_MODE,
+                    privCamera.ispSettings.irLedMode.toString());
+        }
+
+        // HDR enabled
+        if (privCamera.hdrMode != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_HDR_ENABLED, OnOffType.from(privCamera.hdrMode));
+        }
+
+        // High FPS enabled
+        if (privCamera.videoMode != null) {
+            boolean isHighFps = privCamera.videoMode.toString().equalsIgnoreCase("highFps");
+            updateState(UnifiProtectBindingConstants.CHANNEL_HIGH_FPS_ENABLED, OnOffType.from(isHighFps));
+        }
+
+        // Speaker settings
+        if (privCamera.speakerSettings != null) {
+            if (privCamera.speakerSettings.volume != null) {
+                updateDimmerChannel(UnifiProtectBindingConstants.CHANNEL_CAMERA_SPEAKER_VOLUME,
+                        privCamera.speakerSettings.volume);
+            } else if (privCamera.speakerSettings.speakerVolume != null) {
+                // Fallback to speakerVolume field if volume is null
+                updateDimmerChannel(UnifiProtectBindingConstants.CHANNEL_CAMERA_SPEAKER_VOLUME,
+                        privCamera.speakerSettings.speakerVolume);
+            }
+            if (privCamera.speakerSettings.ringVolume != null) {
+                updateDimmerChannel(UnifiProtectBindingConstants.CHANNEL_DOORBELL_RING_VOLUME,
+                        privCamera.speakerSettings.ringVolume);
+            }
+        }
+
+        // Chime duration
+        if (privCamera.chimeDuration != null) {
+            updateState(UnifiProtectBindingConstants.CHANNEL_DOORBELL_CHIME_DURATION,
+                    new QuantityType<>(privCamera.chimeDuration, Units.SECOND));
+        }
+
+        // Zoom position
+        if (privCamera.ispSettings != null && privCamera.ispSettings.zoomPosition != null) {
+            updateDimmerChannel(UnifiProtectBindingConstants.CHANNEL_CAMERA_ZOOM_LEVEL,
+                    privCamera.ispSettings.zoomPosition);
         }
     }
 
@@ -1000,7 +1046,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                 TalkbackSession talkback = startTalkback();
                 bc = URI.create(talkback.url);
             } catch (IOException e) {
-                logger.debug("Talkback not stupported: {}", e.getMessage());
+                logger.debug("Talkback not supported: {}", e.getMessage());
             }
             final URI backChannel = bc;
             // streamId -> sources (backchannel + main stream)
@@ -1031,7 +1077,12 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         }
     }
 
-    private void addRemoveChannels(Camera camera) {
+    private void addRemoveChannels() {
+        CameraDevice camera = device;
+        if (camera == null || camera.privateDevice.featureFlags == null || camera.publicDevice.featureFlags == null) {
+            logger.debug("Camera or feature flags are null, skipping channel addition");
+            return;
+        }
         List<Channel> existingChannels = thing.getChannels();
         List<Channel> channelAdd = new ArrayList<>();
 
@@ -1078,86 +1129,112 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     UnifiProtectBindingConstants.CHANNEL_WEBRTC_URL_PACKAGE_LABEL);
         }
 
-        CameraFeatureFlags flags = camera.featureFlags;
-        if (flags != null) {
-            if (flags.hasMic) {
-                addChannel(UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME, CoreItemFactory.DIMMER,
-                        UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME, channelAdd, activeChannelIds);
-            }
-            if (flags.hasLedStatus) {
-                addChannel(UnifiProtectBindingConstants.CHANNEL_LED_ENABLED, CoreItemFactory.SWITCH,
-                        UnifiProtectBindingConstants.CHANNEL_LED_ENABLED, channelAdd, activeChannelIds);
-            }
-            if (flags.hasHdr) {
-                addChannel(UnifiProtectBindingConstants.CHANNEL_HDR_TYPE, CoreItemFactory.STRING,
-                        UnifiProtectBindingConstants.CHANNEL_HDR_TYPE, channelAdd, activeChannelIds);
-            }
-            if (flags.videoModes != null && !flags.videoModes.isEmpty()) {
-                addChannel(UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE, CoreItemFactory.STRING,
-                        UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE, channelAdd, activeChannelIds);
-            }
-            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_START,
-                    UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, activeChannelIds,
-                    UnifiProtectBindingConstants.CHANNEL_MOTION_START_LABEL);
-            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE,
-                    UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, activeChannelIds,
-                    UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE_LABEL);
-            addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, CoreItemFactory.CONTACT,
-                    UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, channelAdd, activeChannelIds);
-            addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_SNAPSHOT, CoreItemFactory.IMAGE,
-                    UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds);
-            if (flags.smartDetectTypes != null && !flags.smartDetectTypes.isEmpty()) {
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START_LABEL);
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_UPDATE,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_UPDATE_LABEL);
-                addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT, CoreItemFactory.CONTACT,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT, channelAdd, activeChannelIds);
-                addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_SNAPSHOT, CoreItemFactory.IMAGE,
-                        UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_SNAPSHOT_LABEL);
-
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_START,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_START_LABEL);
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_UPDATE,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_UPDATE_LABEL);
-                addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT, CoreItemFactory.CONTACT,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT, channelAdd, activeChannelIds);
-                addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_SNAPSHOT, CoreItemFactory.IMAGE,
-                        UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_SNAPSHOT_LABEL);
-
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_START,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_START_LABEL);
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_UPDATE,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_UPDATE_LABEL);
-                addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT, CoreItemFactory.CONTACT,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT, channelAdd, activeChannelIds);
-                addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT, CoreItemFactory.IMAGE,
-                        UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT_LABEL);
-            }
-            if (flags.smartDetectAudioTypes != null && !flags.smartDetectAudioTypes.isEmpty()) {
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_START,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_START_LABEL);
-                addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_UPDATE,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_UPDATE_LABEL);
-                addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_CONTACT, CoreItemFactory.CONTACT,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_CONTACT, channelAdd, activeChannelIds);
-                addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_SNAPSHOT, CoreItemFactory.IMAGE,
-                        UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds,
-                        UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_SNAPSHOT_LABEL);
-            }
+        CameraFeatureFlags flags = Objects.requireNonNull(camera.publicDevice.featureFlags,
+                "Feature flags are required");
+        if (flags.hasMic) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME, CoreItemFactory.DIMMER,
+                    UnifiProtectBindingConstants.CHANNEL_MIC_VOLUME, channelAdd, activeChannelIds);
         }
-        if (camera.osdSettings != null) {
+        if (flags.hasLedStatus) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_LED_ENABLED, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_LED_ENABLED, channelAdd, activeChannelIds);
+        }
+        if (flags.hasHdr) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_HDR_TYPE, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_HDR_TYPE, channelAdd, activeChannelIds);
+        }
+        if (flags.videoModes != null && !flags.videoModes.isEmpty()) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_VIDEO_MODE, channelAdd, activeChannelIds);
+        }
+        addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_START,
+                UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, activeChannelIds,
+                UnifiProtectBindingConstants.CHANNEL_MOTION_START_LABEL);
+        addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE,
+                UnifiProtectBindingConstants.CHANNEL_MOTION, channelAdd, activeChannelIds,
+                UnifiProtectBindingConstants.CHANNEL_MOTION_UPDATE_LABEL);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, CoreItemFactory.CONTACT,
+                UnifiProtectBindingConstants.CHANNEL_MOTION_CONTACT, channelAdd, activeChannelIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_SNAPSHOT, CoreItemFactory.IMAGE,
+                UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_DETECTION_ENABLED, CoreItemFactory.SWITCH,
+                UnifiProtectBindingConstants.CHANNEL_MOTION_DETECTION_ENABLED, channelAdd, activeChannelIds);
+
+        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_MOTION_DETECTED, CoreItemFactory.SWITCH,
+                UnifiProtectBindingConstants.CHANNEL_IS_MOTION_DETECTED, channelAdd, activeChannelIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_SMART_DETECTED, CoreItemFactory.SWITCH,
+                UnifiProtectBindingConstants.CHANNEL_IS_SMART_DETECTED, channelAdd, activeChannelIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_RECORDING, CoreItemFactory.SWITCH,
+                UnifiProtectBindingConstants.CHANNEL_IS_RECORDING, channelAdd, activeChannelIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_DEVICE_STATE, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_DEVICE_STATE, channelAdd, activeChannelIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_DEVICE_UPTIME, "Number:Time",
+                UnifiProtectBindingConstants.CHANNEL_DEVICE_UPTIME, channelAdd, activeChannelIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_UPTIME_STARTED, "DateTime",
+                UnifiProtectBindingConstants.CHANNEL_UPTIME_STARTED, channelAdd, activeChannelIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_CONNECTED_SINCE, "DateTime",
+                UnifiProtectBindingConstants.CHANNEL_CONNECTED_SINCE, channelAdd, activeChannelIds);
+        addChannel(UnifiProtectBindingConstants.CHANNEL_LAST_SEEN, "DateTime",
+                UnifiProtectBindingConstants.CHANNEL_LAST_SEEN, channelAdd, activeChannelIds);
+
+        addChannel(UnifiProtectBindingConstants.CHANNEL_USE_GLOBAL_SETTINGS, CoreItemFactory.SWITCH,
+                UnifiProtectBindingConstants.CHANNEL_USE_GLOBAL_SETTINGS, channelAdd, activeChannelIds);
+
+        // Recording Mode
+        addChannel(UnifiProtectBindingConstants.CHANNEL_RECORDING_MODE, CoreItemFactory.STRING,
+                UnifiProtectBindingConstants.CHANNEL_RECORDING_MODE, channelAdd, activeChannelIds);
+
+        if (flags.smartDetectTypes != null && !flags.smartDetectTypes.isEmpty()) {
+            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_START_LABEL);
+            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_UPDATE,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_UPDATE_LABEL);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT, CoreItemFactory.CONTACT,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_CONTACT, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_SNAPSHOT, CoreItemFactory.IMAGE,
+                    UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ZONE_SNAPSHOT_LABEL);
+
+            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_START,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_START_LABEL);
+            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_UPDATE,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_UPDATE_LABEL);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT, CoreItemFactory.CONTACT,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_CONTACT, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_SNAPSHOT, CoreItemFactory.IMAGE,
+                    UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LINE_SNAPSHOT_LABEL);
+
+            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_START,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_START_LABEL);
+            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_UPDATE,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_UPDATE_LABEL);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT, CoreItemFactory.CONTACT,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_CONTACT, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT, CoreItemFactory.IMAGE,
+                    UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_LOITER_SNAPSHOT_LABEL);
+        }
+        if (flags.smartDetectAudioTypes != null && !flags.smartDetectAudioTypes.isEmpty()) {
+            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_START,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_START_LABEL);
+            addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_UPDATE,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_UPDATE_LABEL);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_CONTACT, CoreItemFactory.CONTACT,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_CONTACT, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_SNAPSHOT, CoreItemFactory.IMAGE,
+                    UnifiProtectBindingConstants.CHANNEL_SNAPSHOT, channelAdd, activeChannelIds,
+                    UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_AUDIO_SNAPSHOT_LABEL);
+        }
+        if (camera.publicDevice.osdSettings != null) {
             addChannel(UnifiProtectBindingConstants.CHANNEL_OSD_NAME, CoreItemFactory.SWITCH,
                     UnifiProtectBindingConstants.CHANNEL_OSD_NAME, channelAdd, activeChannelIds);
             addChannel(UnifiProtectBindingConstants.CHANNEL_OSD_DATE, CoreItemFactory.SWITCH,
@@ -1165,12 +1242,23 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             addChannel(UnifiProtectBindingConstants.CHANNEL_OSD_LOGO, CoreItemFactory.SWITCH,
                     UnifiProtectBindingConstants.CHANNEL_OSD_LOGO, channelAdd, activeChannelIds);
         }
-        if (camera.activePatrolSlot != null) {
+        if (camera.publicDevice.activePatrolSlot != null) {
             addChannel(UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT, CoreItemFactory.NUMBER,
                     UnifiProtectBindingConstants.CHANNEL_ACTIVE_PATROL_SLOT, channelAdd, activeChannelIds);
         }
-        if ((camera.lcdMessage != null && camera.lcdMessage.text != null)
-                || camera.featureFlags.smartDetectTypes.contains(ObjectType.PACKAGE)) {
+
+        if (camera.privateDevice.isDoorbell()) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_DOORBELL_RING_VOLUME, CoreItemFactory.DIMMER,
+                    UnifiProtectBindingConstants.CHANNEL_DOORBELL_RING_VOLUME, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_DOORBELL_CHIME_DURATION, "Number:Time",
+                    UnifiProtectBindingConstants.CHANNEL_DOORBELL_CHIME_DURATION, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_LCD_MESSAGE, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_LCD_MESSAGE, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_LAST_RING, "DateTime",
+                    UnifiProtectBindingConstants.CHANNEL_LAST_RING, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_IS_RINGING, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_IS_RINGING, channelAdd, activeChannelIds);
+
             addTriggerChannel(UnifiProtectBindingConstants.CHANNEL_RING, UnifiProtectBindingConstants.CHANNEL_RING,
                     channelAdd, activeChannelIds, UnifiProtectBindingConstants.CHANNEL_RING_LABEL);
             addChannel(UnifiProtectBindingConstants.CHANNEL_RING_CONTACT, CoreItemFactory.CONTACT,
@@ -1187,28 +1275,26 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     UnifiProtectBindingConstants.CHANNEL_DOORBELL_DEFAULT_MESSAGE_RESET_TIMEOUT_LABEL);
         }
 
-        addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_PAN, CoreItemFactory.NUMBER,
-                UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_PAN, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_TILT, CoreItemFactory.NUMBER,
-                UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_TILT, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_ZOOM, CoreItemFactory.NUMBER,
-                UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_ZOOM, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_CENTER, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_PTZ_CENTER, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_SET_HOME, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_PTZ_SET_HOME, channelAdd, activeChannelIds);
+        if (camera.privateDevice.featureFlags.hasPtz != null && camera.privateDevice.featureFlags.hasPtz) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_PAN, CoreItemFactory.NUMBER,
+                    UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_PAN, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_TILT, CoreItemFactory.NUMBER,
+                    UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_TILT, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_ZOOM, CoreItemFactory.NUMBER,
+                    UnifiProtectBindingConstants.CHANNEL_PTZ_RELATIVE_ZOOM, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_CENTER, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_PTZ_CENTER, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_SET_HOME, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_PTZ_SET_HOME, channelAdd, activeChannelIds);
 
-        addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_CREATE_PRESET, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_PTZ_CREATE_PRESET, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_DELETE_PRESET, CoreItemFactory.NUMBER,
-                UnifiProtectBindingConstants.CHANNEL_PTZ_DELETE_PRESET, channelAdd, activeChannelIds);
-
-        // Recording Mode
-        addChannel(UnifiProtectBindingConstants.CHANNEL_RECORDING_MODE, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_RECORDING_MODE, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_CREATE_PRESET, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_PTZ_CREATE_PRESET, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_PTZ_DELETE_PRESET, CoreItemFactory.NUMBER,
+                    UnifiProtectBindingConstants.CHANNEL_PTZ_DELETE_PRESET, channelAdd, activeChannelIds);
+        }
 
         // Smart Detection Controls
-        if (flags != null && flags.smartDetectTypes != null && !flags.smartDetectTypes.isEmpty()) {
+        if (flags.smartDetectTypes != null && !flags.smartDetectTypes.isEmpty()) {
             addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_PERSON_ENABLED, CoreItemFactory.SWITCH,
                     UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_PERSON_ENABLED, channelAdd, activeChannelIds);
             addChannel(UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_VEHICLE_ENABLED, CoreItemFactory.SWITCH,
@@ -1224,116 +1310,88 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
                     UnifiProtectBindingConstants.CHANNEL_SMART_DETECT_ANIMAL_ENABLED, channelAdd, activeChannelIds);
         }
 
-        // Additional Camera Controls
-        addChannel(UnifiProtectBindingConstants.CHANNEL_MIC_ENABLED, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_MIC_ENABLED, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IR_MODE, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_IR_MODE, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_MOTION_DETECTION_ENABLED, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_MOTION_DETECTION_ENABLED, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_USE_GLOBAL_SETTINGS, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_USE_GLOBAL_SETTINGS, channelAdd, activeChannelIds);
+        if (flags.hasMic) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_MIC_ENABLED, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_MIC_ENABLED, channelAdd, activeChannelIds);
+        }
 
-        // Advanced Camera Settings
-        if (flags != null && flags.hasHdr) {
+        if (camera.privateDevice.featureFlags.hasLedIr != null && camera.privateDevice.featureFlags.hasLedIr) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_IR_MODE, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_IR_MODE, channelAdd, activeChannelIds);
+        }
+
+        if (flags.hasHdr) {
             addChannel(UnifiProtectBindingConstants.CHANNEL_HDR_ENABLED, CoreItemFactory.SWITCH,
                     UnifiProtectBindingConstants.CHANNEL_HDR_ENABLED, channelAdd, activeChannelIds);
         }
-        if (flags != null && flags.videoModes != null && !flags.videoModes.isEmpty()) {
+        if (flags.videoModes != null && !flags.videoModes.isEmpty()) {
             addChannel(UnifiProtectBindingConstants.CHANNEL_HIGH_FPS_ENABLED, CoreItemFactory.SWITCH,
                     UnifiProtectBindingConstants.CHANNEL_HIGH_FPS_ENABLED, channelAdd, activeChannelIds);
         }
-        addChannel(UnifiProtectBindingConstants.CHANNEL_PRIVACY_MODE, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_PRIVACY_MODE, channelAdd, activeChannelIds);
 
-        // Audio/Volume Controls
-        if (flags != null && flags.hasSpeaker) {
+        if (flags.hasSpeaker) {
             addChannel(UnifiProtectBindingConstants.CHANNEL_CAMERA_SPEAKER_VOLUME, CoreItemFactory.DIMMER,
                     UnifiProtectBindingConstants.CHANNEL_CAMERA_SPEAKER_VOLUME, channelAdd, activeChannelIds);
         }
-        // Optical zoom (add for all cameras, will be no-op if not supported)
-        addChannel(UnifiProtectBindingConstants.CHANNEL_CAMERA_ZOOM_LEVEL, CoreItemFactory.DIMMER,
-                UnifiProtectBindingConstants.CHANNEL_CAMERA_ZOOM_LEVEL, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_CAMERA_WDR_LEVEL, CoreItemFactory.NUMBER,
-                UnifiProtectBindingConstants.CHANNEL_CAMERA_WDR_LEVEL, channelAdd, activeChannelIds);
 
-        // Doorbell-specific controls
-        if (camera.lcdMessage != null) {
-            addChannel(UnifiProtectBindingConstants.CHANNEL_DOORBELL_RING_VOLUME, CoreItemFactory.DIMMER,
-                    UnifiProtectBindingConstants.CHANNEL_DOORBELL_RING_VOLUME, channelAdd, activeChannelIds);
-            addChannel(UnifiProtectBindingConstants.CHANNEL_DOORBELL_CHIME_DURATION, "Number:Time",
-                    UnifiProtectBindingConstants.CHANNEL_DOORBELL_CHIME_DURATION, channelAdd, activeChannelIds);
-            addChannel(UnifiProtectBindingConstants.CHANNEL_LCD_MESSAGE, CoreItemFactory.STRING,
-                    UnifiProtectBindingConstants.CHANNEL_LCD_MESSAGE, channelAdd, activeChannelIds);
-            addChannel(UnifiProtectBindingConstants.CHANNEL_LAST_RING, "DateTime",
-                    UnifiProtectBindingConstants.CHANNEL_LAST_RING, channelAdd, activeChannelIds);
-            addChannel(UnifiProtectBindingConstants.CHANNEL_IS_RINGING, CoreItemFactory.SWITCH,
-                    UnifiProtectBindingConstants.CHANNEL_IS_RINGING, channelAdd, activeChannelIds);
+        if (camera.privateDevice.featureFlags.canOpticalZoom != null
+                && camera.privateDevice.featureFlags.canOpticalZoom) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_CAMERA_ZOOM_LEVEL, CoreItemFactory.DIMMER,
+                    UnifiProtectBindingConstants.CHANNEL_CAMERA_ZOOM_LEVEL, channelAdd, activeChannelIds);
+        }
+        if (camera.privateDevice.ispSettings != null && camera.privateDevice.ispSettings.wdr != null) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_CAMERA_WDR_LEVEL, CoreItemFactory.NUMBER,
+                    UnifiProtectBindingConstants.CHANNEL_CAMERA_WDR_LEVEL, channelAdd, activeChannelIds);
         }
 
-        // Status/Read-Only Channels (always add if Private API enabled)
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_MOTION_DETECTED, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_IS_MOTION_DETECTED, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_SMART_DETECTED, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_IS_SMART_DETECTED, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_RECORDING, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_IS_RECORDING, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_MIC_ACTIVE, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_IS_MIC_ACTIVE, channelAdd, activeChannelIds);
+        if (camera.privateDevice.isDark != null) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_IS_DARK, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_IS_DARK, channelAdd, activeChannelIds);
+        }
+        if (camera.privateDevice.lastSmart != null) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_LAST_SMART, "DateTime",
+                    UnifiProtectBindingConstants.CHANNEL_LAST_SMART, channelAdd, activeChannelIds);
+        }
+        if (camera.privateDevice.isLiveHeatmapEnabled != null) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_IS_LIVE_HEATMAP_ENABLED, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_IS_LIVE_HEATMAP_ENABLED, channelAdd, activeChannelIds);
+        }
+        if (camera.privateDevice.videoReconfigurationInProgress != null) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_VIDEO_RECONFIGURATION_IN_PROGRESS, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_VIDEO_RECONFIGURATION_IN_PROGRESS, channelAdd,
+                    activeChannelIds);
+        }
 
-        // Device Info Channels
-        addChannel(UnifiProtectBindingConstants.CHANNEL_DEVICE_STATE, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_DEVICE_STATE, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_DEVICE_UPTIME, "Number:Time",
-                UnifiProtectBindingConstants.CHANNEL_DEVICE_UPTIME, channelAdd, activeChannelIds);
+        if (camera.privateDevice.hasWifi != null && camera.privateDevice.hasWifi) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_PHY_RATE, CoreItemFactory.NUMBER,
+                    UnifiProtectBindingConstants.CHANNEL_PHY_RATE, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_IS_PROBING_FOR_WIFI, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_IS_PROBING_FOR_WIFI, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_IS_POOR_NETWORK, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_IS_POOR_NETWORK, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_IS_WIRELESS_UPLINK_ENABLED, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_IS_WIRELESS_UPLINK_ENABLED, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_WIFI_CHANNEL, CoreItemFactory.NUMBER,
+                    UnifiProtectBindingConstants.CHANNEL_WIFI_CHANNEL, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_WIFI_FREQUENCY, CoreItemFactory.NUMBER,
+                    UnifiProtectBindingConstants.CHANNEL_WIFI_FREQUENCY, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_WIFI_SIGNAL_QUALITY, "Number:Dimensionless",
+                    UnifiProtectBindingConstants.CHANNEL_WIFI_SIGNAL_QUALITY, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_WIFI_SIGNAL_STRENGTH, CoreItemFactory.NUMBER,
+                    UnifiProtectBindingConstants.CHANNEL_WIFI_SIGNAL_STRENGTH, channelAdd, activeChannelIds);
 
-        // Timestamp Channels
-        addChannel(UnifiProtectBindingConstants.CHANNEL_UPTIME_STARTED, "DateTime",
-                UnifiProtectBindingConstants.CHANNEL_UPTIME_STARTED, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_CONNECTED_SINCE, "DateTime",
-                UnifiProtectBindingConstants.CHANNEL_CONNECTED_SINCE, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_LAST_SEEN, "DateTime",
-                UnifiProtectBindingConstants.CHANNEL_LAST_SEEN, channelAdd, activeChannelIds);
+        }
 
-        // Additional Detection & Motion Status
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_DARK, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_IS_DARK, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_LAST_SMART, "DateTime",
-                UnifiProtectBindingConstants.CHANNEL_LAST_SMART, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_LIVE_HEATMAP_ENABLED, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_IS_LIVE_HEATMAP_ENABLED, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_VIDEO_RECONFIGURATION_IN_PROGRESS, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_VIDEO_RECONFIGURATION_IN_PROGRESS, channelAdd, activeChannelIds);
-
-        // Network Status
-        addChannel(UnifiProtectBindingConstants.CHANNEL_PHY_RATE, CoreItemFactory.NUMBER,
-                UnifiProtectBindingConstants.CHANNEL_PHY_RATE, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_PROBING_FOR_WIFI, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_IS_PROBING_FOR_WIFI, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_POOR_NETWORK, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_IS_POOR_NETWORK, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_IS_WIRELESS_UPLINK_ENABLED, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_IS_WIRELESS_UPLINK_ENABLED, channelAdd, activeChannelIds);
-
-        // Power & Battery
-        addChannel(UnifiProtectBindingConstants.CHANNEL_VOLTAGE, "Number:ElectricPotential",
-                UnifiProtectBindingConstants.CHANNEL_VOLTAGE, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_BATTERY_PERCENTAGE, "Number:Dimensionless",
-                UnifiProtectBindingConstants.CHANNEL_BATTERY_PERCENTAGE, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_BATTERY_IS_CHARGING, CoreItemFactory.SWITCH,
-                UnifiProtectBindingConstants.CHANNEL_BATTERY_IS_CHARGING, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_BATTERY_SLEEP_STATE, CoreItemFactory.STRING,
-                UnifiProtectBindingConstants.CHANNEL_BATTERY_SLEEP_STATE, channelAdd, activeChannelIds);
-
-        // WiFi Stats
-        addChannel(UnifiProtectBindingConstants.CHANNEL_WIFI_CHANNEL, CoreItemFactory.NUMBER,
-                UnifiProtectBindingConstants.CHANNEL_WIFI_CHANNEL, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_WIFI_FREQUENCY, CoreItemFactory.NUMBER,
-                UnifiProtectBindingConstants.CHANNEL_WIFI_FREQUENCY, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_WIFI_SIGNAL_QUALITY, "Number:Dimensionless",
-                UnifiProtectBindingConstants.CHANNEL_WIFI_SIGNAL_QUALITY, channelAdd, activeChannelIds);
-        addChannel(UnifiProtectBindingConstants.CHANNEL_WIFI_SIGNAL_STRENGTH, CoreItemFactory.NUMBER,
-                UnifiProtectBindingConstants.CHANNEL_WIFI_SIGNAL_STRENGTH, channelAdd, activeChannelIds);
+        if (camera.privateDevice.hasBattery != null && camera.privateDevice.hasBattery) {
+            addChannel(UnifiProtectBindingConstants.CHANNEL_VOLTAGE, "Number:ElectricPotential",
+                    UnifiProtectBindingConstants.CHANNEL_VOLTAGE, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_BATTERY_PERCENTAGE, "Number:Dimensionless",
+                    UnifiProtectBindingConstants.CHANNEL_BATTERY_PERCENTAGE, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_BATTERY_IS_CHARGING, CoreItemFactory.SWITCH,
+                    UnifiProtectBindingConstants.CHANNEL_BATTERY_IS_CHARGING, channelAdd, activeChannelIds);
+            addChannel(UnifiProtectBindingConstants.CHANNEL_BATTERY_SLEEP_STATE, CoreItemFactory.STRING,
+                    UnifiProtectBindingConstants.CHANNEL_BATTERY_SLEEP_STATE, channelAdd, activeChannelIds);
+        }
 
         // Storage Stats
         addChannel(UnifiProtectBindingConstants.CHANNEL_STORAGE_USED, "Number:DataAmount",
@@ -1345,13 +1403,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         addChannel(UnifiProtectBindingConstants.CHANNEL_DEVICE_REBOOT, CoreItemFactory.SWITCH,
                 UnifiProtectBindingConstants.CHANNEL_DEVICE_REBOOT, channelAdd, activeChannelIds);
 
-        List<Channel> channelsToRemove = existingChannels.stream()
-                .filter(ch -> !activeChannelIds.contains(ch.getUID().getId())).toList();
-        List<Channel> channelsToAdd = channelAdd.stream().filter(ch -> !existingChannels.contains(ch)).toList();
-        if (!channelsToAdd.isEmpty() || !channelsToRemove.isEmpty()) {
-            logger.debug("Updating channels: adding {}, removing {}", channelsToAdd.size(), channelsToRemove.size());
-            updateThing(editThing().withoutChannels(channelsToRemove).withChannels(channelsToAdd).build());
-        }
+        updateThing(editThing().withChannels(channelAdd).build());
     }
 
     private void addChannel(String channelId, String itemType, String channelTypeId, List<Channel> channelAdd,
@@ -1363,15 +1415,15 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             Set<String> activeChannelIds, @Nullable String label) {
         ChannelUID uid = new ChannelUID(thing.getUID(), channelId);
         activeChannelIds.add(channelId);
-        if (thing.getChannel(uid) == null) {
-            ChannelBuilder builder = ChannelBuilder.create(uid, itemType)
-                    .withType(new ChannelTypeUID(UnifiProtectBindingConstants.BINDING_ID, channelTypeId));
-            if (label != null) {
-                builder.withLabel(translationService.getTranslation(label));
-            }
-            Channel ch = builder.build();
-            channelAdd.add(ch);
+        // if (thing.getChannel(uid) == null) {
+        ChannelBuilder builder = ChannelBuilder.create(uid, itemType)
+                .withType(new ChannelTypeUID(UnifiProtectBindingConstants.BINDING_ID, channelTypeId));
+        if (label != null) {
+            builder.withLabel(translationService.getTranslation(label));
         }
+        Channel ch = builder.build();
+        channelAdd.add(ch);
+        // }
     }
 
     private void addTriggerChannel(String channelId, String channelTypeId, List<Channel> channelAdd,

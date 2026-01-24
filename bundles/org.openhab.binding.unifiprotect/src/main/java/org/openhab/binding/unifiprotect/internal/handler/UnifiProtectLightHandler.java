@@ -66,8 +66,8 @@ public class UnifiProtectLightHandler extends UnifiProtectAbstractDeviceHandler<
     }
 
     @Override
-    public void updateFromDevice(LightDevice light) {
-        super.updateFromDevice(light);
+    public void refreshFromDevice(LightDevice light) {
+        super.refreshFromDevice(light);
         updateFromPublicDevice(light.publicDevice);
         updateFromPrivateDevice(light.privateDevice);
     }

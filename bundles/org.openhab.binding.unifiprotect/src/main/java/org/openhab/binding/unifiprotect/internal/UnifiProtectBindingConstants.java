@@ -260,7 +260,6 @@ public class UnifiProtectBindingConstants {
     public static final String CHANNEL_IS_SMART_DETECTED = "is-smart-detected";
     public static final String CHANNEL_IS_RECORDING = "is-recording";
     public static final String CHANNEL_IS_MIC_ACTIVE = "is-mic-active";
-    public static final String CHANNEL_PRIVACY_MODE = "privacy-mode";
     public static final String CHANNEL_HIGH_FPS_ENABLED = "high-fps-enabled";
     public static final String CHANNEL_HDR_ENABLED = "hdr-enabled";
 

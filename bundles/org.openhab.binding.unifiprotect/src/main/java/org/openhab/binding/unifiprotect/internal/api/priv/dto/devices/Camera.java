@@ -391,4 +391,47 @@ public class Camera extends UniFiProtectAdoptableDevice {
     public boolean hasSmartDetect() {
         return featureFlags != null && Boolean.TRUE.equals(featureFlags.hasSmartDetect);
     }
+
+    @Override
+    public String toString() {
+        return "Camera{" +
+        // From UniFiProtectModel
+                "id='" + id + '\'' + ", model=" + model +
+                // From UniFiProtectDevice
+                ", name='" + name + '\'' + ", type='" + type + '\'' + ", mac='" + mac + '\'' + ", host='" + host + '\''
+                + ", upSince=" + upSince + ", uptime=" + uptime + ", lastSeen=" + lastSeen + ", hardwareRevision='"
+                + hardwareRevision + '\'' + ", firmwareVersion='" + firmwareVersion + '\'' + ", isUpdating="
+                + isUpdating + ", isSshEnabled=" + isSshEnabled +
+                // From UniFiProtectAdoptableDevice
+                ", state=" + state + ", connectionHost='" + connectionHost + '\'' + ", connectedSince=" + connectedSince
+                + ", latestFirmwareVersion='" + latestFirmwareVersion + '\'' + ", firmwareBuild='" + firmwareBuild
+                + '\'' + ", isAdopting=" + isAdopting + ", isAdopted=" + isAdopted + ", isAdoptedByOther="
+                + isAdoptedByOther + ", isProvisioned=" + isProvisioned + ", isRebooting=" + isRebooting + ", canAdopt="
+                + canAdopt + ", isAttemptingToConnect=" + isAttemptingToConnect + ", isConnected=" + isConnected
+                + ", marketName='" + marketName + '\'' + ", nvrMac='" + nvrMac + '\'' + ", guid=" + guid
+                + ", isRestoring=" + isRestoring + ", lastDisconnect=" + lastDisconnect + ", anonymousDeviceId="
+                + anonymousDeviceId + ", bridgeId='" + bridgeId + '\'' + ", isDownloadingFirmware="
+                + isDownloadingFirmware + ", wiredConnectionState=" + wiredConnectionState + ", wifiConnectionState="
+                + wifiConnectionState + ", bluetoothConnectionState=" + bluetoothConnectionState +
+                // From Camera
+                ", lastMotion=" + lastMotion + ", lastRing=" + lastRing + ", lastSmart=" + lastSmart
+                + ", isMotionDetected=" + isMotionDetected + ", isSmartDetected=" + isSmartDetected + ", isDark="
+                + isDark + ", micVolume=" + micVolume + ", isMicEnabled=" + isMicEnabled + ", isRecording="
+                + isRecording + ", isLiveHeatmapEnabled=" + isLiveHeatmapEnabled + ", videoReconfigurationInProgress="
+                + videoReconfigurationInProgress + ", phyRate=" + phyRate + ", isProbingForWifi=" + isProbingForWifi
+                + ", isPoorNetwork=" + isPoorNetwork + ", isWirelessUplinkEnabled=" + isWirelessUplinkEnabled
+                + ", hdrMode=" + hdrMode + ", videoMode=" + videoMode + ", chimeDuration=" + chimeDuration
+                + ", lastPrivacyZonePositionId='" + lastPrivacyZonePositionId + '\'' + ", voltage=" + voltage
+                + ", hasBattery=" + hasBattery + ", batteryStatus=" + batteryStatus + ", isThirdPartyCamera="
+                + isThirdPartyCamera + ", platform='" + platform + '\'' + ", hasSpeaker=" + hasSpeaker + ", hasWifi="
+                + hasWifi + ", audioCodecs=" + audioCodecs + ", videoCodecs=" + videoCodecs + ", eventStats="
+                + eventStats + ", channels=" + channels + ", ispSettings=" + ispSettings + ", talkbackSettings="
+                + talkbackSettings + ", osdSettings=" + osdSettings + ", ledSettings=" + ledSettings
+                + ", speakerSettings=" + speakerSettings + ", recordingSettings=" + recordingSettings
+                + ", smartDetectSettings=" + smartDetectSettings + ", motionZones=" + motionZones + ", privacyZones="
+                + privacyZones + ", smartDetectZones=" + smartDetectZones + ", smartDetectLines=" + smartDetectLines
+                + ", stats=" + stats + ", featureFlags=" + featureFlags + ", lcdMessage=" + lcdMessage + ", lenses="
+                + lenses + ", recordingSchedules=" + recordingSchedules + ", motionAlgorithm='" + motionAlgorithm + '\''
+                + ", pirSettings=" + pirSettings + '}';
+    }
 }

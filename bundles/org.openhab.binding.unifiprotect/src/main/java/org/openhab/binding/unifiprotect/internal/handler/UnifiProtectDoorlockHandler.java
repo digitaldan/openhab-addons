@@ -122,7 +122,7 @@ public class UnifiProtectDoorlockHandler extends UnifiProtectAbstractDeviceHandl
     }
 
     @Override
-    public void updateFromDevice(DoorklockDevice device) {
+    public void refreshFromDevice(DoorklockDevice device) {
         // The public API doesn't support doorlocks
         // All updates come from Private API
         updateDoorlockChannels(device.privateDevice);

@@ -24,11 +24,11 @@ import org.openhab.binding.unifiprotect.internal.api.pub.dto.Device;
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public abstract class BaseDevice<T extends UniFiProtectModel, P extends Device> {
-    public T privateDevice;
-    public P publicDevice;
+public abstract class BaseDevice<PRIV extends UniFiProtectModel, PUB extends Device> {
+    public PRIV privateDevice;
+    public PUB publicDevice;
 
-    public BaseDevice(T privateDevice, P publicDevice) {
+    public BaseDevice(PRIV privateDevice, PUB publicDevice) {
         this.privateDevice = privateDevice;
         this.publicDevice = publicDevice;
     }

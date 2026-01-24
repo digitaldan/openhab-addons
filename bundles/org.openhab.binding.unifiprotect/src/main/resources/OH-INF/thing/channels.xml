@@ -1332,27 +1332,6 @@
 		<state readOnly="true" pattern="%.0f B/s"/>
 	</channel-type>
 
-	<channel-type id="is-mic-active" advanced="true">
-		<item-type>Switch</item-type>
-		<label>Microphone Active</label>
-		<description>Microphone is currently enabled</description>
-		<category>Microphone</category>
-		<tags>
-			<tag>Status</tag>
-		</tags>
-		<state readOnly="true"/>
-	</channel-type>
-
-	<channel-type id="privacy-mode" advanced="true">
-		<item-type>Switch</item-type>
-		<label>Privacy Mode</label>
-		<description>Enable privacy mode to disable camera recording and streaming</description>
-		<category>Camera</category>
-		<tags>
-			<tag>Control</tag>
-		</tags>
-	</channel-type>
-
 	<channel-type id="high-fps-enabled" advanced="true">
 		<item-type>Switch</item-type>
 		<label>High FPS Mode</label>

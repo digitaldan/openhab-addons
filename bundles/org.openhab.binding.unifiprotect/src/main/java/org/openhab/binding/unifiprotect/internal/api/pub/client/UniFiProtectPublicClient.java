@@ -95,10 +95,10 @@ public class UniFiProtectPublicClient implements Closeable {
     private final Object throttleLock = new Object();
     private final Deque<Long> requestTimestampsNs = new ArrayDeque<>();
 
-    public UniFiProtectPublicClient(HttpClient httpClient, URI baseUri, Gson gson, String token,
+    public UniFiProtectPublicClient(HttpClient httpClient, String host, int port, Gson gson, String token,
             ScheduledExecutorService executorService) {
         this.httpClient = httpClient;
-        this.baseUri = ensureTrailingSlash(baseUri);
+        this.baseUri = URI.create("https://" + host + ":" + port + "/proxy/protect/integration/");
         this.gson = gson;
         this.defaultHeaders = Map.of("X-API-KEY", token, "Accept", "application/json");
         this.wsClient = new WebSocketClient(httpClient);
@@ -707,8 +707,4 @@ public class UniFiProtectPublicClient implements Closeable {
         }
     }
 
-    private static URI ensureTrailingSlash(URI uri) {
-        String s = uri.toString();
-        return s.endsWith("/") ? uri : URI.create(s + "/");
-    }
 }

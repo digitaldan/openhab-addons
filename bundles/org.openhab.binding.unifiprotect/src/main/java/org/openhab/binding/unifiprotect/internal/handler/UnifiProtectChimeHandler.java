@@ -152,8 +152,8 @@ public class UnifiProtectChimeHandler extends UnifiProtectAbstractDeviceHandler<
     }
 
     @Override
-    public void updateFromDevice(ChimeDevice device) {
-        super.updateFromDevice(device);
+    public void refreshFromDevice(ChimeDevice device) {
+        super.refreshFromDevice(device);
         // The public API doesn't support chimes
         // All updates come from Private API
         updateChimeChannels(device.privateDevice);
