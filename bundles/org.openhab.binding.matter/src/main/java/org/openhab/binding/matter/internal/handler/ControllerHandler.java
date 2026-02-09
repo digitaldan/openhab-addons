@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.matter.internal.MatterFirmwareProvider;
 import org.openhab.binding.matter.internal.actions.MatterControllerActions;
 import org.openhab.binding.matter.internal.client.MatterClientListener;
 import org.openhab.binding.matter.internal.client.MatterWebsocketService;
@@ -91,14 +92,16 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
     private MatterControllerClient client;
     private boolean ready = false;
     private final TranslationService translationService;
+    private final MatterFirmwareProvider firmwareProvider;
 
     public ControllerHandler(Bridge bridge, MatterWebsocketService websocketService,
-            TranslationService translationService) {
+            TranslationService translationService, MatterFirmwareProvider firmwareProvider) {
         super(bridge);
         client = new MatterControllerClient();
         client.addListener(this);
         this.websocketService = websocketService;
         this.translationService = translationService;
+        this.firmwareProvider = firmwareProvider;
     }
 
     @Override
@@ -251,6 +254,7 @@ public class ControllerHandler extends BaseBridgeHandler implements MatterClient
     @Override
     public void onEvent(OtaUpdateAvailableMessage message) {
         logger.debug("OtaUpdateAvailableMessage onEvent: node {} is {}", message.nodeId, message);
+        firmwareProvider.updateFirmwareInfo(message.nodeId, message);
         NodeHandler handler = linkedNodes.get(message.nodeId);
         if (handler != null) {
             handler.handleOtaUpdateAvailable(message);
