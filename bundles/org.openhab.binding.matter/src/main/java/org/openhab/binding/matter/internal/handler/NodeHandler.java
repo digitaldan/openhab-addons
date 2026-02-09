@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -56,6 +57,10 @@ import org.openhab.core.thing.binding.ThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerService;
 import org.openhab.core.thing.binding.builder.BridgeBuilder;
 import org.openhab.core.thing.binding.builder.ThingBuilder;
+import org.openhab.core.thing.binding.firmware.Firmware;
+import org.openhab.core.thing.binding.firmware.FirmwareUpdateHandler;
+import org.openhab.core.thing.binding.firmware.ProgressCallback;
+import org.openhab.core.thing.binding.firmware.ProgressStep;
 
 /**
  * The {@link NodeHandler} is responsible for handling commands, which are
@@ -66,10 +71,11 @@ import org.openhab.core.thing.binding.builder.ThingBuilder;
  * @author Dan Cunningham - Initial contribution
  */
 @NonNullByDefault
-public class NodeHandler extends MatterBaseThingHandler implements BridgeHandler {
+public class NodeHandler extends MatterBaseThingHandler implements BridgeHandler, FirmwareUpdateHandler {
     protected BigInteger nodeId = BigInteger.valueOf(0);
     private Integer pollInterval = 0;
     private Map<Integer, EndpointHandler> bridgedEndpoints = new ConcurrentHashMap<>();
+    private @Nullable ProgressCallback progressCallback;
 
     public NodeHandler(Bridge bridge, BaseThingHandlerFactory thingHandlerFactory,
             MatterStateDescriptionOptionProvider stateDescriptionProvider,
@@ -206,6 +212,56 @@ public class NodeHandler extends MatterBaseThingHandler implements BridgeHandler
         handleOtaUpdateAvailable(true);
     }
 
+    @Override
+    public void updateFirmware(Firmware firmware, ProgressCallback progressCallback) {
+        MatterControllerClient client = getClient();
+        if (client != null) {
+            try {
+                // Start the firmware update, we will be called back when this starts and set the thing status to
+                // firmware updating
+                client.otaStartUpdate(getNodeId()).get();
+                progressCallback.defineSequence(ProgressStep.DOWNLOADING, ProgressStep.UPDATING);
+                this.progressCallback = progressCallback;
+            } catch (InterruptedException | ExecutionException e) {
+                logger.debug("Failed to start firmware update for device {}", getNodeId(), e);
+                progressCallback.failed(MatterBindingConstants.OTA_FIRMWARE_UPDATE_FAILED, e.getLocalizedMessage());
+            }
+        } else {
+            progressCallback.failed(MatterBindingConstants.OTA_FIRMWARE_UPDATE_FAILED);
+        }
+    }
+
+    /**
+     * Cancels a previous started firmware update.
+     */
+    @Override
+    public void cancel() {
+        try {
+            cancelOTAUpdate().get();
+            ProgressCallback progressCallback = this.progressCallback;
+            if (progressCallback != null) {
+                progressCallback.canceled();
+            }
+            progressCallback = null;
+        } catch (InterruptedException | ExecutionException e) {
+            logger.debug("Failed to cancel firmware update for device {}", getNodeId(), e);
+        }
+    }
+
+    /**
+     * Returns true, if this firmware update handler is in a state in which the firmware update can be executed,
+     * otherwise false (e.g. the thing is {@link ThingStatus#OFFLINE} or its status detail is already
+     * {@link ThingStatusDetail#FIRMWARE_UPDATING}.)
+     *
+     * @return true, if this firmware update handler is in a state in which the firmware update can be executed,
+     *         otherwise false
+     */
+    @Override
+    public boolean isUpdateExecutable() {
+        return getThing().getStatus() == ThingStatus.ONLINE
+                && getThing().getStatusInfo().getStatusDetail() != ThingStatusDetail.FIRMWARE_UPDATING;
+    }
+
     public void updateNode(Node node) {
         updateRootProperties(node.rootEndpoint);
         updateBaseEndpoint(node.rootEndpoint);
@@ -320,19 +376,36 @@ public class NodeHandler extends MatterBaseThingHandler implements BridgeHandler
     private void handleOtaStateTransition(UpdateStateEnum stateTransition) {
         logger.debug("OTA State Transition: {} for node {}", stateTransition, getNodeId());
         ThingStatus status = getThing().getStatus();
+        ProgressCallback progressCallback = this.progressCallback;
         switch (stateTransition) {
             case UNKNOWN:
             case IDLE:
+                // we are idle, so the update is complete if we were updating
+                if (progressCallback != null) {
+                    progressCallback.success();
+                    this.progressCallback = null;
+                }
             case QUERYING:
             case DELAYED_ON_QUERY:
                 break;
             case DOWNLOADING:
                 updateStatus(status, ThingStatusDetail.FIRMWARE_UPDATING, translationService
                         .getTranslation(MatterBindingConstants.THING_STATUS_DETAIL_FIRMWARE_DOWNLOADING));
+                if (progressCallback != null) {
+                    // DOWNLOADING
+                    progressCallback.next();
+                }
                 break;
             case APPLYING:
-                updateStatus(status, ThingStatusDetail.FIRMWARE_UPDATING, translationService
+                // we are applying, go offline as the device will reboot if it succeeds or rolls back, and come back
+                // online when it is done
+                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.FIRMWARE_UPDATING, translationService
                         .getTranslation(MatterBindingConstants.THING_STATUS_DETAIL_FIRMWARE_APPLYING));
+                if (progressCallback != null) {
+                    // UPDATING
+                    progressCallback.update(100);
+                    progressCallback.next();
+                }
                 break;
             case DELAYED_ON_APPLY:
                 updateStatus(status, ThingStatusDetail.FIRMWARE_UPDATING, translationService
@@ -341,10 +414,16 @@ public class NodeHandler extends MatterBaseThingHandler implements BridgeHandler
             case ROLLING_BACK:
                 updateStatus(status, ThingStatusDetail.FIRMWARE_UPDATING, translationService
                         .getTranslation(MatterBindingConstants.THING_STATUS_DETAIL_FIRMWARE_ROLLING_BACK));
+                if (progressCallback != null) {
+                    progressCallback.failed(MatterBindingConstants.OTA_FIRMWARE_UPDATE_FAILED_ROLLING_BACK);
+                }
                 break;
             case DELAYED_ON_USER_CONSENT:
                 updateStatus(status, ThingStatusDetail.FIRMWARE_UPDATING, translationService
                         .getTranslation(MatterBindingConstants.THING_STATUS_DETAIL_FIRMWARE_DELAYED_ON_USER_CONSENT));
+                if (progressCallback != null) {
+                    progressCallback.failed(MatterBindingConstants.OTA_FIRMWARE_UPDATE_FAILED_DELAYED_ON_USER_CONSENT);
+                }
                 break;
         }
     }
@@ -356,6 +435,13 @@ public class NodeHandler extends MatterBaseThingHandler implements BridgeHandler
             case DOWNLOADING:
                 updateStatus(status, ThingStatusDetail.FIRMWARE_UPDATING, translationService.getTranslation(
                         MatterBindingConstants.THING_STATUS_DETAIL_FIRMWARE_DOWNLOADING_WITH_PROGRESS, progress));
+                if (progressCallback != null) {
+                    progressCallback.update(progress);
+                }
+                break;
+            case APPLYING:
+                updateStatus(status, ThingStatusDetail.FIRMWARE_UPDATING, translationService
+                        .getTranslation(MatterBindingConstants.THING_STATUS_DETAIL_FIRMWARE_APPLYING));
                 break;
             default:
                 break;

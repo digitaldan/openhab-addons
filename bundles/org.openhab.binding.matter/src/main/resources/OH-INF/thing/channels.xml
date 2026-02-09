@@ -805,7 +805,7 @@
 	</channel-type>
 
 	<!-- OTA Software Update Requestor Channels -->
-	<channel-type id="otasoftwareupdaterequestor-updateavailable">
+	<channel-type id="otasoftwareupdaterequestor-updateavailable" advanced="true">
 		<item-type>Switch</item-type>
 		<label>Update Available</label>
 		<description>Indicates if there is a firmware update available for the device. Use the "Start Firmware Update" Thing
