@@ -212,13 +212,6 @@ public class NodeHandler extends MatterBaseThingHandler implements BridgeHandler
         handleOtaUpdateAvailable(true);
     }
 
-    /**
-     * Updates the firmware for the physical device of the thing that is handled by this firmware update handler.
-     *
-     * @param firmware the new firmware to be updated (not null)
-     * @param progressCallback the progress callback to send progress information of the firmware update process (not
-     *            null)
-     */
     @Override
     public void updateFirmware(Firmware firmware, ProgressCallback progressCallback) {
         MatterControllerClient client = getClient();
