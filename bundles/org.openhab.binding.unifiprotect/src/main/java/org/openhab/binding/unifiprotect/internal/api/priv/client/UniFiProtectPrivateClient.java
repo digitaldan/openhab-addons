@@ -63,6 +63,7 @@ public class UniFiProtectPrivateClient {
     private static final String PRIVATE_API_PATH = "/proxy/protect/api/";
     private static final Duration BOOTSTRAP_REFRESH_INTERVAL = Duration.ofMinutes(15);
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration FUTURE_TIMEOUT = Duration.ofSeconds(60);
 
     private final HttpClient httpClient;
     private final String baseUrl;
@@ -303,7 +304,7 @@ public class UniFiProtectPrivateClient {
             }
 
             return future;
-        });
+        }).orTimeout(FUTURE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -512,7 +513,7 @@ public class UniFiProtectPrivateClient {
                 future.completeExceptionally(e);
             }
             return future;
-        });
+        }).orTimeout(FUTURE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     /**
