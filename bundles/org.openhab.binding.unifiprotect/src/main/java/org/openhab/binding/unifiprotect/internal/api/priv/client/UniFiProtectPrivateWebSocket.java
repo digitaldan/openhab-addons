@@ -19,6 +19,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
@@ -60,8 +61,8 @@ public class UniFiProtectPrivateWebSocket {
     private final UniFiProtectPrivateClient client;
     private final WebSocketClient wsClient;
 
-    private Session session;
-    private CompletableFuture<Void> connectFuture;
+    private volatile @Nullable Session session;
+    private volatile @Nullable CompletableFuture<Void> connectFuture;
     private volatile boolean shouldReconnect = true;
     private volatile int reconnectAttempts = 0;
     private static final int MAX_RECONNECT_ATTEMPTS = 10;
@@ -99,11 +100,13 @@ public class UniFiProtectPrivateWebSocket {
      * Connect to WebSocket
      */
     public CompletableFuture<Void> connect() {
-        if (connectFuture != null && !connectFuture.isDone()) {
-            return connectFuture;
+        CompletableFuture<Void> existingFuture = connectFuture;
+        if (existingFuture != null && !existingFuture.isDone()) {
+            return existingFuture;
         }
 
-        connectFuture = new CompletableFuture<>();
+        CompletableFuture<Void> newFuture = new CompletableFuture<>();
+        connectFuture = newFuture;
 
         try {
             URI uri = new URI(wsUrl);
@@ -121,20 +124,20 @@ public class UniFiProtectPrivateWebSocket {
                     session = future.get(10, TimeUnit.SECONDS);
                     reconnectAttempts = 0;
                     logger.debug("WebSocket connected");
-                    connectFuture.complete(null);
+                    newFuture.complete(null);
                 } catch (Exception ex) {
                     logger.debug("WebSocket connection failed", ex);
-                    connectFuture.completeExceptionally(ex);
+                    newFuture.completeExceptionally(ex);
                     scheduleReconnect();
                 }
             });
 
         } catch (Exception e) {
             logger.debug("Failed to connect WebSocket", e);
-            connectFuture.completeExceptionally(e);
+            newFuture.completeExceptionally(e);
         }
 
-        return connectFuture;
+        return newFuture;
     }
 
     /**
@@ -143,9 +146,11 @@ public class UniFiProtectPrivateWebSocket {
     public void disconnect() {
         shouldReconnect = false;
 
-        if (session != null && session.isOpen()) {
-            session.close();
+        Session localSession = session;
+        if (localSession != null && localSession.isOpen()) {
+            localSession.close();
         }
+        session = null;
 
         try {
             wsClient.stop();
@@ -190,7 +195,8 @@ public class UniFiProtectPrivateWebSocket {
      * Check if connected
      */
     public boolean isConnected() {
-        return session != null && session.isOpen();
+        Session localSession = session;
+        return localSession != null && localSession.isOpen();
     }
 
     /**
