@@ -74,6 +74,7 @@ public class UniFiProtectPrivateClient {
     private @Nullable Instant lastBootstrapRefresh;
     private @Nullable UniFiProtectPrivateWebSocket webSocket;
     private @Nullable ScheduledFuture<?> bootstrapRefreshTask;
+    private @Nullable CompletableFuture<Bootstrap> inFlightBootstrapRefresh;
 
     /**
      * Create a new UniFi Protect client
@@ -115,14 +116,22 @@ public class UniFiProtectPrivateClient {
         // Schedule periodic refresh
         bootstrapRefreshTask = scheduler.scheduleWithFixedDelay(() -> {
             try {
+                CompletableFuture<Bootstrap> existing = inFlightBootstrapRefresh;
+                if (existing != null && !existing.isDone()) {
+                    logger.debug("Skipping periodic refresh - previous refresh still in progress");
+                    return;
+                }
+
                 logger.debug("Performing periodic bootstrap refresh");
-                refreshBootstrap().whenComplete((bootstrap, ex) -> {
+                CompletableFuture<Bootstrap> refresh = refreshBootstrap().whenComplete((bootstrap, ex) -> {
+                    inFlightBootstrapRefresh = null;
                     if (ex != null) {
                         logger.debug("Periodic bootstrap refresh failed", ex);
                     } else {
                         logger.debug("Periodic bootstrap refresh completed successfully");
                     }
                 });
+                inFlightBootstrapRefresh = refresh;
             } catch (Exception e) {
                 logger.debug("Error during periodic bootstrap refresh", e);
             }
@@ -142,6 +151,12 @@ public class UniFiProtectPrivateClient {
             logger.debug("Stopped periodic bootstrap refresh");
         }
         this.bootstrapRefreshTask = null;
+
+        CompletableFuture<Bootstrap> inFlight = inFlightBootstrapRefresh;
+        if (inFlight != null && !inFlight.isDone()) {
+            inFlight.cancel(true);
+        }
+        inFlightBootstrapRefresh = null;
     }
 
     /**
