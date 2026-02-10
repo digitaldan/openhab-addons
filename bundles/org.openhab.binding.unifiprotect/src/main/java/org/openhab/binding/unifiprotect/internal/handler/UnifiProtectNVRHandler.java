@@ -176,10 +176,20 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
 
                         // Get current user ID
                         String userId = tempClient.getCurrentUserId().get(10, TimeUnit.SECONDS);
+                        if (userId == null || userId.isBlank()) {
+                            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                                    "Failed to retrieve user ID from UniFi Protect");
+                            return;
+                        }
 
                         // Create or recreate API key
                         String keyName = "openHAB-" + getThing().getUID().getId();
                         ApiKey key = tempClient.getOrCreateApiKey(userId, keyName).get(10, TimeUnit.SECONDS);
+                        if (key == null || key.fullApiKey == null || key.fullApiKey.isBlank()) {
+                            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                                    "API key creation returned empty result");
+                            return;
+                        }
 
                         apiToken = key.fullApiKey;
                         logger.debug("Successfully created API key '{}': {}***", keyName,
