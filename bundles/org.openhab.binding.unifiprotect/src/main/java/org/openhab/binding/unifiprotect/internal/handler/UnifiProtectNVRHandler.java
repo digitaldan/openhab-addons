@@ -309,6 +309,7 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 }).whenComplete((result, ex) -> {
                     if (ex != null) {
                         logger.debug("Failed to enable Private API WebSocket", ex);
+                        setOfflineAndReconnect();
                     }
                 });
 
