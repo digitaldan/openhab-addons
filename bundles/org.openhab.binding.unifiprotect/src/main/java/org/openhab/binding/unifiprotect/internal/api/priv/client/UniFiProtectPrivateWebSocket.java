@@ -66,8 +66,9 @@ public class UniFiProtectPrivateWebSocket {
     private volatile boolean shouldReconnect = true;
     private volatile int reconnectAttempts = 0;
     private static final int MAX_RECONNECT_ATTEMPTS = 10;
-    private static final int INITIAL_RECONNECT_DELAY_MS = 1000;
-    private static final int MAX_RECONNECT_DELAY_MS = 60000;
+    private static final int INITIAL_RECONNECT_DELAY_MS = 1_000;
+    private static final int MAX_RECONNECT_DELAY_MS = 60_000;
+    private static final int CIRCUIT_BREAKER_DELAY_MS = 60_000;
 
     /**
      * Create UniFi Protect WebSocket client
@@ -162,7 +163,9 @@ public class UniFiProtectPrivateWebSocket {
     }
 
     /**
-     * Schedule reconnection with exponential backoff
+     * Schedule reconnection with exponential backoff.
+     * After exhausting fast reconnect attempts, switches to periodic probes
+     * every 5 minutes until the connection succeeds or disconnect() is called.
      */
     private void scheduleReconnect() {
         if (!shouldReconnect) {
@@ -170,13 +173,16 @@ public class UniFiProtectPrivateWebSocket {
             return;
         }
 
-        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            logger.debug("Max reconnection attempts ({}) reached, giving up", MAX_RECONNECT_ATTEMPTS);
-            return;
-        }
-
         reconnectAttempts++;
-        int delayMs = Math.min(INITIAL_RECONNECT_DELAY_MS * (1 << (reconnectAttempts - 1)), MAX_RECONNECT_DELAY_MS);
+        int delayMs;
+
+        if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+            // Exponential backoff: 1s, 2s, 4s, 8s, ... capped at 60s
+            delayMs = Math.min(INITIAL_RECONNECT_DELAY_MS * (1 << (reconnectAttempts - 1)), MAX_RECONNECT_DELAY_MS);
+        } else {
+            // Circuit breaker: probe every 5 minutes
+            delayMs = CIRCUIT_BREAKER_DELAY_MS;
+        }
 
         logger.debug("Scheduling WebSocket reconnection attempt {} in {}ms", reconnectAttempts, delayMs);
 
