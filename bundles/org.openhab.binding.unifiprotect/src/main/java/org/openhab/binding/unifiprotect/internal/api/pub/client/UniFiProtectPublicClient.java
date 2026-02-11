@@ -706,5 +706,4 @@ public class UniFiProtectPublicClient implements Closeable {
             obj.addProperty(key, String.valueOf(value));
         }
     }
-
 }

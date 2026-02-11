@@ -49,7 +49,7 @@ public class UniFiProtectHybridClient implements Closeable {
      * @param gson Gson instance for JSON serialization
      * @param apiToken The API token for public API
      * @param executorService Scheduled executor for background tasks
-     * @param host Hostname for  API
+     * @param host Hostname for API
      * @param port Port for API (typically 443)
      * @param privateUsername Username for private API authentication
      * @param privatePassword Password for private API authentication
@@ -58,8 +58,8 @@ public class UniFiProtectHybridClient implements Closeable {
             ScheduledExecutorService executorService, String host, int port, String privateUsername,
             String privatePassword) {
         this.publicClient = new UniFiProtectPublicClient(httpClient, host, port, gson, apiToken, executorService);
-        this.privateClient = new UniFiProtectPrivateClient(httpClient, executorService, host, port,
-                privateUsername, privatePassword);
+        this.privateClient = new UniFiProtectPrivateClient(httpClient, executorService, host, port, privateUsername,
+                privatePassword);
         logger.debug("Hybrid client initialized with both public and private API support");
     }
 

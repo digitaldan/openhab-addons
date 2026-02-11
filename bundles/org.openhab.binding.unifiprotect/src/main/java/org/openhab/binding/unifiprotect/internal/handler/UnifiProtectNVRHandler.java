@@ -13,7 +13,6 @@
 package org.openhab.binding.unifiprotect.internal.handler;
 
 import java.io.IOException;
-import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -208,8 +207,8 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
                 }
 
                 logger.debug("Initializing with hybrid API client (Public + Private)");
-                UniFiProtectHybridClient apiClient = new UniFiProtectHybridClient(httpClient, gson, apiToken,
-                        scheduler, config.hostname, config.port, config.username, config.password);
+                UniFiProtectHybridClient apiClient = new UniFiProtectHybridClient(httpClient, gson, apiToken, scheduler,
+                        config.hostname, config.port, config.username, config.password);
 
                 this.apiClient = apiClient;
 
@@ -953,8 +952,8 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
             updateState(UnifiProtectBindingConstants.CHANNEL_NVR_CAN_AUTO_UPDATE, OnOffType.from(nvr.canAutoUpdate));
         }
         if (nvr.lastUpdateAt != null) {
-            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_LAST_UPDATE_AT, new DateTimeType(
-                    ZonedDateTime.ofInstant(nvr.lastUpdateAt, java.time.ZoneId.systemDefault())));
+            updateState(UnifiProtectBindingConstants.CHANNEL_NVR_LAST_UPDATE_AT,
+                    new DateTimeType(ZonedDateTime.ofInstant(nvr.lastUpdateAt, java.time.ZoneId.systemDefault())));
         }
         if (nvr.isProtectUpdatable != null) {
             updateState(UnifiProtectBindingConstants.CHANNEL_NVR_PROTECT_UPDATABLE,
