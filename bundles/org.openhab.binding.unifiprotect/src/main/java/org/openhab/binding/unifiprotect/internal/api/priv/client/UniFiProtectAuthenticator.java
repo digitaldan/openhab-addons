@@ -42,7 +42,7 @@ import com.google.gson.JsonObject;
 @NonNullByDefault
 public class UniFiProtectAuthenticator {
 
-    private static final Logger logger = LoggerFactory.getLogger(UniFiProtectAuthenticator.class);
+    private final Logger logger = LoggerFactory.getLogger(UniFiProtectAuthenticator.class);
     private static final String AUTH_PATH = "/api/auth/login";
     private static final Duration SESSION_EXPIRY = Duration.ofHours(24);
     private static final String COOKIE_TOKEN = "TOKEN";

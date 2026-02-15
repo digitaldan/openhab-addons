@@ -61,6 +61,7 @@ import org.openhab.core.library.types.OpenClosedType;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.types.RawType;
 import org.openhab.core.library.types.StringType;
+import org.openhab.core.library.unit.Units;
 import org.openhab.core.thing.Channel;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
@@ -74,8 +75,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonObject;
-
-import tech.units.indriya.unit.Units;
 
 /**
  * Child handler for a UniFi Protect Camera.
@@ -1016,11 +1015,7 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
         // Query and Create RTSP streams if WebRTC is enabled
         if (enableWebRTC) {
             try {
-<<<<<<< HEAD
-                rtsps = api..getPublicClient().getRtspsStream(deviceId);
-=======
                 rtsps = api.getPublicClient().getRtspsStream(deviceId);
->>>>>>> e80e3c0670 (working)
                 List<ChannelQuality> qualities = new ArrayList<>();
                 if (rtsps.high == null) {
                     qualities.add(ChannelQuality.HIGH);
@@ -1083,7 +1078,6 @@ public class UnifiProtectCameraHandler extends UnifiProtectAbstractDeviceHandler
             logger.debug("Camera or feature flags are null, skipping channel addition");
             return;
         }
-        List<Channel> existingChannels = thing.getChannels();
         List<Channel> channelAdd = new ArrayList<>();
 
         // active channel ids set accumulates all channels that should exist after this call

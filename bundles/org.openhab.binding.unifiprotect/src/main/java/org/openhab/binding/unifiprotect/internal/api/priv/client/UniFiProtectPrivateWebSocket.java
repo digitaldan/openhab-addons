@@ -14,6 +14,7 @@ package org.openhab.binding.unifiprotect.internal.api.priv.client;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +54,7 @@ import com.google.gson.JsonParser;
  */
 public class UniFiProtectPrivateWebSocket {
 
-    private static final Logger logger = LoggerFactory.getLogger(UniFiProtectPrivateWebSocket.class);
+    private final Logger logger = LoggerFactory.getLogger(UniFiProtectPrivateWebSocket.class);
 
     private final String wsUrl;
     private final String authCookie;
@@ -306,7 +307,7 @@ public class UniFiProtectPrivateWebSocket {
 
                 byte[] actionBytes = new byte[payloadSize];
                 buffer.get(actionBytes);
-                String actionJson = new String(actionBytes);
+                String actionJson = new String(actionBytes, StandardCharsets.UTF_8);
                 JsonObject actionData = JsonParser.parseString(actionJson).getAsJsonObject();
 
                 logger.trace("WebSocket Action Frame JSON: {}", actionJson);
@@ -324,7 +325,7 @@ public class UniFiProtectPrivateWebSocket {
                     if (buffer.remaining() >= dataPayloadSize && dataPayloadSize > 0) {
                         byte[] dataBytes = new byte[dataPayloadSize];
                         buffer.get(dataBytes);
-                        String dataJson = new String(dataBytes);
+                        String dataJson = new String(dataBytes, StandardCharsets.UTF_8);
                         dataObject = JsonParser.parseString(dataJson).getAsJsonObject();
 
                         logger.trace("WebSocket Data Frame JSON: {}", dataJson);

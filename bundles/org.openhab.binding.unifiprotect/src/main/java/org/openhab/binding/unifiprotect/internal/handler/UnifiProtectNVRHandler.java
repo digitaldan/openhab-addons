@@ -823,7 +823,6 @@ public class UnifiProtectNVRHandler extends BaseBridgeHandler {
      * Update NVR channels from Private API NVR data
      */
     private void updateNVRChannels(org.openhab.binding.unifiprotect.internal.api.priv.dto.system.Nvr nvr) {
-
         // Storage Monitoring
         if (nvr.storageStats != null && nvr.storageStats.recordingSpace != null) {
             if (nvr.storageStats.recordingSpace.total != null) {

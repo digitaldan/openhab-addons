@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -60,7 +61,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class UniFiProtectPrivateClient {
 
-    private static final Logger logger = LoggerFactory.getLogger(UniFiProtectPrivateClient.class);
+    private final Logger logger = LoggerFactory.getLogger(UniFiProtectPrivateClient.class);
     private static final String PRIVATE_API_PATH = "/proxy/protect/api/";
     private static final Duration BOOTSTRAP_REFRESH_INTERVAL = Duration.ofMinutes(15);
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
@@ -89,7 +90,6 @@ public class UniFiProtectPrivateClient {
      */
     public UniFiProtectPrivateClient(HttpClient httpClient, ScheduledExecutorService scheduler, String host, int port,
             String username, String password) {
-
         this.httpClient = httpClient;
         this.scheduler = scheduler;
         this.baseUrl = "https://" + host + ":" + port;
@@ -996,7 +996,7 @@ public class UniFiProtectPrivateClient {
             }
             // Convert string to enum
             SmartDetectObjectType enumType;
-            switch (detectType.toLowerCase()) {
+            switch (detectType.toLowerCase(Locale.ROOT)) {
                 case "person":
                     enumType = SmartDetectObjectType.PERSON;
                     break;

@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -623,7 +624,7 @@ public class UniFiProtectPublicClient implements Closeable {
             case ANIMATIONS:
                 return "animations";
             default:
-                return t.name().toLowerCase();
+                return t.name().toLowerCase(Locale.ROOT);
         }
     }
 
@@ -649,7 +650,7 @@ public class UniFiProtectPublicClient implements Closeable {
             case PACKAGE:
                 return "package";
             default:
-                return q.name().toLowerCase();
+                return q.name().toLowerCase(Locale.ROOT);
         }
     }
 
