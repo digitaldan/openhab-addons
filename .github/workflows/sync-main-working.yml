@@ -1,4 +1,4 @@
-name: Sync claude-config with main
+name: Sync main-working with main
 on:
   push:
     branches: [main]
@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude-config
+          ref: main-working
           fetch-depth: 0
       - run: |
           git config user.name "github-actions"
