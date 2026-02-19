@@ -185,6 +185,22 @@ Then run `mvn spotless:apply` inside the new binding directory (not the repo roo
 
 The script updates CODEOWNERS automatically. Binding name must be CamelCase matching `[A-Z][A-Za-z]*`.
 
+## Git Remotes and Push Policy
+
+This repo has multiple remotes:
+
+| Remote | URL | Purpose |
+|--------|-----|---------|
+| `origin` (fetch) | `https://github.com/openhab/openhab-addons.git` | Upstream openHAB repo (read-only) |
+| `dd` | `https://github.com/digitaldan/openhab-addons.git` | Personal fork (read-write) |
+
+**CRITICAL: NEVER push to or create PRs against the `openhab` (origin) remote directly.** All commits and pushes MUST go to the `dd` (digitaldan) fork. PRs to the upstream openHAB repo are created from the fork via GitHub.
+
+- Push feature branches: `git push dd <branch-name>`
+- Push with tracking: `git push -u dd <branch-name>`
+- Create PRs: `gh pr create --repo openhab/openhab-addons`
+- **NEVER run**: `git push origin ...` — origin's push URL is set to `dd` as a safety net, but always use `dd` explicitly.
+
 ## Contribution Requirements
 
 - Commits require `Signed-off-by` line (DCO): use `git commit -s`
@@ -196,6 +212,76 @@ The script updates CODEOWNERS automatically. Binding name must be CamelCase matc
 ## Per-Binding Agent Notes
 
 Some bindings have their own `AGENTS.md` at `bundles/org.openhab.*/AGENTS.md` — check for these when working on a specific binding.
+
+## Claude Code Configuration Management
+
+This repo uses Claude Code configuration files (`CLAUDE.md`, `.claude/`) that are **not committed to upstream**. They live locally as untracked files (hidden via `.git/info/exclude`) and are committed to a dedicated `claude-config` branch on the personal fork for use with claude.ai/code.
+
+### How It Works
+
+- **Local CLI (`claude`)**: Files exist as untracked files on `main`. `.git/info/exclude` hides them from `git status`.
+- **claude.ai/code**: Sessions use the `claude-config` branch on `digitaldan/openhab-addons`, which has these files committed.
+- **GitHub Action**: A workflow on the fork auto-merges `main` into `claude-config` when `main` updates, keeping it current.
+
+### Files on the `claude-config` Branch
+
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Project instructions |
+| `.claude/settings.json` | Shared permission rules |
+| `.claude/agents/*.md` | Custom agent definitions |
+| `.github/workflows/sync-claude-config.yml` | Auto-sync workflow |
+
+**Not committed** (local-only): `.claude/settings.local.json`, `.claude/agent-memory/`
+
+### Updating Claude Code Configuration
+
+When you modify `CLAUDE.md`, `.claude/settings.json`, or `.claude/agents/*.md` locally, push the changes to the `claude-config` branch so claude.ai/code sessions pick them up:
+
+```bash
+# From the main branch, commit changes to claude-config
+git stash                              # stash any unrelated work
+git checkout claude-config
+git checkout main -- /dev/null 2>&1    # no-op, just to be on claude-config
+
+# Copy the updated files (they were removed by the branch switch)
+git show main~0:CLAUDE.md > /dev/null 2>&1 || true  # these aren't on main
+# Instead, restore from your local working copies before the switch:
+```
+
+**Recommended workflow** — avoid switching branches (which deletes untracked files). Instead, commit directly:
+
+```bash
+# Update a file on claude-config without switching branches
+git commit --allow-empty -m "trigger"  # not needed, see below
+
+# The simplest approach: use a temporary worktree
+git worktree add /tmp/claude-config claude-config
+cp CLAUDE.md /tmp/claude-config/
+cp .claude/settings.json /tmp/claude-config/.claude/
+cp -r .claude/agents/ /tmp/claude-config/.claude/agents/
+cd /tmp/claude-config
+git add -A && git commit -s -m "Update Claude Code configuration"
+git push dd claude-config
+cd -
+git worktree remove /tmp/claude-config
+```
+
+Or let Claude Code do it — just say: **"push my claude config changes to the fork"** and it will handle the worktree workflow above.
+
+### Manual Sync (if GitHub Action isn't running)
+
+```bash
+git fetch origin
+git checkout claude-config
+git merge origin/main --no-edit
+git push dd claude-config
+git checkout main
+# Restore local files (branch switch deletes them):
+git show dd/claude-config:CLAUDE.md > CLAUDE.md
+git show dd/claude-config:.claude/settings.json > .claude/settings.json
+# etc. for any other files
+```
 
 ## Reference
 
