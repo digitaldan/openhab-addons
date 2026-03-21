@@ -117,6 +117,7 @@
 /bundles/org.openhab.binding.enturno/ @klocsson
 /bundles/org.openhab.binding.ephemeris/ @clinique
 /bundles/org.openhab.binding.epsonprojector/ @mlobstein
+/bundles/org.openhab.binding.espsomfy/ @digitaldan
 /bundles/org.openhab.binding.etherrain/ @dfad1469
 /bundles/org.openhab.binding.evcc/ @marcelGoerentz
 /bundles/org.openhab.binding.evohome/ @Nebula83

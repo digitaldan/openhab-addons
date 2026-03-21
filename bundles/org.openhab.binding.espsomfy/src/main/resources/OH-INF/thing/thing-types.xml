@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="espsomfy"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<!-- ESPSomfy Controller Bridge -->
+	<bridge-type id="controller">
+		<label>ESPSomfy-RTS Controller</label>
+		<description>An ESPSomfy-RTS controller device that manages Somfy RTS shades via radio.</description>
+
+		<channels>
+			<channel id="version" typeId="version-channel"/>
+		</channels>
+
+		<representation-property>hostname</representation-property>
+
+		<config-description>
+			<parameter name="hostname" type="text" required="true">
+				<context>network-address</context>
+				<label>Hostname</label>
+				<description>Hostname or IP address of the ESPSomfy-RTS device.</description>
+			</parameter>
+			<parameter name="port" type="integer">
+				<label>Port</label>
+				<description>HTTP port of the ESPSomfy-RTS device.</description>
+				<default>80</default>
+				<advanced>true</advanced>
+			</parameter>
+			<parameter name="password" type="text">
+				<context>password</context>
+				<label>Password</label>
+				<description>PIN or password if device security is enabled.</description>
+			</parameter>
+			<parameter name="refreshInterval" type="integer" unit="s" min="5">
+				<label>Refresh Interval</label>
+				<description>Interval in seconds to poll the device for state updates.</description>
+				<default>30</default>
+				<advanced>true</advanced>
+			</parameter>
+		</config-description>
+	</bridge-type>
+
+	<!-- Shade Thing -->
+	<thing-type id="shade">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="controller"/>
+		</supported-bridge-type-refs>
+
+		<label>ESPSomfy Shade</label>
+		<description>A Somfy RTS motorized shade, blind, awning, or shutter.</description>
+
+		<channels>
+			<channel id="position" typeId="position-channel"/>
+			<channel id="tilt" typeId="tilt-channel"/>
+			<channel id="direction" typeId="direction-channel"/>
+			<channel id="myPosition" typeId="my-position-channel"/>
+			<channel id="command" typeId="command-channel"/>
+			<channel id="sunny" typeId="sunny-channel"/>
+			<channel id="windy" typeId="windy-channel"/>
+		</channels>
+
+		<representation-property>shadeId</representation-property>
+
+		<config-description>
+			<parameter name="shadeId" type="integer" required="true">
+				<label>Shade ID</label>
+				<description>The shade ID as configured on the ESPSomfy-RTS device (0-31).</description>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<!-- Group Thing -->
+	<thing-type id="group">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="controller"/>
+		</supported-bridge-type-refs>
+
+		<label>ESPSomfy Group</label>
+		<description>A group of Somfy RTS shades that can be controlled together.</description>
+
+		<channels>
+			<channel id="position" typeId="position-channel"/>
+			<channel id="direction" typeId="direction-channel"/>
+			<channel id="myPosition" typeId="my-position-channel"/>
+			<channel id="command" typeId="command-channel"/>
+		</channels>
+
+		<representation-property>groupId</representation-property>
+
+		<config-description>
+			<parameter name="groupId" type="integer" required="true">
+				<label>Group ID</label>
+				<description>The group ID as configured on the ESPSomfy-RTS device (0-15).</description>
+			</parameter>
+		</config-description>
+	</thing-type>
+
+	<!-- Channel Types -->
+	<channel-type id="position-channel">
+		<item-type>Rollershutter</item-type>
+		<label>Position</label>
+		<description>Shade position (0% = open, 100% = closed).</description>
+		<category>Blinds</category>
+	</channel-type>
+
+	<channel-type id="tilt-channel">
+		<item-type>Rollershutter</item-type>
+		<label>Tilt Position</label>
+		<description>Tilt angle for venetian blinds (0% = open, 100% = closed).</description>
+		<category>Blinds</category>
+	</channel-type>
+
+	<channel-type id="direction-channel">
+		<item-type>Number</item-type>
+		<label>Direction</label>
+		<description>Current movement direction (-1 = opening, 0 = stopped, 1 = closing).</description>
+		<state readOnly="true" pattern="%d"/>
+	</channel-type>
+
+	<channel-type id="my-position-channel">
+		<item-type>Number</item-type>
+		<label>My Position</label>
+		<description>The configured favorite (My) position (-1 if not set).</description>
+		<state readOnly="true" pattern="%.0f"/>
+	</channel-type>
+
+	<channel-type id="command-channel">
+		<item-type>String</item-type>
+		<label>Command</label>
+		<description>Send a virtual remote command to the shade.</description>
+		<state>
+			<options>
+				<option value="My">My</option>
+				<option value="Up">Up</option>
+				<option value="Down">Down</option>
+				<option value="Prog">Prog</option>
+				<option value="SunFlag">SunFlag</option>
+				<option value="Flag">Flag</option>
+				<option value="StepUp">StepUp</option>
+				<option value="StepDown">StepDown</option>
+				<option value="Toggle">Toggle</option>
+			</options>
+		</state>
+		<autoUpdatePolicy>veto</autoUpdatePolicy>
+	</channel-type>
+
+	<channel-type id="sunny-channel">
+		<item-type>Switch</item-type>
+		<label>Sun Sensor</label>
+		<description>Sun sensor state reported by the shade.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="windy-channel">
+		<item-type>Switch</item-type>
+		<label>Wind Sensor</label>
+		<description>Wind sensor state reported by the shade.</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="version-channel">
+		<item-type>String</item-type>
+		<label>Firmware Version</label>
+		<description>Firmware version of the ESPSomfy-RTS controller.</description>
+		<state readOnly="true"/>
+	</channel-type>
+</thing:thing-descriptions>
