@@ -169,3 +169,49 @@ After building, the directory target inside org.openhab.binding.bindingname cont
 | Full build | `mvn clean install` |
 | Build with resolver | `mvn clean install -DwithResolver` |
 | Build a specific binding | `mvn clean install -pl org.openhab.binding.bindingname` |
+
+## Cursor Cloud specific instructions
+
+### Environment
+
+- **Java 21** is pre-installed at `/usr/lib/jvm/java-21-openjdk-amd64`. `JAVA_HOME` is set in `~/.bashrc`.
+- **Maven 3.9.13** is available via the Maven Wrapper (`./mvnw`). There is no system `mvn` on `PATH` — always use `./mvnw` from the repo root.
+- No external services (databases, Docker, message brokers) are required. This is a pure Java/Maven library project.
+
+### Building & testing a specific binding
+
+Always target a specific binding to avoid building all ~500 modules:
+
+```bash
+./mvnw clean install -pl bundles/org.openhab.binding.<name>
+```
+
+The first build resolves the parent POM and dependencies from Maven Central and JFrog; this takes ~3 minutes. Subsequent builds of the same binding are much faster (~10 seconds).
+
+To include upstream module resolution (e.g. `bom/`, `bundles/` reactor POM), add `-am`:
+
+```bash
+./mvnw clean install -pl bundles/org.openhab.binding.<name> -am
+```
+
+Use `-DskipChecks` to skip static analysis during iteration; run full checks before committing.
+
+### Lint
+
+```bash
+./mvnw spotless:check -pl bundles/org.openhab.binding.<name>
+./mvnw spotless:apply -pl bundles/org.openhab.binding.<name>   # auto-fix
+```
+
+Always scope `spotless:apply` to the binding folder — running it at the root takes a very long time.
+
+### Tests
+
+```bash
+./mvnw test -pl bundles/org.openhab.binding.<name>
+```
+
+### Notes
+
+- This repo does **not** produce a runnable application — it produces OSGi bundles consumed by the openhab-core runtime. The "hello world" validation is building a binding, running its tests, and verifying the lint checks pass.
+- The skeleton script for creating new bindings is at `bundles/create_openhab_binding_skeleton.sh`.
