@@ -26,12 +26,13 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.openhab.binding.unifiaccess.internal.UnifiAccessBindingConstants;
 import org.openhab.binding.unifiaccess.internal.UnifiAccessDiscoveryService;
-import org.openhab.binding.unifiaccess.internal.api.UniFiAccessApiClient;
+import org.openhab.binding.unifiaccess.internal.api.UnifiAccessApiClient;
 import org.openhab.binding.unifiaccess.internal.config.UnifiAccessBridgeConfiguration;
 import org.openhab.binding.unifiaccess.internal.dto.Device;
 import org.openhab.binding.unifiaccess.internal.dto.Door;
 import org.openhab.binding.unifiaccess.internal.dto.DoorEmergencySettings;
-import org.openhab.binding.unifiaccess.internal.dto.UniFiAccessApiException;
+import org.openhab.binding.unifiaccess.internal.dto.UnifiAccessApiException;
+import org.openhab.binding.unifiaccess.internal.dto.UnifiAccessApiException.AuthState;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.StringType;
@@ -64,18 +65,21 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
 
     private final Logger logger = LoggerFactory.getLogger(UnifiAccessBridgeHandler.class);
     private static final int MAX_RECONNECT_DELAY_SECONDS = 300;
+    private static final int THROTTLED_INITIAL_DELAY_SECONDS = 60;
+    private static final int THROTTLED_MAX_DELAY_SECONDS = 1800;
 
     final Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
     final Map<String, String> remoteViewRequestToDeviceId = new ConcurrentHashMap<>();
 
     private final HttpClient httpClient;
-    private @Nullable UniFiAccessApiClient apiClient;
+    private @Nullable UnifiAccessApiClient apiClient;
     private UnifiAccessBridgeConfiguration config = new UnifiAccessBridgeConfiguration();
     private @Nullable ScheduledFuture<?> reconnectFuture;
     private @Nullable ScheduledFuture<?> pollingFuture;
     private @Nullable UnifiAccessDiscoveryService discoveryService;
     private @Nullable UnifiAccessNotificationRouter notificationRouter;
     private int reconnectAttempt = 0;
+    private int throttledReconnectAttempt = 0;
 
     public UnifiAccessBridgeHandler(Bridge bridge, HttpClientFactory httpClientFactory) {
         super(bridge);
@@ -103,7 +107,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         cancelReconnect();
         cancelPolling();
         try {
-            UniFiAccessApiClient client = this.apiClient;
+            UnifiAccessApiClient client = this.apiClient;
             if (client != null) {
                 client.close();
             }
@@ -126,7 +130,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         }
         String channelId = channelUID.getId();
         if (UnifiAccessBindingConstants.CHANNEL_BRIDGE_EMERGENCY_STATUS.equals(channelId)) {
-            UniFiAccessApiClient api = this.apiClient;
+            UnifiAccessApiClient api = this.apiClient;
             if (api == null) {
                 return;
             }
@@ -148,7 +152,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
             try {
                 api.setEmergencySettings(des);
                 updateState(UnifiAccessBindingConstants.CHANNEL_BRIDGE_EMERGENCY_STATUS, new StringType(status));
-            } catch (UniFiAccessApiException e) {
+            } catch (UnifiAccessApiException e) {
                 logger.debug("Failed to set emergency settings: {}", e.getMessage());
             }
         }
@@ -164,7 +168,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
     }
 
     private synchronized void connect() {
-        UniFiAccessApiClient client = this.apiClient;
+        UnifiAccessApiClient client = this.apiClient;
         if (client != null) {
             client.close();
         }
@@ -173,17 +177,18 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                 httpClient.start();
             } catch (Exception e) {
                 logger.debug("Failed to start HTTP client: {}", e.getMessage());
-                setOfflineAndReconnect(e.getMessage());
+                setOfflineAndReconnect(e.getMessage(), false);
                 return;
             }
         }
-        client = new UniFiAccessApiClient(httpClient, config.host, gson, config.username, config.password, scheduler);
+        client = new UnifiAccessApiClient(httpClient, config.host, gson, config.username, config.password, scheduler);
         this.apiClient = client;
         UnifiAccessNotificationRouter router = this.notificationRouter;
         try {
             client.openNotifications(() -> {
                 logger.debug("Notifications WebSocket opened");
                 reconnectAttempt = 0;
+                throttledReconnectAttempt = 0;
                 updateStatus(ThingStatus.ONLINE);
                 startPolling();
                 scheduler.execute(UnifiAccessBridgeHandler.this::syncDevices);
@@ -193,17 +198,24 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                 }
             }, error -> {
                 logger.debug("Notifications error: {}", error.getMessage());
-                setOfflineAndReconnect(error.getMessage());
+                setOfflineAndReconnect(error.getMessage(), false);
             }, (statusCode, reason) -> {
                 logger.debug("Notifications closed: {} - {}", statusCode, reason);
-                setOfflineAndReconnect(reason);
+                setOfflineAndReconnect(reason, false);
             });
-        } catch (UniFiAccessApiException e) {
+        } catch (UnifiAccessApiException e) {
             logger.debug("Failed to open notifications WebSocket", e);
-            if (e.isAuthFailure()) {
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, "@text/offline.auth-failed");
-            } else {
-                setOfflineAndReconnect("Failed to open notifications WebSocket");
+            switch (e.getAuthState()) {
+                case REJECTED:
+                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+                            "@text/offline.auth-failed");
+                    break;
+                case THROTTLED:
+                    setOfflineAndReconnect("@text/offline.login-throttled", true);
+                    break;
+                default:
+                    setOfflineAndReconnect("@text/offline.notifications-failed", false);
+                    break;
             }
         }
     }
@@ -212,18 +224,32 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
         this.discoveryService = discoveryService;
     }
 
-    private void setOfflineAndReconnect(@Nullable String message) {
-        ScheduledFuture<?> reconnectFuture = this.reconnectFuture;
-        if (reconnectFuture != null && !reconnectFuture.isDone()) {
-            return;
+    private synchronized void setOfflineAndReconnect(@Nullable String message, boolean throttled) {
+        ScheduledFuture<?> existing = this.reconnectFuture;
+        if (existing != null && !existing.isDone()) {
+            // Throttled supersedes any pending fast reconnect, otherwise we'd just get throttled again.
+            if (throttled) {
+                existing.cancel(false);
+            } else {
+                return;
+            }
         }
         cancelPolling();
         String msg = message != null ? message : "Unknown error";
         updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, msg);
 
-        int delay = Math.min((int) Math.pow(2, reconnectAttempt) * 5, MAX_RECONNECT_DELAY_SECONDS);
-        reconnectAttempt++;
-        logger.debug("Scheduling reconnect in {} seconds (attempt {})", delay, reconnectAttempt);
+        int delay;
+        if (throttled) {
+            delay = Math.min((int) Math.pow(2, throttledReconnectAttempt) * THROTTLED_INITIAL_DELAY_SECONDS,
+                    THROTTLED_MAX_DELAY_SECONDS);
+            throttledReconnectAttempt++;
+            logger.debug("Scheduling reconnect in {} seconds (throttled, attempt {})", delay,
+                    throttledReconnectAttempt);
+        } else {
+            delay = Math.min((int) Math.pow(2, reconnectAttempt) * 5, MAX_RECONNECT_DELAY_SECONDS);
+            reconnectAttempt++;
+            logger.debug("Scheduling reconnect in {} seconds (attempt {})", delay, reconnectAttempt);
+        }
 
         this.reconnectFuture = scheduler.schedule(() -> {
             try {
@@ -263,7 +289,7 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
     }
 
     synchronized void syncDevices() {
-        UniFiAccessApiClient client = this.apiClient;
+        UnifiAccessApiClient client = this.apiClient;
         if (client == null) {
             return;
         }
@@ -321,21 +347,23 @@ public class UnifiAccessBridgeHandler extends BaseBridgeHandler {
                     // Store configs and build settings from bootstrap
                     dh.updateConfigMap(device.configMap);
                     if (!device.configMap.isEmpty()) {
-                        var settings = UniFiAccessApiClient.buildSettingsFromConfigs(device.configMap);
+                        var settings = UnifiAccessApiClient.buildSettingsFromConfigs(device.configMap);
                         dh.updateFromSettings(settings);
                     }
                 }
             }
-        } catch (UniFiAccessApiException e) {
+        } catch (UnifiAccessApiException e) {
             logger.debug("Polling error: {}", e.getMessage());
-            if (e.isAuthFailure()) {
+            if (e.getAuthState() == AuthState.REJECTED) {
                 updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, "@text/offline.auth-failed");
                 cancelPolling();
+            } else if (e.getAuthState() == AuthState.THROTTLED) {
+                setOfflineAndReconnect("@text/offline.login-throttled", true);
             }
         }
     }
 
-    public @Nullable UniFiAccessApiClient getApiClient() {
+    public @Nullable UnifiAccessApiClient getApiClient() {
         return apiClient;
     }
 

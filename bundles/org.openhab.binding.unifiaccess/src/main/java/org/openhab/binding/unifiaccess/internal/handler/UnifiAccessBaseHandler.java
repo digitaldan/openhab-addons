@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.unifiaccess.internal.UnifiAccessBindingConstants;
-import org.openhab.binding.unifiaccess.internal.api.UniFiAccessApiClient;
+import org.openhab.binding.unifiaccess.internal.api.UnifiAccessApiClient;
 import org.openhab.binding.unifiaccess.internal.dto.Notification;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.DeviceUpdateData;
 import org.openhab.binding.unifiaccess.internal.dto.Notification.LocationState;
@@ -79,7 +79,7 @@ public abstract class UnifiAccessBaseHandler extends BaseThingHandler {
         return (h instanceof UnifiAccessBridgeHandler) ? (UnifiAccessBridgeHandler) h : null;
     }
 
-    protected @Nullable UniFiAccessApiClient getApiClient() {
+    protected @Nullable UnifiAccessApiClient getApiClient() {
         UnifiAccessBridgeHandler bridge = getBridgeHandler();
         return bridge != null ? bridge.getApiClient() : null;
     }
