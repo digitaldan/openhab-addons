@@ -356,7 +356,7 @@ public class McpService {
             try {
                 reg.unregister();
             } catch (Exception e) {
-                logger.trace("Error unregistering service: {}", e.getMessage());
+                logger.debug("Error unregistering service: {}", e.getMessage(), e);
             }
         }
         serviceRegistrations.clear();

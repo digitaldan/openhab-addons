@@ -169,7 +169,6 @@ public class JavaxStreamableServerTransportProvider extends HttpServlet
     @NonNullByDefault({})
     @Override
     public Mono<Void> closeGracefully() {
-        isClosing.set(true);
         ScheduledFuture<?> task = keepAliveTask;
         if (task != null) {
             task.cancel(false);
@@ -580,6 +579,7 @@ public class JavaxStreamableServerTransportProvider extends HttpServlet
 
     @Override
     public void destroy() {
+        isClosing.set(true);
         closeGracefully().block();
         super.destroy();
     }
