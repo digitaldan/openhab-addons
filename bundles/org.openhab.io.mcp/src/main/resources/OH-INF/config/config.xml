@@ -34,6 +34,25 @@
 				agent calls.]]></description>
 			<default>false</default>
 		</parameter>
+		<parameter name="enableScripting" type="boolean" required="false">
+			<label>Enable JavaScript Scripting</label>
+			<description><![CDATA[When enabled, the agent can include JavaScript snippets as rule actions or conditions
+				(<code>type: "script"</code>) and gains an <code>execute_script</code> tool that runs JS immediately
+				against openHAB's script engine - useful for dry-running a script before adding it to a scheduled rule.
+				Scripts have the same full system access as any openHAB script (every item, HTTP requests, Exec, OSGi
+				services, rule creation). Requires the <code>openhab-automation-jsscripting</code> add-on.]]></description>
+			<default>false</default>
+		</parameter>
+		<parameter name="enableLoggingAccess" type="boolean" required="false">
+			<label>Enable Diagnostic Logging Tools</label>
+			<description><![CDATA[When enabled, the agent gains three tools (<code>get_logs</code>,
+				<code>get_log_levels</code>, <code>set_log_level</code>) for reading recent log entries and adjusting
+				logger verbosity to troubleshoot bindings, rules, or things. Log level changes are sent through the
+				openHAB REST API and require the caller's bearer token to have <strong>administrator</strong> scope;
+				log reads only require this flag to be on. Verbosity bumps auto-revert after 30 minutes by default so
+				DEBUG won't be left on by accident.]]></description>
+			<default>false</default>
+		</parameter>
 		<parameter name="exposeUntaggedItems" type="boolean" required="false">
 			<label>Expose Untagged Items</label>
 			<description>Whether to include items that are not part of the semantic model in search results.</description>

@@ -33,6 +33,23 @@ public class McpConfiguration {
      */
     public boolean enableFullApiAccess = false;
     /**
+     * When true, enables JavaScript scripting features for the agent: script-typed
+     * rule actions and conditions, plus the {@code execute_script} tool that runs a
+     * JS snippet ad-hoc. Scripts have full system access (HTTP, Exec, OSGi, every
+     * item) so this is off by default and should only be enabled when the operator
+     * trusts the connected MCP clients. Requires the {@code openhab-automation-jsscripting}
+     * add-on to be installed for scripts to actually execute.
+     */
+    public boolean enableScripting = false;
+    /**
+     * When true, exposes diagnostic logging tools ({@code get_logs}, {@code get_log_levels},
+     * {@code set_log_level}) so an agent can read recent log entries and adjust logger
+     * verbosity to troubleshoot bindings and rules. Level changes are sent through the
+     * openHAB REST API and require the caller's bearer token to have ADMIN scope; reads
+     * are gated by this flag alone. Off by default.
+     */
+    public boolean enableLoggingAccess = false;
+    /**
      * When true, registers the {@code /mcp} path with the openHAB Cloud WebhookService
      * so remote MCP clients can reach this server via a stable myopenhab.org URL.
      * Requires the openhabcloud add-on to be installed and connected.
