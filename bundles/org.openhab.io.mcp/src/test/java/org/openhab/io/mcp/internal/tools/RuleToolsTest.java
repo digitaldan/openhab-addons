@@ -288,7 +288,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Morning Alarm");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Kitchen_Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Kitchen_Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -311,7 +311,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Daily Wake Up");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Bedroom_Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Bedroom_Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -333,7 +333,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Weekday Alarm");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Kitchen_Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Kitchen_Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -351,7 +351,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Garage Door Alert");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Alert_Switch", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Alert_Switch", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -369,7 +369,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Button Pressed Rule");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Fan_Switch", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Fan_Switch", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -386,8 +386,10 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Bedtime Routine");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light1", "command", "OFF"),
-                Map.of("itemName", "Light2", "command", "OFF"), Map.of("itemName", "Lock", "command", "ON")));
+        args.put("actions",
+                List.of(Map.of("type", "item_command", "itemName", "Light1", "command", "OFF"),
+                        Map.of("type", "item_command", "itemName", "Light2", "command", "OFF"),
+                        Map.of("type", "item_command", "itemName", "Lock", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -402,7 +404,7 @@ class RuleToolsTest {
 
         Map<String, Object> args = new HashMap<>();
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light1", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light1", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "name");
@@ -412,7 +414,7 @@ class RuleToolsTest {
     void createRuleMissingTrigger() {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "No Trigger Rule");
-        args.put("actions", List.of(Map.of("itemName", "Light1", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light1", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "trigger");
@@ -455,7 +457,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Unknown Trigger");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light1", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light1", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "Unknown trigger type");
@@ -469,7 +471,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "No Datetime");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light1", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light1", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "datetime");
@@ -483,7 +485,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "No Time");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light1", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light1", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "time");
@@ -497,7 +499,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "No Cron");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light1", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light1", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "cronExpression");
@@ -511,7 +513,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "No Item");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light1", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light1", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "itemName");
@@ -525,7 +527,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "No Item");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light1", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light1", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "itemName");
@@ -824,7 +826,7 @@ class RuleToolsTest {
         args.put("name", "Conditional");
         args.put("trigger", trigger);
         args.put("conditions", List.of(condition));
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -845,7 +847,7 @@ class RuleToolsTest {
         args.put("name", "Nighttime");
         args.put("trigger", trigger);
         args.put("conditions", List.of(condition));
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -866,7 +868,7 @@ class RuleToolsTest {
         args.put("name", "Weekdays");
         args.put("trigger", trigger);
         args.put("conditions", List.of(condition));
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -884,7 +886,7 @@ class RuleToolsTest {
         args.put("name", "Weekend Only");
         args.put("trigger", trigger);
         args.put("conditions", List.of(condition));
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -901,7 +903,7 @@ class RuleToolsTest {
         args.put("name", "Workout days");
         args.put("trigger", trigger);
         args.put("conditions", List.of(condition));
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -920,7 +922,7 @@ class RuleToolsTest {
         args.put("name", "Bad");
         args.put("trigger", trigger);
         args.put("conditions", List.of(condition));
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "enableScripting");
@@ -934,7 +936,7 @@ class RuleToolsTest {
         args.put("name", "Bad");
         args.put("trigger", trigger);
         args.put("conditions", List.of(condition));
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "Unknown condition type");
@@ -949,7 +951,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Wake Up");
         args.put("triggers", triggers);
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -965,7 +967,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Bad");
         args.put("triggers", List.of());
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "triggers");
@@ -982,7 +984,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Soon");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -1006,7 +1008,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Five Minutes");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -1021,7 +1023,7 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Tomorrow");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertSuccess(result);
@@ -1036,24 +1038,22 @@ class RuleToolsTest {
         Map<String, Object> args = new HashMap<>();
         args.put("name", "Bad offset");
         args.put("trigger", trigger);
-        args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
+        args.put("actions", List.of(Map.of("type", "item_command", "itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
         assertErrorContains(result, "Cannot parse");
     }
 
     @Test
-    void createRuleBackwardsCompatibleUntypedAction() throws Exception {
+    void createRuleMissingActionTypeIsRejected() throws Exception {
         Map<String, Object> trigger = Map.of("type", "cron", "cronExpression", "0 0 9 * * ?");
         Map<String, Object> args = new HashMap<>();
-        args.put("name", "Legacy Shape");
+        args.put("name", "Untyped");
         args.put("trigger", trigger);
+        // No 'type' field — should error rather than silently fall back.
         args.put("actions", List.of(Map.of("itemName", "Light", "command", "ON")));
 
         CallToolResult result = tools().handleCreateRule(createRequest(args));
-        assertSuccess(result);
-        ArgumentCaptor<Rule> captor = ArgumentCaptor.forClass(Rule.class);
-        verify(ruleRegistry).add(captor.capture());
-        assertEquals("core.ItemCommandAction", captor.getValue().getActions().get(0).getTypeUID());
+        assertErrorContains(result, "type");
     }
 }

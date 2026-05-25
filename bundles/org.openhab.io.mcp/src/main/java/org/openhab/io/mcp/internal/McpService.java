@@ -288,10 +288,7 @@ public class McpService {
                     .toolCall(itemTools.getSearchItemsTool(), (exchange, req) -> itemTools.handleSearchItems(req))
                     .toolCall(itemTools.getItemTool(), (exchange, req) -> itemTools.handleGetItem(req))
                     .toolCall(itemTools.getManageItemTool(), (exchange, req) -> itemTools.handleManageItem(req))
-                    .toolCall(itemTools.getSendCommandTool(),
-                            (exchange, req) -> itemTools.handleSendCommand(exchange, req))
-                    .toolCall(itemTools.getUpdateStateTool(),
-                            (exchange, req) -> itemTools.handleUpdateState(exchange, req))
+                    .toolCall(itemTools.getSetItemTool(), (exchange, req) -> itemTools.handleSetItem(exchange, req))
                     .toolCall(thingTools.getThingsTool(), (exchange, req) -> thingTools.handleGetThings(req))
                     .toolCall(thingTools.getThingDetailsTool(),
                             (exchange, req) -> thingTools.handleGetThingDetails(req))
@@ -412,7 +409,9 @@ public class McpService {
                 Start by calling get_semantic_model to understand the home layout \
                 (rooms, equipment, controllable devices). Use search_items to find \
                 specific items by name or type. Use get_item for details on specific \
-                items. Use send_command to control devices (ON/OFF, dimmer levels, etc). \
+                items. Use set_item(action='command') to control devices (ON/OFF, dimmer \
+                levels, etc); use set_item(action='state') to push a sensor reading or \
+                seed a state without dispatching to the binding. \
                 Item names are case-sensitive and must match exactly.
 
                 Use manage_item to add, modify, or remove items (action='create'|'update'|'delete'). \

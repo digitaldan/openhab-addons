@@ -216,7 +216,7 @@ public class RuleTools {
                         "items",
                         Map.of("type", "object", "properties", conditionProps(), "required", List.of("type"))));
         properties.put("actions", Map.of("type", "array", "description", actionsDescription(), "items",
-                Map.of("type", "object", "properties", actionProps(), "required", List.of())));
+                Map.of("type", "object", "properties", actionProps(), "required", List.of("type"))));
 
         return McpSchema.Tool.builder().name("create_rule").description(createRuleDescription())
                 .inputSchema(
@@ -317,7 +317,7 @@ public class RuleTools {
         props.put("actions",
                 Map.of("type", "array", "description",
                         "Replace all actions (omit to keep current). Same format as create_rule.", "items",
-                        Map.of("type", "object", "properties", actionProps(), "required", List.of())));
+                        Map.of("type", "object", "properties", actionProps(), "required", List.of("type"))));
 
         return McpSchema.Tool.builder().name("update_rule").description("""
                 Update a rule's name, description, tags, conditions, or actions without recreating it. \
@@ -567,10 +567,6 @@ public class RuleTools {
         Object t = actionMap.get("type");
         if (t instanceof String s && !s.isBlank()) {
             return s;
-        }
-        // Backwards compat: untyped {itemName, command} is treated as item_command
-        if (actionMap.get("itemName") instanceof String && actionMap.get("command") instanceof String) {
-            return "item_command";
         }
         throw new IllegalArgumentException("Each action requires a 'type' field. Allowed: item_command, "
                 + "item_state_update, notification, run_rule, rule_enablement, script.");

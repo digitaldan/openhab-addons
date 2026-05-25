@@ -25,8 +25,8 @@ Every connection must present an openHAB bearer token (see [Authentication](#aut
 | ---------------------- | ------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `enabled`              | `true`  | NO       | Turn the server on or off without uninstalling.                                                                                                                                                                       |
 | `enableFullApiAccess`  | `false` | NO       | Give the assistant access to the **full openHAB REST API** — including destructive endpoints. Only turn this on if you trust the assistant with that scope. See [Full REST API access](#full-rest-api-access-opt-in). |
-| `enableScripting`      | `false` | NO       | Let the assistant include JavaScript snippets as rule actions/conditions and run scripts ad-hoc via `execute_script`. Requires the `openhab-automation-jsscripting` add-on. See [Scripting](#scripting-opt-in).        |
-| `enableLoggingAccess`  | `false` | NO       | Give the assistant tools to read recent log entries and adjust logger verbosity for diagnostics. Level changes require an ADMIN-scoped token. See [Diagnostic logging](#diagnostic-logging-opt-in).                     |
+| `enableScripting`      | `false` | NO       | Let the assistant include JavaScript snippets as rule actions/conditions and run scripts ad-hoc via `execute_script`. Requires the `openhab-automation-jsscripting` add-on. See [Scripting](#scripting-opt-in).       |
+| `enableLoggingAccess`  | `false` | NO       | Give the assistant tools to read recent log entries and adjust logger verbosity for diagnostics. Level changes require an ADMIN-scoped token. See [Diagnostic logging](#diagnostic-logging-opt-in).                   |
 | `registerCloudWebhook` | `false` | NO       | Let remote MCP clients reach this server through openHAB Cloud (`myopenhab.org`) with no port forwarding. Requires the openHAB Cloud add-on. See [openHAB Cloud](#2-openhab-cloud) under Connecting a client.         |
 | `exposeUntaggedItems`  | `false` | YES      | Also include items that aren't assigned to a Location/Equipment/Point. Most people leave this off.                                                                                                                    |
 | `maxItemsPerPage`      | `100`   | YES      | Maximum items returned in one paginated response.                                                                                                                                                                     |
@@ -201,33 +201,32 @@ Requires a paid ChatGPT plan (Plus, Pro, Business, Enterprise, Education).
 
 ### Items
 
-| Tool                 | What it does                                                                                                      |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `get_semantic_model` | Returns the home layout: Locations → Equipment → Points. The assistant usually calls this first to orient itself. |
-| `search_items`       | Fuzzy search across names, labels, and synonyms. Tolerates typos and word reordering.                             |
-| `get_item`           | Current state and details for one or more items by exact name.                                                    |
-| `manage_item`        | Create, update, or delete an item. `action='create'` (requires `name`+`type`), `action='update'` (label/tags/groups), `action='delete'` (also removes its links). |
-| `send_command`       | Turn things on/off, set dimmer/colour values, etc.                                                                |
-| `update_state`       | Directly set the state of a virtual item (bypasses the device handler).                                           |
-| `get_home_status`    | A single snapshot: security (open doors/windows), active lights, climate, energy, device health.                  |
-| `get_system_info`    | openHAB version, item/thing/rule counts, installed bindings, and the server's current date/time + timezone. The assistant calls this before scheduling relative one-shots ("in 30 seconds", "tomorrow at 7am") so the trigger uses the server's clock, not the client's. |
+| Tool                 | What it does                                                                                                                                                                                                                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `get_semantic_model` | Returns the home layout: Locations → Equipment → Points. The assistant usually calls this first to orient itself.                                                                                                                                                                                                        |
+| `search_items`       | Fuzzy search across names, labels, and synonyms. Tolerates typos and word reordering.                                                                                                                                                                                                                                    |
+| `get_item`           | Current state and details for one or more items by exact name.                                                                                                                                                                                                                                                           |
+| `manage_item`        | Create, update, or delete an item. `action='create'` (requires `name`+`type`), `action='update'` (label/tags/groups), `action='delete'` (also removes its links).                                                                                                                                                        |
+| `set_item`           | Change an item's value. `action='command'` sends a command to control the device (ON/OFF, dimmer levels, etc.); `action='state'` sends an update to the item. |
+| `get_home_status`    | A single snapshot: security (open doors/windows), active lights, climate, energy, device health.                                                                                                                                                                                                                         |
+| `get_system_info`    | openHAB version, item/thing/rule counts, installed bindings, and the server's current date/time + timezone. The assistant calls this before scheduling relative one-shots ("in 30 seconds", "tomorrow at 7am") so the trigger uses the server's clock, not the client's.                                                 |
 
 ### Things & links
 
-| Tool                | What it does                                                                                                       |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `get_things`        | Lists Things with online/offline status.                                                                           |
-| `get_thing_details` | Channels, configuration, and linked items for one Thing.                                                           |
+| Tool                | What it does                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_things`        | Lists Things with online/offline status.                                                                                                          |
+| `get_thing_details` | Channels, configuration, and linked items for one Thing.                                                                                          |
 | `manage_link`       | List, create, or delete item-channel links. `action='get'` (filter by item name and/or channel UID prefix), `action='create'`, `action='delete'`. |
 
 ### Rules
 
-| Tool          | What it does                                                                                                                                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `get_rules`   | Lists automation rules. `tag='MCP'` scopes the list to rules the assistant created.                                                                                                                                |
-| `create_rule` | Creates a rule with one or more triggers, optional conditions, and a list of actions. See [Rule building blocks](#rule-building-blocks) below for the supported trigger/condition/action types.                    |
-| `update_rule` | Modify a rule's name, description, tags, conditions, or actions without recreating it.                                                                                                                             |
-| `manage_rule` | Enable, disable, manually trigger, or delete a rule.                                                                                                                                                               |
+| Tool          | What it does                                                                                                                                                                                    |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_rules`   | Lists automation rules. `tag='MCP'` scopes the list to rules the assistant created.                                                                                                             |
+| `create_rule` | Creates a rule with one or more triggers, optional conditions, and a list of actions. See [Rule building blocks](#rule-building-blocks) below for the supported trigger/condition/action types. |
+| `update_rule` | Modify a rule's name, description, tags, conditions, or actions without recreating it.                                                                                                          |
+| `manage_rule` | Enable, disable, manually trigger, or delete a rule.                                                                                                                                            |
 
 #### Rule building blocks
 
@@ -235,43 +234,41 @@ Each `create_rule` call has a `triggers` array (or a single `trigger`), an optio
 
 **Triggers** (any matching trigger fires the rule):
 
-| `type`              | Fields                                                          |
-| ------------------- | --------------------------------------------------------------- |
-| `time_of_day`       | `time: "HH:MM"`                                                 |
-| `cron`              | `cronExpression: "0 0 8 ? * MON-FRI"`                           |
-| `item_state_change` | `itemName`, optional `state`, optional `previousState`          |
-| `item_command`      | `itemName`, optional `command`                                  |
+| `type`              | Fields                                                                                                                                                                                                                                    |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `time_of_day`       | `time: "HH:MM"`                                                                                                                                                                                                                           |
+| `cron`              | `cronExpression: "0 0 8 ? * MON-FRI"`                                                                                                                                                                                                     |
+| `item_state_change` | `itemName`, optional `state`, optional `previousState`                                                                                                                                                                                    |
+| `item_command`      | `itemName`, optional `command`                                                                                                                                                                                                            |
 | `datetime`          | `datetime: "2026-04-17T15:00:00"` (absolute one-shot, auto-deleted) or a relative offset resolved against the server's clock: `"+30s"`, `"+5m"`, `"+2h"`, `"+1d"`, `"+1w"`; ISO duration `"PT30M"`, `"PT2H"`; ISO period `"P1D"`, `"P2W"` |
 
 **Conditions** (all must pass for actions to run):
 
-| `type`        | Fields                                                                                          |
-| ------------- | ----------------------------------------------------------------------------------------------- |
-| `item_state`  | `itemName`, `operator` (`=`/`!=`/`<`/`<=`/`>`/`>=`, default `=`), `state`                       |
-| `time_of_day` | `startTime`, `endTime` (HH:MM)                                                                  |
-| `day_of_week` | `days: ["MONDAY", "TUESDAY", …]`                                                                |
+| `type`        | Fields                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| `item_state`  | `itemName`, `operator` (`=`/`!=`/`<`/`<=`/`>`/`>=`, default `=`), `state`                        |
+| `time_of_day` | `startTime`, `endTime` (HH:MM)                                                                   |
+| `day_of_week` | `days: ["MONDAY", "TUESDAY", …]`                                                                 |
 | `ephemeris`   | `kind: "weekend"`/`"weekday"`/`"holiday"`/`"not_holiday"`/`"dayset"`, optional `offset`/`dayset` |
-| `script`      | `script: "…"` — needs `enableScripting` and the JS scripting add-on                             |
+| `script`      | `script: "…"` — needs `enableScripting` and the JS scripting add-on                              |
 
 **Actions** (executed in order when triggered and conditions pass):
 
-| `type`             | Fields                                                                                                                                              |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `item_command`     | `itemName`, `command`                                                                                                                               |
-| `item_state_update`| `itemName`, `state`                                                                                                                                 |
-| `notification`     | `scope: "user"` (default, requires `userId`) / `"broadcast"` / `"log"`; `message`; optional `title`, `icon`, `tag`, `referenceId`, `mediaAttachmentUrl`, `actionButton1-3`. Requires the openHAB Cloud add-on. |
-| `run_rule`         | `ruleUIDs: [...]`, optional `considerConditions` (default `true`)                                                                                   |
-| `rule_enablement`  | `ruleUIDs: [...]`, `enable: true` or `false`                                                                                                        |
-| `script`           | `script: "…"` — JavaScript via openhab-js; needs `enableScripting` and the JS scripting add-on                                                      |
-
-For back-compat, an action with just `{itemName, command}` (no `type`) is treated as `item_command`.
+| `type`              | Fields                                                                                                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `item_command`      | `itemName`, `command`                                                                                                                                                                                          |
+| `item_state_update` | `itemName`, `state`                                                                                                                                                                                            |
+| `notification`      | `scope: "user"` (default, requires `userId`) / `"broadcast"` / `"log"`; `message`; optional `title`, `icon`, `tag`, `referenceId`, `mediaAttachmentUrl`, `actionButton1-3`. Requires the openHAB Cloud add-on. |
+| `run_rule`          | `ruleUIDs: [...]`, optional `considerConditions` (default `true`)                                                                                                                                              |
+| `rule_enablement`   | `ruleUIDs: [...]`, `enable: true` or `false`                                                                                                                                                                   |
+| `script`            | `script: "…"` — JavaScript via openhab-js; needs `enableScripting` and the JS scripting add-on                                                                                                                 |
 
 ### Watching for changes
 
-| Tool          | What it does                                                                                                                  |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Tool          | What it does                                                                                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `watch_items` | Start or stop tracking items for state changes in this session. `action='start'` (with `itemNames`), `action='stop'` (omit `itemNames` to stop everything). |
-| `get_events`  | Return any state changes buffered since the last call and drain the buffer.                                                   |
+| `get_events`  | Return any state changes buffered since the last call and drain the buffer.                                                                                 |
 
 ### Improving how the assistant resolves names
 
@@ -295,7 +292,7 @@ Setting `enableFullApiAccess=true` exposes three extra tools:
 
 Useful when the built-in tools don't cover the task, for example:
 
-- _"Rename the metadata namespace 'alexa' to 'openhabcloud' on all items."_
+- _"Rename the metadata namespace 'alexa' to 'matter' on all items."_
 - _"Query the last 24 hours of temperature persistence for the hallway sensor."_
 - _"Approve the pending Zigbee discovery result for the bulb I just paired."_
 
@@ -309,8 +306,8 @@ Setting `enableScripting=true` does two things:
 1. Unlocks `script` as a valid action and condition `type` in `create_rule` / `update_rule`, with a `script` field holding the JS source.
 1. Exposes an extra `execute_script` tool.
 
-| Tool             | What it does                                                                                                                                                                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Tool             | What it does                                                                                                                                                                                                                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `execute_script` | Runs a JavaScript snippet immediately against the openHAB scripting engine and returns its result. Primary use is to **dry-run a script before adding it as a `script` action in a scheduled rule** — syntax and runtime errors come back structured so the assistant can fix them now rather than discover them when the rule fires at 3am. |
 
 Scripts get the full openhab-js environment (`items`, `actions`, `things`, `rules`, `cache`, `time`, …). The value of the last expression is what `execute_script` returns; `console.log` output goes to the openHAB log, not the tool response.
@@ -327,12 +324,12 @@ Requires the `openhab-automation-jsscripting` add-on. The recommended workflow f
 
 Setting `enableLoggingAccess=true` exposes two tools:
 
-| Tool                | What it does                                                                                                                                                                                                                                |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `get_logs`          | Reads recent log entries from openHAB's in-memory buffer (typically the last 500-5000 entries, with stack traces). Filters: `loggerFilter` (regex), `minLevel`, `sinceMs`, `sinceSequence`, `search`, `limit` (default 100, max 1000).      |
-| `manage_log_level`  | `action='get'` lists current effective log levels via `GET /rest/logging/` (optional `loggerFilter` substring). `action='set'` changes one logger via `PUT /rest/logging/{name}` (or DELETE when `level="DEFAULT"`). Auto-reverts to the previous level after `revertAfterSeconds` (default **1800** = 30 min). Pass `revertAfterSeconds=0` for a persistent change. |
+| Tool               | What it does                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_logs`         | Reads recent log entries from openHAB's in-memory buffer (typically the last 500-5000 entries, with stack traces). Filters: `loggerFilter` (regex), `minLevel`, `sinceMs`, `sinceSequence`, `search`, `limit` (default 100, max 1000).                                                                                                                               |
+| `manage_log_level` | `action='get'` lists current effective log levels via `GET /rest/logging/` (optional `loggerFilter` substring). `action='set'` changes one logger via `PUT /rest/logging/{name}` (or DELETE when `level="DEFAULT"`). Auto-reverts to the previous level after `revertAfterSeconds` (default **1800** = 30 min). Pass `revertAfterSeconds=0` for a persistent change. |
 
-The recommended diagnostic loop:
+The recommended diagnostic loop for agents:
 
 1. User reports a problem (thing offline, rule misbehaving, binding noisy). Call `get_logs(loggerFilter='org\\.openhab\\.binding\\.<name>.*')` for recent context.
 1. If the default verbosity doesn't reveal enough, `manage_log_level(action='set', loggerName='org.openhab.binding.<name>', level='DEBUG')` — auto-reverts in 30 min so no risk of leaving DEBUG on overnight.
