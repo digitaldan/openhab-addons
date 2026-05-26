@@ -201,15 +201,15 @@ Requires a paid ChatGPT plan (Plus, Pro, Business, Enterprise, Education).
 
 ### Items
 
-| Tool                 | What it does                                                                                                                                                                                                                                                                                                             |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `get_semantic_model` | Returns the home layout: Locations → Equipment → Points. The assistant usually calls this first to orient itself.                                                                                                                                                                                                        |
-| `search_items`       | Fuzzy search across names, labels, and synonyms. Tolerates typos and word reordering.                                                                                                                                                                                                                                    |
-| `get_item`           | Current state and details for one or more items by exact name.                                                                                                                                                                                                                                                           |
-| `manage_item`        | Create, update, or delete an item. `action='create'` (requires `name`+`type`), `action='update'` (label/tags/groups), `action='delete'` (also removes its links).                                                                                                                                                        |
-| `set_item`           | Change an item's value. `action='command'` sends a command to control the device (ON/OFF, dimmer levels, etc.); `action='state'` sends an update to the item. |
-| `get_home_status`    | A single snapshot: security (open doors/windows), active lights, climate, energy, device health.                                                                                                                                                                                                                         |
-| `get_system_info`    | openHAB version, item/thing/rule counts, installed bindings, and the server's current date/time + timezone. The assistant calls this before scheduling relative one-shots ("in 30 seconds", "tomorrow at 7am") so the trigger uses the server's clock, not the client's.                                                 |
+| Tool                 | What it does                                                                                                                                                                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `get_semantic_model` | Returns the home layout: Locations → Equipment → Points. The assistant usually calls this first to orient itself.                                                                                                                                                        |
+| `search_items`       | Fuzzy search across names, labels, and synonyms. Tolerates typos and word reordering.                                                                                                                                                                                    |
+| `get_item`           | Current state and details for one or more items by exact name.                                                                                                                                                                                                           |
+| `manage_item`        | Create, update, or delete an item. `action='create'` (requires `name`+`type`), `action='update'` (label/tags/groups), `action='delete'` (also removes its links).                                                                                                        |
+| `set_item`           | Change an item's value. `action='command'` sends a command to control the device (ON/OFF, dimmer levels, etc.); `action='state'` sends an update to the item.                                                                                                            |
+| `get_home_status`    | A single snapshot: security (open doors/windows), active lights, climate, energy, device health.                                                                                                                                                                         |
+| `get_system_info`    | openHAB version, item/thing/rule counts, installed bindings, and the server's current date/time + timezone. The assistant calls this before scheduling relative one-shots ("in 30 seconds", "tomorrow at 7am") so the trigger uses the server's clock, not the client's. |
 
 ### Things & links
 
@@ -340,10 +340,6 @@ The assistant will scope log reads to the relevant binding by default. When incr
 
 ## Main UI design (opt-in)
 
-> **Note:** UI writes go through `/rest/ui/components/` and require the connected user's bearer token to have **administrator** scope. Reads of the curated catalog and validator do not require this flag at all — they work purely from data shipped in the bundle.
->
-> **Heads-up on chat length:** UI design uses noticeably more of the chat's context window than simple item control. Pages and especially custom widgets are large JSON structures (tens of KB each), and the assistant often reads, edits, and re-reads them several times in one design session. Expect to start fresh chats more often when working on the UI — particularly for big dashboards or multi-widget projects. The assistant has been tuned to keep responses small (minimal write confirmations, in-place edits instead of full rewrites) but the underlying data is just inherently chunky.
-
 Setting `enableUiDesign=true` lets the assistant design your Main UI: create pages, edit existing ones, and build reusable custom widgets. The assistant knows about every page type (layout, home, tabbed, chart, map, floorplan), all the standard cards (toggle, slider, color picker, etc.), how to wire them to your items, and how to compose them — so you can describe what you want in plain English instead of editing YAML.
 
 Things you can ask once this is enabled:
@@ -359,19 +355,21 @@ Things you can ask once this is enabled:
 
 The five UI tools the assistant has available (you don't need to call these directly — just ask in plain English):
 
-| Tool                    | What it does                                                                                                                                                                                              |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_widgets`          | Browse the catalog of available components, optionally by category (page types, standard cards, layout primitives, list items, map/plan markers).                                                         |
-| `describe_widget`       | Look up the full prop and slot schema for any component, so the assistant writes valid configuration the first time.                                                                                      |
-| `get_page_skeleton`     | Get a starter scaffold for any of the 6 page types with sensible defaults.                                                                                                                                |
-| `manage_ui_component`   | Create / read / update / patch / delete pages and custom widgets through `/rest/ui/components/{namespace}`. Single-field edits use an efficient patch path instead of re-sending the whole component.     |
-| `validate_ui_component` | Pre-check a composed page or widget against the schema before saving — catches typos, missing required props, and bad slot names.                                                                         |
+| Tool                    | What it does                                                                                                                                                                                          |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_widgets`          | Browse the catalog of available components, optionally by category (page types, standard cards, layout primitives, list items, map/plan markers).                                                     |
+| `describe_widget`       | Look up the full prop and slot schema for any component, so the assistant writes valid configuration the first time.                                                                                  |
+| `get_page_skeleton`     | Get a starter scaffold for any of the 6 page types with sensible defaults.                                                                                                                            |
+| `manage_ui_component`   | Create / read / update / patch / delete pages and custom widgets through `/rest/ui/components/{namespace}`. Single-field edits use an efficient patch path instead of re-sending the whole component. |
+| `validate_ui_component` | Pre-check a composed page or widget against the schema before saving — catches typos, missing required props, and bad slot names.                                                                     |
 
 **Custom widgets:** when the assistant creates a custom widget, it lives in the `widget` namespace and can be reused across any page as `widget:<your-uid>`. The widget can declare its own parameters (item name, color, threshold, etc.) so a single widget definition serves many devices.
 
-**Tip — visual verification:** if your MCP client also has a browser-automation server connected (e.g. Claude in Chrome, Playwright MCP), the assistant will offer to screenshot the rendered page so you can both see what was built. It'll ask you once for the URL you use to reach openHAB (e.g. `http://openhab.local:8080`) since the internal hostname isn't always reachable from a remote browser.
+**Tip — visual verification:** if your agent also has a browser-automation server connected (e.g. Claude in Chrome, Playwright MCP), the assistant will offer to screenshot the rendered page so you can both see what was built. It'll ask you once for the URL you use to reach openHAB (e.g. `http://openhab.local:8080`) since the internal hostname isn't always reachable from a remote browser.
 
 The catalog of available components is fetched live from the openhab-webui bundle when present, with a bundled fallback for older Main UI versions — so you'll always see the components your installation actually supports.
+
+> **UI Design Token Usage:** UI design uses noticeably more of an agent's context window than simple item control. Pages and especially custom widgets are large JSON structures (tens of KB each), and the assistant often reads, edits, and re-reads them several times in one design session. Expect to start fresh chats more often when working on the UI — particularly for big dashboards or multi-widget projects. The assistant has been tuned to keep responses small (minimal write confirmations, in-place edits instead of full rewrites) but the underlying data is inherently large.
 
 ## Real-time subscriptions (advanced)
 
