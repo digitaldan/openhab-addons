@@ -310,13 +310,13 @@ Setting `enableScripting=true` does two things:
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `execute_script` | Runs a JavaScript snippet immediately against the openHAB scripting engine and returns its result. Primary use is to **dry-run a script before adding it as a `script` action in a scheduled rule** — syntax and runtime errors come back structured so the assistant can fix them now rather than discover them when the rule fires at 3am. |
 
-Scripts get the full openhab-js environment (`items`, `actions`, `things`, `rules`, `cache`, `time`, …). The value of the last expression is what `execute_script` returns; `console.log` output goes to the openHAB log, not the tool response.
+Scripts get the full openhab-js environment (`items`, `actions`, `things`, `rules`, `cache`, `time`, …). Requires the `openhab-automation-jsscripting` add-on.
 
-Requires the `openhab-automation-jsscripting` add-on. The recommended workflow for an assistant is:
+Things you can ask once scripting is on:
 
-1. Compose the script and call `execute_script` to confirm it returns the expected value with no errors.
-1. Fix anything reported in the structured error (`errorType`, `message`, `lineNumber`).
-1. Embed the same script string in a `create_rule` action with `type: "script"`.
+- _"At 7pm every weekday, dim the living room lights to 40% only if someone is home — write that as a script action."_
+- _"My morning routine should check three weather items and adjust the thermostat — set that up as a rule."_
+- _"Test a snippet that calculates the average of these temperature items before adding it to a rule."_
 
 ## Diagnostic logging (opt-in)
 
@@ -329,42 +329,47 @@ Setting `enableLoggingAccess=true` exposes two tools:
 | `get_logs`         | Reads recent log entries from openHAB's in-memory buffer (typically the last 500-5000 entries, with stack traces). Filters: `loggerFilter` (regex), `minLevel`, `sinceMs`, `sinceSequence`, `search`, `limit` (default 100, max 1000).                                                                                                                               |
 | `manage_log_level` | `action='get'` lists current effective log levels via `GET /rest/logging/` (optional `loggerFilter` substring). `action='set'` changes one logger via `PUT /rest/logging/{name}` (or DELETE when `level="DEFAULT"`). Auto-reverts to the previous level after `revertAfterSeconds` (default **1800** = 30 min). Pass `revertAfterSeconds=0` for a persistent change. |
 
-The recommended diagnostic loop for agents:
+Things you can ask once this is enabled:
 
-1. User reports a problem (thing offline, rule misbehaving, binding noisy). Call `get_logs(loggerFilter='org\\.openhab\\.binding\\.<name>.*')` for recent context.
-1. If the default verbosity doesn't reveal enough, `manage_log_level(action='set', loggerName='org.openhab.binding.<name>', level='DEBUG')` — auto-reverts in 30 min so no risk of leaving DEBUG on overnight.
-1. Ask the user to reproduce the issue.
-1. Call `get_logs(loggerFilter='org\\.openhab\\.binding\\.<name>.*', sinceSequence=<lastSequence from step 1>)` to see only the new entries.
+- _"My Zigbee binding has been flaky — what does the log say?"_
+- _"Why didn't my evening lights rule fire last night?"_
+- _"Turn on DEBUG logging for the Hue binding for a few minutes so I can reproduce something."_
+- _"Has anything errored out in the last hour?"_
 
-The agent is instructed to **ask for explicit confirmation** before bumping infrastructure loggers (`org.eclipse.jetty.*`, `org.apache.karaf.*`, `org.apache.cxf.*`, `org.ops4j.pax.web.*`) to DEBUG/TRACE — those can flood logs or hurt performance.
+The assistant will scope log reads to the relevant binding by default. When increasing log verbosity, it auto-reverts after 30 minutes so DEBUG won't be left on overnight by accident. It's also instructed to **ask for confirmation** before bumping infrastructure loggers (`org.eclipse.jetty.*`, `org.apache.karaf.*`, `org.apache.cxf.*`, `org.ops4j.pax.web.*`) since those can flood logs or hurt performance.
 
 ## Main UI design (opt-in)
 
 > **Note:** UI writes go through `/rest/ui/components/` and require the connected user's bearer token to have **administrator** scope. Reads of the curated catalog and validator do not require this flag at all — they work purely from data shipped in the bundle.
 
-Setting `enableUiDesign=true` exposes five tools that let the assistant create, modify, and delete Main UI pages and custom widgets. Unlike pure REST access via `call_api`, these tools ship with a **curated widget catalog** (71 entries covering every page type, system widget, standard card, layout primitive, list item, and map/plan marker) plus an embedded reference for the openHAB expression language (`=items.X.state`, `@item` / `@@item` / `#item`), the 12 `actionType` values, visibility rules, and slot conventions. This is what stops the agent from hallucinating component names or invented prop keys.
+Setting `enableUiDesign=true` lets the assistant design your Main UI: create pages, edit existing ones, and build reusable custom widgets. The assistant knows about every page type (layout, home, tabbed, chart, map, floorplan), all the standard cards (toggle, slider, color picker, etc.), how to wire them to your items, and how to compose them — so you can describe what you want in plain English instead of editing YAML.
 
-| Tool                    | What it does                                                                                                                                                                                                                                                                                                                                            |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_widgets`          | Discover available components, optionally filtered by category (`page-type`, `system`, `standard-card`, `layout`, `list-item`, `list-cell`, `map-marker`, `plan-marker`).                                                                                                                                                                              |
-| `describe_widget`       | Full schema for one component: every prop with type, context, required/default, plus declared slots and usage notes. **This is the killer tool** — it's how the agent learns "what does `oh-toggle-card` actually accept?"                                                                                                                              |
-| `get_page_skeleton`     | Starter `RootUIComponent` for any of the 6 page types (`layout`, `home`, `tabbed`, `chart`, `map`, `plan`) with sensible defaults and the canonical slot structure pre-populated. Response includes a `plannedViewUrl` for browser tools.                                                                                                              |
-| `manage_ui_component`   | Action-dispatched CRUD against `/rest/ui/components/{namespace}`: `action='get'\|'create'\|'update'\|'patch'\|'delete'` × `namespace='ui:page'\|'ui:widget'`. Writes return a minimal response by default (success / uid / viewUrl / editUrl); pass `responseDetail='full'` to echo the stored component back. Use `action='patch'` with a JSON Patch (RFC 6902 subset: replace / add / remove / test) operations array to change individual fields without re-sending the whole tree — dramatically cheaper than `update`. Get supports a `fields` projection to return only specific top-level keys. |
-| `validate_ui_component` | Pre-flight schema check against the catalog. Catches unknown components, missing required props, bad slot names, and unknown prop keys before you POST. Returns `{valid, errors[], warnings[]}`.                                                                                                                                                       |
+Things you can ask once this is enabled:
 
-**Recommended workflow:**
+- _"Build me a kitchen dashboard with toggles for the lights, a slider for the dimmer, and a temperature reading at the top."_
+- _"Create a chart page showing the last 24 hours of outdoor temperature and humidity."_
+- _"Add a floor-plan page using the image I just uploaded — and place markers for each room's main light."_
+- _"Make a tabbed page with a tab for each floor of the house."_
+- _"Add a Sonos tab to my media page with controls for all four speakers."_
+- _"Design a custom widget I can reuse for each smart blind — show its position and provide up/down/stop buttons."_
+- _"Rename the 'Living Room' page title to 'Family Room'."_
+- _"Delete the test page I asked you to make yesterday."_
 
-1. `list_widgets(category='page-type')` → pick the page type.
-1. `get_page_skeleton(pageType='layout', uid='kitchen', label='Kitchen')` → starter JSON.
-1. `list_widgets(category='standard-card')` → see available cards; `describe_widget('oh-toggle-card')` → get its prop schema.
-1. Assemble the component tree (add cards into the page's `default` slot).
-1. `validate_ui_component(component=..., config=..., slots=...)` → catch errors cheap.
-1. `manage_ui_component(action='create', namespace='ui:page', uid='kitchen', component='oh-layout-page', config=..., slots=...)` → POST. Use `action='patch'` with `operations=[{op:'replace', path:'/config/label', value:'New Title'}]` for follow-up edits — much cheaper than `update`.
-1. (Optional, if a browser-automation MCP is connected) navigate to the returned `viewUrl` for a screenshot, iterate.
+The five UI tools the assistant has available (you don't need to call these directly — just ask in plain English):
 
-**Custom widgets** live in the `ui:widget` namespace and accept a `props.parameters` array describing the widget's parameters (each with `name`, `type` of `TEXT`/`INTEGER`/`DECIMAL`/`BOOLEAN`, `label`, optional `context` of `item`/`color`/`url`/etc., `required`, `default`). Reference a custom widget from a page as `component: 'widget:<your-uid>'`.
+| Tool                    | What it does                                                                                                                                                                                              |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_widgets`          | Browse the catalog of available components, optionally by category (page types, standard cards, layout primitives, list items, map/plan markers).                                                         |
+| `describe_widget`       | Look up the full prop and slot schema for any component, so the assistant writes valid configuration the first time.                                                                                      |
+| `get_page_skeleton`     | Get a starter scaffold for any of the 6 page types with sensible defaults.                                                                                                                                |
+| `manage_ui_component`   | Create / read / update / patch / delete pages and custom widgets through `/rest/ui/components/{namespace}`. Single-field edits use an efficient patch path instead of re-sending the whole component.     |
+| `validate_ui_component` | Pre-check a composed page or widget against the schema before saving — catches typos, missing required props, and bad slot names.                                                                         |
 
-**Catalog source:** at startup the binding tries to fetch a live catalog from the openhab-webui bundle at `http://<server>:8080/widget-catalog.json` (built from the `WidgetDefinition` TypeScript at `openhab-webui/bundles/org.openhab.ui/web/build/generate-widget-catalog.mjs`). If the live URL isn't available (older webui without the catalog, or the fetch fails), it falls back to a bundled copy at `src/main/resources/widgets/catalog.json`. The `list_widgets` response includes a `catalogSource` field (`"live"` or `"bundled-fallback"`) and `catalogVersion` so you can confirm which one is in use.
+**Custom widgets:** when the assistant creates a custom widget, it lives in the `widget` namespace and can be reused across any page as `widget:<your-uid>`. The widget can declare its own parameters (item name, color, threshold, etc.) so a single widget definition serves many devices.
+
+**Tip — visual verification:** if your MCP client also has a browser-automation server connected (e.g. Claude in Chrome, Playwright MCP), the assistant will offer to screenshot the rendered page so you can both see what was built. It'll ask you once for the URL you use to reach openHAB (e.g. `http://openhab.local:8080`) since the internal hostname isn't always reachable from a remote browser.
+
+The catalog of available components is fetched live from the openhab-webui bundle when present, with a bundled fallback for older Main UI versions — so you'll always see the components your installation actually supports.
 
 ## Real-time subscriptions (advanced)
 
