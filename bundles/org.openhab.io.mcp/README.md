@@ -341,6 +341,8 @@ The assistant will scope log reads to the relevant binding by default. When incr
 ## Main UI design (opt-in)
 
 > **Note:** UI writes go through `/rest/ui/components/` and require the connected user's bearer token to have **administrator** scope. Reads of the curated catalog and validator do not require this flag at all — they work purely from data shipped in the bundle.
+>
+> **Heads-up on chat length:** UI design uses noticeably more of the chat's context window than simple item control. Pages and especially custom widgets are large JSON structures (tens of KB each), and the assistant often reads, edits, and re-reads them several times in one design session. Expect to start fresh chats more often when working on the UI — particularly for big dashboards or multi-widget projects. The assistant has been tuned to keep responses small (minimal write confirmations, in-place edits instead of full rewrites) but the underlying data is just inherently chunky.
 
 Setting `enableUiDesign=true` lets the assistant design your Main UI: create pages, edit existing ones, and build reusable custom widgets. The assistant knows about every page type (layout, home, tabbed, chart, map, floorplan), all the standard cards (toggle, slider, color picker, etc.), how to wire them to your items, and how to compose them — so you can describe what you want in plain English instead of editing YAML.
 
