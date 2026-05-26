@@ -53,6 +53,18 @@
 				DEBUG won't be left on by accident.]]></description>
 			<default>false</default>
 		</parameter>
+		<parameter name="enableUiDesign" type="boolean" required="false">
+			<label>Enable Main UI Design Tools</label>
+			<description><![CDATA[When enabled, the agent gains five tools (<code>list_widgets</code>,
+				<code>describe_widget</code>, <code>get_page_skeleton</code>, <code>manage_ui_component</code>,
+				<code>validate_ui_component</code>) for creating, modifying, and deleting Main UI pages and custom widgets.
+				The tools ship with a curated widget catalog and an embedded reference for the expression language
+				(<code>=items.X.state</code>), action grammar, visibility rules, and slot conventions so the agent
+				produces valid YAML rather than hallucinating component names or prop keys. CRUD writes go through the
+				openHAB REST API at <code>/rest/ui/components/</code> and require the caller's bearer token to have
+				<strong>administrator</strong> scope; reads are gated by this flag alone.]]></description>
+			<default>false</default>
+		</parameter>
 		<parameter name="exposeUntaggedItems" type="boolean" required="false">
 			<label>Expose Untagged Items</label>
 			<description>Whether to include items that are not part of the semantic model in search results.</description>

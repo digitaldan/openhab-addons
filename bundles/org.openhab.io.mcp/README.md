@@ -338,6 +338,34 @@ The recommended diagnostic loop for agents:
 
 The agent is instructed to **ask for explicit confirmation** before bumping infrastructure loggers (`org.eclipse.jetty.*`, `org.apache.karaf.*`, `org.apache.cxf.*`, `org.ops4j.pax.web.*`) to DEBUG/TRACE — those can flood logs or hurt performance.
 
+## Main UI design (opt-in)
+
+> **Note:** UI writes go through `/rest/ui/components/` and require the connected user's bearer token to have **administrator** scope. Reads of the curated catalog and validator do not require this flag at all — they work purely from data shipped in the bundle.
+
+Setting `enableUiDesign=true` exposes five tools that let the assistant create, modify, and delete Main UI pages and custom widgets. Unlike pure REST access via `call_api`, these tools ship with a **curated widget catalog** (71 entries covering every page type, system widget, standard card, layout primitive, list item, and map/plan marker) plus an embedded reference for the openHAB expression language (`=items.X.state`, `@item` / `@@item` / `#item`), the 12 `actionType` values, visibility rules, and slot conventions. This is what stops the agent from hallucinating component names or invented prop keys.
+
+| Tool                    | What it does                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_widgets`          | Discover available components, optionally filtered by category (`page-type`, `system`, `standard-card`, `layout`, `list-item`, `list-cell`, `map-marker`, `plan-marker`).                                                                                                                                                                              |
+| `describe_widget`       | Full schema for one component: every prop with type, context, required/default, plus declared slots and usage notes. **This is the killer tool** — it's how the agent learns "what does `oh-toggle-card` actually accept?"                                                                                                                              |
+| `get_page_skeleton`     | Starter `RootUIComponent` for any of the 6 page types (`layout`, `home`, `tabbed`, `chart`, `map`, `plan`) with sensible defaults and the canonical slot structure pre-populated. Response includes a `plannedViewUrl` for browser tools.                                                                                                              |
+| `manage_ui_component`   | Action-dispatched CRUD against `/rest/ui/components/{namespace}`: `action='get'\|'create'\|'update'\|'patch'\|'delete'` × `namespace='ui:page'\|'ui:widget'`. Writes return a minimal response by default (success / uid / viewUrl / editUrl); pass `responseDetail='full'` to echo the stored component back. Use `action='patch'` with a JSON Patch (RFC 6902 subset: replace / add / remove / test) operations array to change individual fields without re-sending the whole tree — dramatically cheaper than `update`. Get supports a `fields` projection to return only specific top-level keys. |
+| `validate_ui_component` | Pre-flight schema check against the catalog. Catches unknown components, missing required props, bad slot names, and unknown prop keys before you POST. Returns `{valid, errors[], warnings[]}`.                                                                                                                                                       |
+
+**Recommended workflow:**
+
+1. `list_widgets(category='page-type')` → pick the page type.
+1. `get_page_skeleton(pageType='layout', uid='kitchen', label='Kitchen')` → starter JSON.
+1. `list_widgets(category='standard-card')` → see available cards; `describe_widget('oh-toggle-card')` → get its prop schema.
+1. Assemble the component tree (add cards into the page's `default` slot).
+1. `validate_ui_component(component=..., config=..., slots=...)` → catch errors cheap.
+1. `manage_ui_component(action='create', namespace='ui:page', uid='kitchen', component='oh-layout-page', config=..., slots=...)` → POST. Use `action='patch'` with `operations=[{op:'replace', path:'/config/label', value:'New Title'}]` for follow-up edits — much cheaper than `update`.
+1. (Optional, if a browser-automation MCP is connected) navigate to the returned `viewUrl` for a screenshot, iterate.
+
+**Custom widgets** live in the `ui:widget` namespace and accept a `props.parameters` array describing the widget's parameters (each with `name`, `type` of `TEXT`/`INTEGER`/`DECIMAL`/`BOOLEAN`, `label`, optional `context` of `item`/`color`/`url`/etc., `required`, `default`). Reference a custom widget from a page as `component: 'widget:<your-uid>'`.
+
+**Catalog source:** at startup the binding tries to fetch a live catalog from the openhab-webui bundle at `http://<server>:8080/widget-catalog.json` (built from the `WidgetDefinition` TypeScript at `openhab-webui/bundles/org.openhab.ui/web/build/generate-widget-catalog.mjs`). If the live URL isn't available (older webui without the catalog, or the fetch fails), it falls back to a bundled copy at `src/main/resources/widgets/catalog.json`. The `list_widgets` response includes a `catalogSource` field (`"live"` or `"bundled-fallback"`) and `catalogVersion` so you can confirm which one is in use.
+
 ## Real-time subscriptions (advanced)
 
 > Most clients (including Claude Desktop) don't expose this to the LLM yet.

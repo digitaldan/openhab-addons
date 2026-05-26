@@ -50,6 +50,16 @@ public class McpConfiguration {
      */
     public boolean enableLoggingAccess = false;
     /**
+     * When true, exposes Main UI design tools ({@code list_widgets}, {@code describe_widget},
+     * {@code get_page_skeleton}, {@code manage_ui_component}, {@code validate_ui_component})
+     * so an agent can create, modify, and delete Main UI pages and custom widgets. The tools
+     * embed a curated widget catalog and expression/action reference so the agent can author
+     * pages without hallucinating component names or prop keys. CRUD writes go through the
+     * openHAB REST API at {@code /rest/ui/components/} and require the caller's bearer token
+     * to have ADMIN scope; reads are gated by this flag alone. Off by default.
+     */
+    public boolean enableUiDesign = false;
+    /**
      * When true, registers the {@code /mcp} path with the openHAB Cloud WebhookService
      * so remote MCP clients can reach this server via a stable myopenhab.org URL.
      * Requires the openhabcloud add-on to be installed and connected.

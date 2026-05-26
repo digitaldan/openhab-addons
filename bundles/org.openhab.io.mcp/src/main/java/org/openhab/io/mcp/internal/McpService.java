@@ -59,6 +59,7 @@ import org.openhab.io.mcp.internal.tools.ScriptTools;
 import org.openhab.io.mcp.internal.tools.SemanticTools;
 import org.openhab.io.mcp.internal.tools.SystemTools;
 import org.openhab.io.mcp.internal.tools.ThingTools;
+import org.openhab.io.mcp.internal.tools.UiTools;
 import org.openhab.io.mcp.internal.tools.WatchTools;
 import org.openhab.io.mcp.internal.util.McpEventBridge;
 import org.openhab.io.mcp.internal.util.SubscriptionManager;
@@ -193,7 +194,8 @@ public class McpService {
         return a.enabled != b.enabled || a.exposeUntaggedItems != b.exposeUntaggedItems
                 || a.maxItemsPerPage != b.maxItemsPerPage || a.resourceCoalesceMs != b.resourceCoalesceMs
                 || a.enableFullApiAccess != b.enableFullApiAccess || a.enableScripting != b.enableScripting
-                || a.enableLoggingAccess != b.enableLoggingAccess || a.registerCloudWebhook != b.registerCloudWebhook;
+                || a.enableLoggingAccess != b.enableLoggingAccess || a.enableUiDesign != b.enableUiDesign
+                || a.registerCloudWebhook != b.registerCloudWebhook;
     }
 
     @Deactivate
@@ -326,6 +328,18 @@ public class McpService {
                 builder = builder.toolCall(logTools.getReadLogsTool(), (exchange, req) -> logTools.handleGetLogs(req))
                         .toolCall(logTools.getManageLogLevelTool(),
                                 (exchange, req) -> logTools.handleManageLogLevel(exchange, req));
+            }
+
+            if (config.enableUiDesign) {
+                UiTools uiTools = new UiTools(httpClient, localBaseUrl, transport::getSessionToken, jsonMapper);
+                builder = builder
+                        .toolCall(uiTools.getListWidgetsTool(), (exchange, req) -> uiTools.handleListWidgets(req))
+                        .toolCall(uiTools.getDescribeWidgetTool(), (exchange, req) -> uiTools.handleDescribeWidget(req))
+                        .toolCall(uiTools.getPageSkeletonTool(), (exchange, req) -> uiTools.handleGetPageSkeleton(req))
+                        .toolCall(uiTools.getManageUiComponentTool(),
+                                (exchange, req) -> uiTools.handleManageUiComponent(exchange, req))
+                        .toolCall(uiTools.getValidateUiComponentTool(),
+                                (exchange, req) -> uiTools.handleValidateUiComponent(req));
             }
 
             McpSyncServer server = builder.build();
@@ -486,6 +500,34 @@ public class McpService {
                     manage_log_level(action='get') to confirm or list current levels.
                     """);
         }
+        if (config.enableUiDesign) {
+            sb.append("""
+
+                    For Main UI design (pages, widgets), use list_widgets to discover components, \
+                    describe_widget(name) for the prop and slot schema of any component, \
+                    get_page_skeleton(pageType) to start a new page with the right scaffold, and \
+                    manage_ui_component for CRUD on pages (namespace='ui:page') and custom widgets \
+                    (namespace='ui:widget'). Always call validate_ui_component before create/update \
+                    to catch schema errors without a server round-trip. UI writes require an \
+                    ADMIN-scoped token.
+
+                    VISUAL VERIFICATION — strongly recommended for UI design. Designing pages \
+                    without seeing the result is guesswork. At the START of any UI-design session: \
+                    (1) check whether a browser-automation MCP server is connected in this session \
+                    (Claude in Chrome, Playwright MCP, Puppeteer MCP, etc. — these expose tools like \
+                    'screenshot', 'navigate', 'click'); (2) if one is connected, ASK THE USER for \
+                    the URL they use to reach their openHAB Main UI (e.g. 'http://openhab.local:8080', \
+                    'http://192.168.1.50:8080', or their myopenhab.org cloud URL) — the viewUrl this \
+                    tool returns uses the SERVER's local hostname which is often 'localhost' and \
+                    won't work from a remote browser. Save the user's URL as your base for the \
+                    session. (3) After each manage_ui_component(action='create' or 'update'), \
+                    substitute the user's base for the host in viewUrl/editUrl, navigate the browser \
+                    there, screenshot, and iterate if it doesn't look right. The browser must already \
+                    be signed in to openHAB; if it lands on the login page, ask the user to sign in \
+                    once. If no browser tool is connected, fall back to telling the user the \
+                    page-path (e.g. '/page/kitchen') and asking them to verify visually themselves.
+                    """);
+        }
         return sb.toString();
     }
 
@@ -519,6 +561,7 @@ public class McpService {
         cfg.enableFullApiAccess = toBoolean(properties.get("enableFullApiAccess"), cfg.enableFullApiAccess);
         cfg.enableScripting = toBoolean(properties.get("enableScripting"), cfg.enableScripting);
         cfg.enableLoggingAccess = toBoolean(properties.get("enableLoggingAccess"), cfg.enableLoggingAccess);
+        cfg.enableUiDesign = toBoolean(properties.get("enableUiDesign"), cfg.enableUiDesign);
         cfg.registerCloudWebhook = toBoolean(properties.get("registerCloudWebhook"), cfg.registerCloudWebhook);
         Object url = properties.get("webhookUrl");
         if (url instanceof String s) {
