@@ -117,44 +117,53 @@ public class ScriptTools {
                             + "'. Install the openhab-automation-jsscripting add-on.", null, 0));
         }
 
-        ScriptEngine engine = container.getScriptEngine();
-        ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "mcp-execute-script");
-            t.setDaemon(true);
-            return t;
-        });
-
-        long startNanos = System.nanoTime();
-        Future<@Nullable Object> future = executor.submit((Callable<@Nullable Object>) () -> engine.eval(script));
+        // Nested try-finally so the engine is always removed from the manager, and the executor is always
+        // shut down, even if executor creation or submit() throws before we reach the main try block.
         try {
-            Object result = future.get(timeoutMs, TimeUnit.MILLISECONDS);
-            long elapsed = elapsedMs(startNanos);
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("success", true);
-            payload.put("result", result == null ? "" : String.valueOf(result));
-            payload.put("resultType", result == null ? "" : result.getClass().getName());
-            payload.put("executionTimeMs", elapsed);
-            return textResult(jsonMapper, payload);
-        } catch (TimeoutException te) {
-            future.cancel(true);
-            return textResult(jsonMapper,
-                    errorPayload("TimeoutException",
-                            "Script exceeded the " + timeoutMs + "ms timeout and was interrupted.", null,
+            ScriptEngine engine = container.getScriptEngine();
+            ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "mcp-execute-script");
+                t.setDaemon(true);
+                return t;
+            });
+            try {
+                long startNanos = System.nanoTime();
+                Future<@Nullable Object> future = executor
+                        .submit((Callable<@Nullable Object>) () -> engine.eval(script));
+                try {
+                    Object result = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+                    long elapsed = elapsedMs(startNanos);
+                    Map<String, Object> payload = new LinkedHashMap<>();
+                    payload.put("success", true);
+                    payload.put("result", result == null ? "" : String.valueOf(result));
+                    payload.put("resultType", result == null ? "" : result.getClass().getName());
+                    payload.put("executionTimeMs", elapsed);
+                    return textResult(jsonMapper, payload);
+                } catch (TimeoutException te) {
+                    future.cancel(true);
+                    return textResult(jsonMapper,
+                            errorPayload("TimeoutException",
+                                    "Script exceeded the " + timeoutMs + "ms timeout and was interrupted.", null,
+                                    elapsedMs(startNanos)));
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return textResult(jsonMapper, errorPayload("Interrupted", "Script execution was interrupted.", null,
                             elapsedMs(startNanos)));
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            return textResult(jsonMapper,
-                    errorPayload("Interrupted", "Script execution was interrupted.", null, elapsedMs(startNanos)));
-        } catch (ExecutionException ee) {
-            Throwable cause = ee.getCause();
-            Throwable reported = cause != null ? cause : ee;
-            String errorType = reported instanceof ScriptException ? "ScriptException"
-                    : reported.getClass().getSimpleName();
-            Integer line = reported instanceof ScriptException se && se.getLineNumber() >= 0 ? se.getLineNumber()
-                    : null;
-            return textResult(jsonMapper, errorPayload(errorType, messageOf(reported), line, elapsedMs(startNanos)));
+                } catch (ExecutionException ee) {
+                    Throwable cause = ee.getCause();
+                    Throwable reported = cause != null ? cause : ee;
+                    String errorType = reported instanceof ScriptException ? "ScriptException"
+                            : reported.getClass().getSimpleName();
+                    Integer line = reported instanceof ScriptException se && se.getLineNumber() >= 0
+                            ? se.getLineNumber()
+                            : null;
+                    return textResult(jsonMapper,
+                            errorPayload(errorType, messageOf(reported), line, elapsedMs(startNanos)));
+                }
+            } finally {
+                executor.shutdownNow();
+            }
         } finally {
-            executor.shutdownNow();
             scriptEngineManager.removeEngine(identifier);
         }
     }

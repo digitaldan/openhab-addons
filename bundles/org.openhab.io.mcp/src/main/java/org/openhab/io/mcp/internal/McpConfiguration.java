@@ -42,11 +42,11 @@ public class McpConfiguration {
      */
     public boolean enableScripting = false;
     /**
-     * When true, exposes diagnostic logging tools ({@code get_logs}, {@code get_log_levels},
-     * {@code set_log_level}) so an agent can read recent log entries and adjust logger
-     * verbosity to troubleshoot bindings and rules. Level changes are sent through the
-     * openHAB REST API and require the caller's bearer token to have ADMIN scope; reads
-     * are gated by this flag alone. Off by default.
+     * When true, exposes diagnostic logging tools ({@code get_logs} and {@code manage_log_level}
+     * with actions {@code get}/{@code set}) so an agent can read recent log entries and adjust
+     * logger verbosity to troubleshoot bindings and rules. Level changes are sent through the
+     * openHAB REST API and require the caller's bearer token to have ADMIN scope; reads are
+     * gated by this flag alone. Off by default.
      */
     public boolean enableLoggingAccess = false;
     /**

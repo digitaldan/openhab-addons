@@ -209,7 +209,7 @@ Requires a paid ChatGPT plan (Plus, Pro, Business, Enterprise, Education).
 | `manage_item`        | Create, update, or delete an item. `action='create'` (requires `name`+`type`), `action='update'` (label/tags/groups), `action='delete'` (also removes its links).                                                                                                        |
 | `set_item`           | Change an item's value. `action='command'` sends a command to control the device (ON/OFF, dimmer levels, etc.); `action='state'` sends an update to the item.                                                                                                            |
 | `get_home_status`    | A single snapshot: security (open doors/windows), active lights, climate, energy, device health.                                                                                                                                                                         |
-| `get_system_info`    | openHAB version, item/thing/rule counts, installed bindings, and the server's current date/time + timezone. The assistant calls this before scheduling relative one-shots ("in 30 seconds", "tomorrow at 7am") so the trigger uses the server's clock, not the client's. |
+| `get_system_info`    | openHAB version, item/thing/rule counts, installed bindings, and the server's current date/time + timezone. Relative offsets like `"+30s"` or `"+1h"` on a `datetime` trigger are resolved server-side, so this tool isn't needed for simple "in N minutes" scheduling — the assistant calls it when it needs the server's wall-clock for reasoning ("is it morning?", "what day is it?") or for absolute scheduling against an unfamiliar timezone. |
 
 ### Things & links
 

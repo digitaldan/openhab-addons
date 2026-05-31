@@ -598,7 +598,7 @@ public class UiTools {
     }
 
     /**
-     * Applies a JSON Patch by fetching the component, mutating the tree, then PUTting the result. 
+     * Applies a JSON Patch by fetching the component, mutating the tree, then PUTting the result.
      * This lets agents change a single field without sending the full component on every edit
      */
     private CallToolResult patchComponent(String token, String namespace, Map<String, Object> args) {

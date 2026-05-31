@@ -89,7 +89,18 @@ public class LoggingTools {
     private final ScheduledExecutorService scheduler;
     private final McpJsonMapper jsonMapper;
 
-    private final Map<String, ScheduledFuture<?>> pendingReverts = new ConcurrentHashMap<>();
+    private final Map<String, RevertTask> pendingReverts = new ConcurrentHashMap<>();
+
+    /**
+     * Wrapper that holds a scheduled revert task. Wrapping (instead of storing the {@link ScheduledFuture}
+     * directly) lets us use {@link Map#remove(Object, Object)} from the task's own {@code finally} block so a
+     * task only removes itself if it hasn't already been replaced by a newer scheduling — otherwise the
+     * replacement would be silently dropped and could never be cancelled on shutdown.
+     */
+    private static final class RevertTask {
+        @Nullable
+        ScheduledFuture<?> future;
+    }
 
     public LoggingTools(LogReaderService logReaderService, HttpClient httpClient, String baseUrl,
             Function<String, @Nullable String> tokenForSession, ScheduledExecutorService scheduler,
@@ -138,6 +149,7 @@ public class LoggingTools {
         Map<String, Object> args = request.arguments();
         String loggerFilter = getStringArg(args, "loggerFilter");
         String minLevelArg = getStringArg(args, "minLevel");
+        @Nullable
         Pattern loggerPattern;
         try {
             loggerPattern = loggerFilter == null ? null : Pattern.compile(loggerFilter);
@@ -328,9 +340,12 @@ public class LoggingTools {
         }
 
         // Replace any pending revert for this logger so consecutive changes don't fire stale reverts.
-        ScheduledFuture<?> prior = pendingReverts.remove(loggerName);
+        RevertTask prior = pendingReverts.remove(loggerName);
         if (prior != null) {
-            prior.cancel(false);
+            ScheduledFuture<?> priorFuture = prior.future;
+            if (priorFuture != null) {
+                priorFuture.cancel(false);
+            }
         }
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -340,9 +355,10 @@ public class LoggingTools {
         response.put("newLevel", level);
         if (revertAfterSeconds > 0 && !level.equals(previousLevel)) {
             String revertLevel = previousLevel;
-            ScheduledFuture<?> future = scheduler.schedule(() -> revertLevel(loggerName, revertLevel, token),
+            RevertTask task = new RevertTask();
+            task.future = scheduler.schedule(() -> revertLevel(loggerName, revertLevel, token, task),
                     revertAfterSeconds, TimeUnit.SECONDS);
-            pendingReverts.put(loggerName, future);
+            pendingReverts.put(loggerName, task);
             response.put("revertAfterSeconds", revertAfterSeconds);
             response.put("revertAt",
                     LocalDateTime.now(ZoneId.systemDefault()).plusSeconds(revertAfterSeconds).format(ISO_LOCAL));
@@ -378,7 +394,7 @@ public class LoggingTools {
         return response;
     }
 
-    private void revertLevel(String loggerName, String revertLevel, String token) {
+    private void revertLevel(String loggerName, String revertLevel, String token, RevertTask task) {
         try {
             int status = applyLevel(loggerName, revertLevel, token);
             if (status < 200 || status >= 300) {
@@ -387,7 +403,9 @@ public class LoggingTools {
         } catch (Exception e) {
             logger.debug("Auto-revert of {} to {} failed: {}", loggerName, revertLevel, e.getMessage());
         } finally {
-            pendingReverts.remove(loggerName);
+            // Only remove if our task is still the current entry — a concurrent setLogLevel may have
+            // replaced us with a fresh scheduling, and we must not evict that newer task.
+            pendingReverts.remove(loggerName, task);
         }
     }
 
@@ -449,8 +467,11 @@ public class LoggingTools {
      * race the scheduler against shutdown.
      */
     public void cancelPendingReverts() {
-        for (ScheduledFuture<?> future : pendingReverts.values()) {
-            future.cancel(false);
+        for (RevertTask task : pendingReverts.values()) {
+            ScheduledFuture<?> future = task.future;
+            if (future != null) {
+                future.cancel(false);
+            }
         }
         pendingReverts.clear();
     }
@@ -487,7 +508,10 @@ public class LoggingTools {
     }
 
     private static String encodeLoggerName(String name) {
-        return name.replace(" ", "%20");
+        // URLEncoder targets application/x-www-form-urlencoded, where space → '+'; for path segments we
+        // want '%20', so post-process. Logger names commonly contain '$' (inner classes) and other chars
+        // that the bare replace(" ", "%20") would not handle correctly.
+        return java.net.URLEncoder.encode(name, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private static String formatStackTrace(Throwable t) {
