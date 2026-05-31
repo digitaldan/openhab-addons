@@ -370,6 +370,8 @@ The five UI tools the assistant has available (you don't need to call these dire
 The catalog of available components is fetched live from the openhab-webui bundle when present, with a bundled fallback for older Main UI versions — so you'll always see the components your installation actually supports.
 
 > **UI Design Token Usage:** UI design uses noticeably more of an agent's context window than simple item control. Pages and especially custom widgets are large JSON structures (tens of KB each), and the assistant often reads, edits, and re-reads them several times in one design session. Expect to start fresh chats more often when working on the UI — particularly for big dashboards or multi-widget projects. The assistant has been tuned to keep responses small (minimal write confirmations, in-place edits instead of full rewrites) but the underlying data is inherently large.
+>
+> **Recommended clients for UI design:** because of the above, coding-oriented agents like [Claude Code](https://www.claude.com/product/claude-code), [Codex CLI](https://github.com/openai/codex), or [Cursor](https://cursor.com) work much better here than chat-only clients. They have larger context windows, can spawn sub-agents that each get their own fresh context for focused sub-tasks (e.g. "design this one widget"), and can combine the MCP server with a browser-automation MCP (Claude in Chrome, Playwright MCP) in the same session so the agent can build a page and then screenshot the result to verify it. Chat-only clients like Claude Desktop and ChatGPT still work for small edits, but you'll hit context limits sooner on larger projects.
 
 ## Real-time subscriptions (advanced)
 
