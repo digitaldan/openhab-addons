@@ -339,13 +339,21 @@ public class LoggingTools {
             return errorResult("Request failed: " + e.getMessage());
         }
 
-        // Replace any pending revert for this logger so consecutive changes don't fire stale reverts.
-        RevertTask prior = pendingReverts.remove(loggerName);
-        if (prior != null) {
-            ScheduledFuture<?> priorFuture = prior.future;
-            if (priorFuture != null) {
-                priorFuture.cancel(false);
-            }
+        // Per-key atomic swap via compute(): cancel-prior + schedule-new + put-new run as one unit so two
+        // concurrent setLogLevel calls for the same logger can't leave an untracked scheduled task behind.
+        // The HTTP calls above stay outside the lock so unrelated loggers don't serialize on each other.
+        boolean schedulingRevert = revertAfterSeconds > 0 && !level.equals(previousLevel);
+        if (schedulingRevert) {
+            String revertToLevel = previousLevel;
+            pendingReverts.compute(loggerName, (key, prior) -> {
+                cancelTask(prior);
+                RevertTask task = new RevertTask();
+                task.future = scheduler.schedule(() -> revertLevel(key, revertToLevel, token, task), revertAfterSeconds,
+                        TimeUnit.SECONDS);
+                return task;
+            });
+        } else {
+            cancelTask(pendingReverts.remove(loggerName));
         }
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -353,12 +361,7 @@ public class LoggingTools {
         response.put("loggerName", loggerName);
         response.put("previousLevel", previousLevel);
         response.put("newLevel", level);
-        if (revertAfterSeconds > 0 && !level.equals(previousLevel)) {
-            String revertLevel = previousLevel;
-            RevertTask task = new RevertTask();
-            task.future = scheduler.schedule(() -> revertLevel(loggerName, revertLevel, token, task),
-                    revertAfterSeconds, TimeUnit.SECONDS);
-            pendingReverts.put(loggerName, task);
+        if (schedulingRevert) {
             response.put("revertAfterSeconds", revertAfterSeconds);
             response.put("revertAt",
                     LocalDateTime.now(ZoneId.systemDefault()).plusSeconds(revertAfterSeconds).format(ISO_LOCAL));
@@ -367,6 +370,16 @@ public class LoggingTools {
             response.put("revertAfterSeconds", 0);
         }
         return textResult(jsonMapper, response);
+    }
+
+    private static void cancelTask(@Nullable RevertTask task) {
+        if (task == null) {
+            return;
+        }
+        ScheduledFuture<?> f = task.future;
+        if (f != null) {
+            f.cancel(false);
+        }
     }
 
     private Map<String, Object> parseLoggerList(String body, @Nullable String filterLower) throws Exception {
@@ -468,10 +481,7 @@ public class LoggingTools {
      */
     public void cancelPendingReverts() {
         for (RevertTask task : pendingReverts.values()) {
-            ScheduledFuture<?> future = task.future;
-            if (future != null) {
-                future.cancel(false);
-            }
+            cancelTask(task);
         }
         pendingReverts.clear();
     }

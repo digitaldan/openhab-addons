@@ -77,11 +77,22 @@ class UiToolsTest {
      * live-catalog fetch attempt — otherwise verify() calls in tests see the bonus construction-time
      * interactions and fail with "Wanted 1 time, but was 2 times". Construction's fetch always
      * returns 0 (unstubbed mock response status) so it falls through to the bundled catalog.
+     * The live fetch runs on a background thread, so wait for it to finish before clearing invocations
+     * to avoid a race between the constructor's mock calls and the test's clearInvocations().
      */
     private UiTools tools() {
         UiTools t = new UiTools(requireNonNull(httpClient), BASE_URL, tokenSupplier, jsonMapper);
+        awaitLiveLoad(t);
         clearInvocations(requireNonNull(httpClient), requireNonNull(request));
         return t;
+    }
+
+    private static void awaitLiveLoad(UiTools t) {
+        try {
+            t.liveCatalogLoadFuture().get(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new AssertionError("live-catalog load future failed", e);
+        }
     }
 
     private static <T> T requireNonNull(@Nullable T value) {
@@ -133,6 +144,8 @@ class UiToolsTest {
                 "{\"version\":\"99-test\",\"widgets\":[{\"name\":\"oh-fake-widget\",\"label\":\"Fake\",\"category\":\"system\",\"description\":\"\",\"props\":[],\"slots\":[]}]}");
         // Don't call tools() helper here — we need to verify the construction-time fetch and inspect catalog state.
         UiTools t = new UiTools(requireNonNull(httpClient), BASE_URL, tokenSupplier, jsonMapper);
+        // Live fetch is now async — wait for it before asserting the catalog has been replaced.
+        awaitLiveLoad(t);
         CallToolResult result = t.handleListWidgets(createRequest(Map.of()));
         assertSuccess(result);
         Map<String, Object> parsed = parseResult(result);

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -91,12 +92,18 @@ public class UiTools {
     private final Function<String, @Nullable String> tokenForSession;
     private final McpJsonMapper jsonMapper;
 
-    /** Component name → schema, populated from catalog.json on construction. */
-    private final Map<String, ObjectNode> catalog = new LinkedHashMap<>();
+    /**
+     * Component name → schema. Volatile because the live catalog is fetched asynchronously after
+     * construction; readers always see a fully populated snapshot via atomic reference swap. The map
+     * itself is treated as immutable once installed — never mutated in place.
+     */
+    private volatile Map<String, ObjectNode> catalog = Map.of();
     /** Which catalog source is active ("live" if fetched from webui, "bundled-fallback" otherwise). */
-    private String catalogSource = "none";
+    private volatile String catalogSource = "none";
     /** Optional version string from the catalog payload. */
-    private String catalogVersion = "";
+    private volatile String catalogVersion = "";
+    /** Tracks completion of the background live-catalog fetch. Exposed only for deterministic tests. */
+    private volatile CompletableFuture<?> liveCatalogLoad = CompletableFuture.completedFuture(null);
 
     /**
      * The long-form description embedded in {@code manage_ui_component}'s tool definition. Loaded
@@ -119,6 +126,17 @@ public class UiTools {
                         + "the /rest/ui/components/{namespace} REST API. (Detailed reference unavailable — resource not loaded.)");
     }
 
+    /** Parsed catalog payload — held briefly between parsing and installation. */
+    private static final class CatalogSnapshot {
+        final Map<String, ObjectNode> components;
+        final String version;
+
+        CatalogSnapshot(Map<String, ObjectNode> components, String version) {
+            this.components = components;
+            this.version = version;
+        }
+    }
+
     private String loadResourceText(String path, String fallback) {
         try (InputStream in = UiTools.class.getResourceAsStream(path)) {
             if (in == null) {
@@ -133,33 +151,50 @@ public class UiTools {
     }
 
     /**
-     * Populates the catalog by trying the live URL served by the openhab-webui bundle first
-     * ({@code /widget-catalog.json}), then falling back to the bundled JSON resource shipped
-     * inside this bundle. The live path is preferred so the catalog stays in sync with the
-     * actual {@code WidgetDefinition}s the webui ships; the bundled fallback covers cases
-     * where the webui bundle is too old to publish the catalog, or the local HTTP call fails
-     * for any other reason.
+     * Installs the bundled catalog synchronously (cheap classpath read), then kicks off a background
+     * fetch of the live catalog served by the openhab-webui bundle. The bundled fallback covers older
+     * webui versions and the small window during startup before the webui's HTTP servlet is ready;
+     * the async upgrade swaps in the live catalog when it arrives. Synchronous loading at construction
+     * would otherwise block OSGi activation on a 5-second timeout against the local web server.
      */
     private void loadCatalog() {
-        JsonNode root = fetchLiveCatalog();
-        if (root != null) {
-            if (populateFromRoot(root)) {
-                catalogSource = "live";
-                logger.debug("Loaded live UI widget catalog ({} components) from {}{}", catalog.size(), baseUrl,
-                        LIVE_CATALOG_PATH);
-                return;
-            }
-            // Live payload failed, try bundled instead.
-            catalog.clear();
+        CatalogSnapshot bundled = loadBundledCatalog();
+        if (bundled != null) {
+            installCatalog(bundled, "bundled-fallback");
+            logger.debug("Loaded bundled UI widget catalog ({} components) from {}", bundled.components.size(),
+                    CATALOG_RESOURCE);
         }
-        JsonNode bundled = loadBundledCatalog();
-        if (bundled != null && populateFromRoot(bundled)) {
-            catalogSource = "bundled-fallback";
-            logger.debug("Loaded bundled UI widget catalog ({} components) from {}", catalog.size(), CATALOG_RESOURCE);
+        liveCatalogLoad = CompletableFuture.runAsync(this::refreshLiveCatalog).exceptionally(t -> {
+            logger.debug("Background live catalog fetch failed: {}", t.getMessage());
+            return null;
+        });
+    }
+
+    /**
+     * Test hook — returns the future tracking the background live-catalog fetch so tests can wait
+     * for it deterministically instead of polling/sleeping. Production code should not depend on this.
+     */
+    CompletableFuture<?> liveCatalogLoadFuture() {
+        return liveCatalogLoad;
+    }
+
+    private void refreshLiveCatalog() {
+        CatalogSnapshot live = fetchLiveCatalog();
+        if (live != null) {
+            installCatalog(live, "live");
+            logger.debug("Loaded live UI widget catalog ({} components) from {}{}", live.components.size(), baseUrl,
+                    LIVE_CATALOG_PATH);
         }
     }
 
-    private @Nullable JsonNode fetchLiveCatalog() {
+    private void installCatalog(CatalogSnapshot snapshot, String source) {
+        // Volatile writes — readers always observe a fully populated map.
+        catalog = snapshot.components;
+        catalogVersion = snapshot.version;
+        catalogSource = source;
+    }
+
+    private @Nullable CatalogSnapshot fetchLiveCatalog() {
         try {
             ContentResponse resp = httpClient.newRequest(URI.create(baseUrl + LIVE_CATALOG_PATH)).method(HttpMethod.GET)
                     .header("Accept", "application/json").timeout(5, TimeUnit.SECONDS).send();
@@ -168,45 +203,53 @@ public class UiTools {
                         resp.getStatus());
                 return null;
             }
-            return jackson.readTree(resp.getContentAsString());
+            return parseCatalog(jackson.readTree(resp.getContentAsString()));
         } catch (Exception e) {
             logger.debug("Live widget catalog fetch failed ({}); will use bundled fallback.", e.getMessage());
             return null;
         }
     }
 
-    private @Nullable JsonNode loadBundledCatalog() {
+    private @Nullable CatalogSnapshot loadBundledCatalog() {
         try (InputStream in = UiTools.class.getResourceAsStream(CATALOG_RESOURCE)) {
             if (in == null) {
                 logger.warn("Bundled UI widget catalog resource not found at {}", CATALOG_RESOURCE);
                 return null;
             }
-            return jackson.readTree(in);
+            return parseCatalog(jackson.readTree(in));
         } catch (IOException e) {
             logger.warn("Failed to load bundled UI widget catalog: {}", e.getMessage());
             return null;
         }
     }
 
-    /** Returns true if at least one widget was parsed from the payload. */
-    private boolean populateFromRoot(JsonNode root) {
-        ArrayNode widgets = (ArrayNode) root.get("widgets");
-        if (widgets == null) {
-            logger.debug("UI widget catalog missing 'widgets' array");
-            return false;
+    /**
+     * Parses a catalog JSON tree into a new snapshot, or returns null if the payload is not a
+     * recognizable catalog shape (e.g. a reverse proxy returns HTML, the endpoint moved, etc.).
+     * Uses {@code instanceof} guards instead of unchecked casts so a malformed live response can't
+     * throw {@link ClassCastException} during bundle activation.
+     */
+    private @Nullable CatalogSnapshot parseCatalog(JsonNode root) {
+        JsonNode widgetsNode = root.get("widgets");
+        if (!(widgetsNode instanceof ArrayNode widgets)) {
+            logger.debug("UI widget catalog missing or has non-array 'widgets' field");
+            return null;
         }
-        String version = root.path("version").asText("");
-        if (!version.isBlank()) {
-            catalogVersion = version;
-        }
+        Map<String, ObjectNode> components = new LinkedHashMap<>();
         for (int i = 0; i < widgets.size(); i++) {
-            ObjectNode entry = (ObjectNode) widgets.get(i);
+            JsonNode element = widgets.get(i);
+            if (!(element instanceof ObjectNode entry)) {
+                continue;
+            }
             String name = entry.path("name").asText("");
             if (!name.isBlank()) {
-                catalog.put(name, entry);
+                components.put(name, entry);
             }
         }
-        return !catalog.isEmpty();
+        if (components.isEmpty()) {
+            return null;
+        }
+        return new CatalogSnapshot(components, root.path("version").asText(""));
     }
 
     public McpSchema.Tool getListWidgetsTool() {

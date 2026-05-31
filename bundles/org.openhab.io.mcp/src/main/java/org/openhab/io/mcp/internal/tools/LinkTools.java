@@ -146,7 +146,7 @@ public class LinkTools {
     private CallToolResult createLink(Map<String, Object> args) {
         String itemName = getStringArg(args, "itemName");
         String channelUIDStr = getStringArg(args, "channelUID");
-        if (itemName == null || channelUIDStr == null) {
+        if (itemName == null || itemName.isBlank() || channelUIDStr == null || channelUIDStr.isBlank()) {
             return errorResult("'itemName' and 'channelUID' are required when action='create'.");
         }
 
@@ -182,7 +182,7 @@ public class LinkTools {
     private CallToolResult deleteLink(Map<String, Object> args) {
         String itemName = getStringArg(args, "itemName");
         String channelUIDStr = getStringArg(args, "channelUID");
-        if (itemName == null || channelUIDStr == null) {
+        if (itemName == null || itemName.isBlank() || channelUIDStr == null || channelUIDStr.isBlank()) {
             return errorResult("'itemName' and 'channelUID' are required when action='delete'.");
         }
 

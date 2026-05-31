@@ -319,7 +319,7 @@ public class ItemTools {
         if (action == null || action.isBlank()) {
             return errorResult("'action' is required (one of: command, state).");
         }
-        if (itemName == null || value == null) {
+        if (itemName == null || itemName.isBlank() || value == null || value.isBlank()) {
             return errorResult("'itemName' and 'value' are required.");
         }
         return switch (action.toLowerCase(Locale.ROOT)) {

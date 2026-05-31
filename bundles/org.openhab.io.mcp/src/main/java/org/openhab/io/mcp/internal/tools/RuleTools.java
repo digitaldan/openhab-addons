@@ -948,8 +948,7 @@ public class RuleTools {
                 verb in the request — a 'remind me to turn lights ON' notification still needs both 'Turn on' and \
                 'Turn off' buttons (plans change between scheduling and firing). See the actionButtons field for \
                 the full rules and worked examples (REMINDER, ALERT, doorbell, etc.). Only skip buttons for purely \
-                informational alerts (weather, daily digests, log scope). \
-                For back-compat, a bare {itemName, command} without 'type' is treated as item_command.""";
+                informational alerts (weather, daily digests, log scope).""";
         return types + scriptClause + guidance;
     }
 
