@@ -102,8 +102,6 @@ public class LoggingTools {
         this.jsonMapper = jsonMapper;
     }
 
-    // ============ get_logs ============
-
     public McpSchema.Tool getReadLogsTool() {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("loggerFilter", Map.of("type", "string", "description", """
@@ -213,8 +211,6 @@ public class LoggingTools {
         response.put("bufferSize", bufferSize);
         return textResult(jsonMapper, response);
     }
-
-    // ============ manage_log_level ============
 
     public McpSchema.Tool getManageLogLevelTool() {
         Map<String, Object> p = new LinkedHashMap<>();
@@ -459,8 +455,6 @@ public class LoggingTools {
         pendingReverts.clear();
     }
 
-    // ============ helpers ============
-
     /**
      * Maps {@link LogLevel} names to a comparable ordinal where higher means more severe.
      * Returns -1 for unknown level names.
@@ -493,8 +487,6 @@ public class LoggingTools {
     }
 
     private static String encodeLoggerName(String name) {
-        // The REST path regex accepts \w(%20|[\w.-])* — letters, digits, '.', '-', '_', and %20 for space.
-        // Replace spaces with %20; reject anything else with a clearer error than the 400 from openHAB.
         return name.replace(" ", "%20");
     }
 

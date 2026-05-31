@@ -149,7 +149,7 @@ public class UiTools {
                         LIVE_CATALOG_PATH);
                 return;
             }
-            // Live payload was unreadable — try bundled instead.
+            // Live payload failed, try bundled instead.
             catalog.clear();
         }
         JsonNode bundled = loadBundledCatalog();
@@ -209,8 +209,6 @@ public class UiTools {
         return !catalog.isEmpty();
     }
 
-    // ============ list_widgets ============
-
     public McpSchema.Tool getListWidgetsTool() {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("category", Map.of("type", "string", "description", """
@@ -257,8 +255,6 @@ public class UiTools {
         return textResult(jsonMapper, response);
     }
 
-    // ============ describe_widget ============
-
     public McpSchema.Tool getDescribeWidgetTool() {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("name",
@@ -304,8 +300,6 @@ public class UiTools {
         }
         return matches;
     }
-
-    // ============ get_page_skeleton ============
 
     public McpSchema.Tool getPageSkeletonTool() {
         Map<String, Object> p = new LinkedHashMap<>();
@@ -413,8 +407,6 @@ public class UiTools {
         root.set("tags", jackson.createArrayNode());
         return root;
     }
-
-    // ============ manage_ui_component ============
 
     public McpSchema.Tool getManageUiComponentTool() {
         Map<String, Object> p = new LinkedHashMap<>();
@@ -606,10 +598,8 @@ public class UiTools {
     }
 
     /**
-     * Applies a JSON Patch (RFC 6902 subset: replace, add, remove, test) by fetching the component,
-     * mutating the tree, then PUTting the result. This lets agents change a single field without
-     * sending the full 20+ KB component on every edit — the round-trip cost is moved server-side
-     * where it's free.
+     * Applies a JSON Patch by fetching the component, mutating the tree, then PUTting the result. 
+     * This lets agents change a single field without sending the full component on every edit
      */
     private CallToolResult patchComponent(String token, String namespace, Map<String, Object> args) {
         String uid = getStringArg(args, "uid");
@@ -685,7 +675,7 @@ public class UiTools {
     /**
      * Builds the response for create/update/patch with minimal fields by default ({@code success}, {@code action},
      * {@code namespace}, {@code uid}, plus URL hints). Set {@code includeFull} to true to also echo the full
-     * stored component body back — the default omits it so agents don't pay the round-trip cost on writes.
+     * stored component body back
      */
     private CallToolResult buildWriteResponse(String action, String namespace, ObjectNode body, boolean includeFull) {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -872,7 +862,6 @@ public class UiTools {
                     errors.add(issue(path + ".config", "Missing required prop '" + propName + "' on " + component));
                 }
             }
-            // Unknown props → warning (some components accept extras)
             Set<String> known = new java.util.HashSet<>();
             for (int i = 0; i < props.size(); i++) {
                 known.add(((ObjectNode) props.get(i)).path("name").asText());
@@ -884,7 +873,6 @@ public class UiTools {
                 }
             }
         }
-        // Validate slots
         if (slots != null) {
             validateSlots(path, component, slots, schema.get("slots"), errors, warnings);
         }
@@ -936,12 +924,6 @@ public class UiTools {
         i.put("message", message);
         return i;
     }
-
-    // Note: the long-form description for manage_ui_component lives in
-    // /widgets/descriptions/manage_ui_component.txt (loaded into 'manageDescription' on construction)
-    // so it can be edited as plain text without recompiling.
-
-    // ============ JSON Patch (RFC 6902 subset) ============
 
     /**
      * Minimal RFC 6902 JSON Patch applier. Supports {@code replace}, {@code add}, {@code remove}, and {@code test}

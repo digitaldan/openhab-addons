@@ -392,8 +392,6 @@ public class RuleTools {
         return textResult(jsonMapper, result);
     }
 
-    // ============ Trigger building ============
-
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> collectTriggerMaps(Map<String, Object> args) {
         Object triggersObj = args.get("triggers");
@@ -544,8 +542,6 @@ public class RuleTools {
         return String.format("%d %d %d %d %d ? %d", dt.getSecond(), dt.getMinute(), dt.getHour(), dt.getDayOfMonth(),
                 dt.getMonthValue(), dt.getYear());
     }
-
-    // ============ Action building ============
 
     private List<Action> parseActions(List<?> actionsList) {
         List<Action> actions = new ArrayList<>();
@@ -708,8 +704,6 @@ public class RuleTools {
         return out;
     }
 
-    // ============ Condition building ============
-
     private List<Condition> parseConditions(@Nullable Object conditionsObj) {
         List<Condition> conditions = new ArrayList<>();
         if (conditionsObj == null) {
@@ -795,8 +789,6 @@ public class RuleTools {
         };
         return ModuleBuilder.createCondition().withId(id).withTypeUID(typeUID).withConfiguration(cfg).build();
     }
-
-    // ============ Schema fragments ============
 
     private Map<String, Object> triggerProps() {
         Map<String, Object> p = new LinkedHashMap<>();
@@ -982,8 +974,6 @@ public class RuleTools {
                 manage_rule(action='remove').""";
         return base + scriptClause + tail;
     }
-
-    // ============ Helpers ============
 
     private void requireScriptingEnabled(String feature) {
         if (!scriptingEnabled) {
