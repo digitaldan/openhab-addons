@@ -19,7 +19,6 @@ Import-Package: \
 #
 
 -runbundles: \
-	biz.aQute.tester.junit-platform;version='[7.2.3,7.2.4)',\
 	ch.qos.logback.classic;version='[1.5.32,1.5.33)',\
 	ch.qos.logback.core;version='[1.5.32,1.5.33)',\
 	com.fasterxml.jackson.core.jackson-annotations;version='[2.21.0,2.21.1)',\
@@ -108,4 +107,5 @@ Import-Package: \
 	tech.units.indriya;version='[2.2.3,2.2.4)',\
 	uom-lib-common;version='[2.2.0,2.2.1)',\
 	xstream;version='[1.4.21,1.4.22)',\
-	org.osgi.service.cm;version='[1.6.1,1.6.2)'
+	org.osgi.service.cm;version='[1.6.1,1.6.2)',\
+	biz.aQute.tester.junit-platform;version='[7.3.0,7.3.1)'
